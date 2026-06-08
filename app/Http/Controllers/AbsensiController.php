@@ -119,7 +119,7 @@ class AbsensiController extends Controller
             ->groupBy('pin')
             ->map(fn($n) => $n->keyBy('date'));
 
-        // Build periode (semua tanggal dalam range)
+        // Build periode
         $periode = [];
         $current = new \DateTime($tanggalDari);
         $end = new \DateTime($tanggalSampai);
@@ -128,9 +128,45 @@ class AbsensiController extends Controller
             $current->modify('+1 day');
         }
 
+        $summary = [];
+        foreach ($selectedUsers as $pin) {
+            $karyawan = $nipData[$pin] ?? null;
+
+            $totalHadir = 0;
+            $totalTidakHadir = 0;
+            $codes = ['A' => 0, 'S' => 0, 'I' => 0, 'SSD' => 0, 'Cuti' => 0, 'GL' => 0, 'DLL' => 0];
+
+            foreach ($periode as $tgl) {
+                $isSunday = date('N', strtotime($tgl)) == 7;
+                if ($isSunday) continue;
+
+                $dayKey = $pin . '_' . $tgl;
+                $dayLogs = $logs[$dayKey] ?? collect();
+                $hasIN = $dayLogs->where('status', 'IN')->isNotEmpty();
+                $hasOUT = $dayLogs->where('status', 'OUT')->isNotEmpty();
+
+                if ($hasIN || $hasOUT) {
+                    $totalHadir++;
+                } else {
+                    $totalTidakHadir++;
+                    $note = $absenceNotes[$pin][$tgl] ?? null;
+                    if ($note && isset($codes[$note->code])) {
+                        $codes[$note->code]++;
+                    }
+                }
+            }
+
+            $summary[$pin] = [
+                'hadir' => $totalHadir,
+                'tidak_hadir' => $totalTidakHadir,
+                'codes' => $codes,
+            ];
+        }
+
         return view('absensi.detail', compact(
             'logs', 'absenceNotes', 'nipData', 'tlMap',
-            'selectedUsers', 'tanggalDari', 'tanggalSampai', 'periode'
+            'selectedUsers', 'tanggalDari', 'tanggalSampai',
+            'periode', 'summary'
         ));
     }
 
