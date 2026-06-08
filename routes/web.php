@@ -38,6 +38,7 @@ Route::middleware('auth:admin')->group(function () {
         Route::get('/karyawan/edit-bulk', [KaryawanController::class, 'editBulk'])->name('karyawan.editBulk');
         Route::put('/karyawan/update-bulk', [KaryawanController::class, 'updateBulk'])->name('karyawan.updateBulk');
         Route::put('/karyawan/resign-bulk', [KaryawanController::class, 'resignBulk'])->name('karyawan.resignBulk');
+        Route::delete('/karyawan/destroy-permanent', [KaryawanController::class, 'destroyPermanent'])->name('karyawan.destroyPermanent');
         Route::get('/karyawan/{id}/edit', [KaryawanController::class, 'edit'])->name('karyawan.edit');
         Route::put('/karyawan/{id}', [KaryawanController::class, 'update'])->name('karyawan.update');
         Route::delete('/karyawan/{id}', [KaryawanController::class, 'destroy'])->name('karyawan.destroy');

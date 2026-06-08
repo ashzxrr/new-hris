@@ -202,6 +202,67 @@ class FingerprintService
         return $statuses;
     }
 
+    public function deleteUser(string $pin): array
+    {
+        $results = [];
+        $machines = config('fingerprint.machines');
+
+        foreach ($machines as $machine) {
+            if (!$machine['active']) continue;
+            if (!$this->isReachable($machine['ip'], $machine['port'])) {
+                $results[] = ['machine' => $machine['name'], 'success' => false, 'reason' => 'offline'];
+                continue;
+            }
+
+            // X100C: hapus semua data enroll (fingerprint + card) untuk PIN ini
+            $soap = "<DeleteEnrollData>
+                <ArgComKey xsi:type=\"xsd:integer\">{$machine['key']}</ArgComKey>
+                <Arg>
+                    <PIN xsi:type=\"xsd:integer\">{$pin}</PIN>
+                    <BackupNumber xsi:type=\"xsd:integer\">-1</BackupNumber>
+                </Arg>
+            </DeleteEnrollData>";
+
+            $response = $this->sendSoap($machine['ip'], $machine['port'], $soap);
+            $body = $this->extractXmlBody($response ?: '');
+
+            \Log::info('DeleteEnrollData', [
+                'machine' => $machine['name'],
+                'pin'     => $pin,
+                'body'    => $body ?: '(empty body)',
+            ]);
+
+            // Coba juga hapus user info nya
+            $soap2 = "<SetUserInfo>
+                <ArgComKey xsi:type=\"xsd:integer\">{$machine['key']}</ArgComKey>
+                <Arg>
+                    <PIN xsi:type=\"xsd:integer\">{$pin}</PIN>
+                    <Name xsi:type=\"xsd:string\"></Name>
+                    <Password xsi:type=\"xsd:string\"></Password>
+                    <Card xsi:type=\"xsd:string\">0</Card>
+                    <Privilege xsi:type=\"xsd:integer\">0</Privilege>
+                    <Enabled xsi:type=\"xsd:string\">false</Enabled>
+                </Arg>
+            </SetUserInfo>";
+
+            $response2 = $this->sendSoap($machine['ip'], $machine['port'], $soap2);
+            $body2 = $this->extractXmlBody($response2 ?: '');
+
+            \Log::info('SetUserInfo disabled', [
+                'machine' => $machine['name'],
+                'pin'     => $pin,
+                'body'    => $body2 ?: '(empty body)',
+            ]);
+
+            $results[] = [
+                'machine' => $machine['name'],
+                'success' => true,
+            ];
+        }
+
+        return $results;
+    }
+
     private function extractXmlBody(string $response): string
     {
         if (preg_match('/<\?xml.*$/s', $response, $matches)) {

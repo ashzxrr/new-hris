@@ -17,11 +17,29 @@
             class="text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition">
             🚫 Resign
         </button>
+        <button type="button" id="btnHapusPermanent" onclick="submitHapusPermanent()"
+            disabled
+            class="hidden text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-400 cursor-not-allowed transition">
+            🗑️ Hapus Permanen
+        </button>
         <a href="{{ route('karyawan.sync') }}"
             class="text-xs px-3 py-1.5 rounded-lg bg-[#4F46E5] text-white hover:bg-[#4338CA] transition">
             🔄 Sinkron dari Mesin
         </a>
     </div>
+</div>
+
+<div class="flex items-center gap-1 mb-4 border-b border-slate-200">
+    <button type="button" id="tabAktif" onclick="switchTab('aktif')"
+        class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-[#4F46E5] text-[#4F46E5] -mb-px">
+        👥 Karyawan Aktif
+        <span id="countAktif" class="ml-1 bg-[#4F46E5] text-white text-xs px-2 py-0.5 rounded-full"></span>
+    </button>
+    <button type="button" id="tabResign" onclick="switchTab('resign')"
+        class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-600 -mb-px">
+        🚫 Karyawan Resign
+        <span id="countResign" class="ml-1 bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full"></span>
+    </button>
 </div>
 
 <div class="mt-6 space-y-4">
@@ -142,7 +160,7 @@
             </thead>
             <tbody class="divide-y divide-slate-200">
             @forelse ($karyawan as $k)
-                <tr class="karyawan-row border-t border-slate-50 cursor-pointer transition-colors duration-100" onclick="toggleRow(this)" data-bagian="{{ $k->bagian }}" data-kategori="{{ $k->kategori_gaji }}" data-tl-id="{{ $k->tl_id }}" data-search="{{ strtolower($k->pin . ' ' . $k->nama . ' ' . $k->nip . ' ' . $k->nik . ' ' . $k->bagian . ' ' . $k->job_title) }}">
+                <tr class="karyawan-row border-t border-slate-50 cursor-pointer transition-colors duration-100 @if($k->is_active == 0 || strtolower(trim($k->nip ?? '')) === 'resign') bg-red-50 @endif" onclick="toggleRow(this)" data-status="{{ $k->is_active == 0 || strtolower(trim($k->nip ?? '')) === 'resign' ? 'resign' : 'aktif' }}" data-bagian="{{ $k->bagian }}" data-kategori="{{ $k->kategori_gaji }}" data-tl-id="{{ $k->tl_id }}" data-search="{{ strtolower($k->pin . ' ' . $k->nama . ' ' . $k->nip . ' ' . $k->nik . ' ' . $k->bagian . ' ' . $k->job_title) }}">
                     <td class="px-2 py-1.5 sticky left-0 bg-white z-10 border-r border-[#E5E7EB]" onclick="event.stopPropagation()">
                         <input type="checkbox" class="karyawan-check accent-[#4F46E5]" value="{{ $k->id }}" data-pin="{{ $k->pin }}" onchange="updateSelectedCount()">
                     </td>
@@ -177,6 +195,12 @@
 
 <form id="editBulkForm" method="GET" action="{{ route('karyawan.editBulk') }}">
     <div id="editInputs"></div>
+</form>
+
+<form id="hapusForm" method="POST" action="{{ route('karyawan.destroyPermanent') }}">
+    @csrf
+    @method('DELETE')
+    <div id="hapusInputs"></div>
 </form>
 
 <form id="resignForm" method="POST" action="{{ route('karyawan.resignBulk') }}">
@@ -332,10 +356,13 @@
     let currentPage = 1;
     let filteredRows = [];
     let originalRows = [];
+    let currentTab = 'aktif';
 
     document.addEventListener('DOMContentLoaded', function() {
         originalRows = Array.from(document.querySelectorAll('.karyawan-row'));
         filteredRows = [...originalRows];
+        updateTabCounts();
+        switchTab('aktif');
         if (typeof renderPage === 'function') renderPage(1);
     });
 
@@ -381,6 +408,43 @@
         }
     }
 
+    function updateTabCounts() {
+        const allRows = Array.from(document.querySelectorAll('.karyawan-row'));
+        const aktif = allRows.filter(r => r.dataset.status === 'aktif').length;
+        const resign = allRows.filter(r => r.dataset.status === 'resign').length;
+        document.getElementById('countAktif').textContent = aktif;
+        document.getElementById('countResign').textContent = resign;
+    }
+
+    function switchTab(tab) {
+        currentTab = tab;
+
+        document.getElementById('tabAktif').className = tab === 'aktif'
+            ? 'tab-btn px-4 py-2 text-sm font-medium border-b-2 border-[#4F46E5] text-[#4F46E5] -mb-px'
+            : 'tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-600 -mb-px';
+        document.getElementById('tabResign').className = tab === 'resign'
+            ? 'tab-btn px-4 py-2 text-sm font-medium border-b-2 border-[#4F46E5] text-[#4F46E5] -mb-px'
+            : 'tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-600 -mb-px';
+
+        const btnEdit = document.getElementById('btnEdit');
+        const btnResign = document.getElementById('btnResign');
+        const btnHapus = document.getElementById('btnHapusPermanent');
+
+        if (tab === 'aktif') {
+            btnEdit?.classList.remove('hidden');
+            btnResign?.classList.remove('hidden');
+            btnHapus?.classList.add('hidden');
+        } else {
+            btnEdit?.classList.add('hidden');
+            btnResign?.classList.add('hidden');
+            btnHapus?.classList.remove('hidden');
+        }
+
+        document.querySelectorAll('.karyawan-check').forEach(c => c.checked = false);
+        updateSelectedCount();
+        applyAllFilters();
+    }
+
     function applyAllFilters() {
         updateTLLabel();
 
@@ -394,7 +458,8 @@
             const matchSearch = !q || row.dataset.search?.includes(q) || row.textContent.toLowerCase().includes(q);
             const matchBagian = !bagian || (row.dataset.bagian || '').toLowerCase() === bagian;
             const matchKategori = !kategori || (row.dataset.kategori || '').toLowerCase() === kategori;
-            return matchSearch && matchBagian && matchKategori;
+            const matchTab = row.dataset.status === currentTab;
+            return matchSearch && matchBagian && matchKategori && matchTab;
         });
 
         const container = document.querySelector('tbody') || document.getElementById('karyawanList');
@@ -588,6 +653,20 @@
             btnResign.disabled = true;
             btnResign.className = 'text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition';
         }
+
+        const btnHapus = document.getElementById('btnHapusPermanent');
+        if (btnHapus) {
+            if (count > 0 && currentTab === 'resign') {
+                btnHapus.disabled = false;
+                btnHapus.className = 'text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 transition cursor-pointer';
+            } else if (currentTab === 'resign') {
+                btnHapus.disabled = true;
+                btnHapus.className = 'text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-400 cursor-not-allowed transition';
+            } else {
+                btnHapus.disabled = true;
+                btnHapus.className = 'hidden text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-400 cursor-not-allowed transition';
+            }
+        }
     }
 
     function toggleAll(master) {
@@ -597,6 +676,23 @@
         });
         document.querySelectorAll('.karyawan-row').forEach(updateRowStyle);
         updateSelectedCount();
+    }
+
+    function submitHapusPermanent() {
+        const checked = document.querySelectorAll('.karyawan-check:checked');
+        if (checked.length === 0) return;
+        if (!confirm(checked.length + ' karyawan akan dihapus PERMANEN dari database dan mesin fingerprint. Tidak bisa dibatalkan!\n\nLanjutkan?')) return;
+
+        const container = document.getElementById('hapusInputs');
+        container.innerHTML = '';
+        checked.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'ids[]';
+            input.value = cb.value;
+            container.appendChild(input);
+        });
+        document.getElementById('hapusForm').submit();
     }
 
     function submitEdit() {

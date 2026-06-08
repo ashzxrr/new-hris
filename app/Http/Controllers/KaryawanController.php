@@ -18,8 +18,7 @@ class KaryawanController extends Controller
     public function index()
     {
         // Load semua data sekaligus (bukan paginate)
-        $karyawan = User::where('is_active', 1)
-            ->orderBy('id')
+        $karyawan = User::orderBy('id')
             ->get();
         $machineUsers = $this->fp->getUsers();
         $tlMap = User::whereIn('id', $karyawan->pluck('tl_id')->filter()->unique())
@@ -189,6 +188,22 @@ class KaryawanController extends Controller
 
         return redirect()->route('karyawan.index')
             ->with('success', count($ids) . ' karyawan berhasil ditandai RESIGN.');
+    }
+
+    public function destroyPermanent(Request $request)
+    {
+        $ids = $request->ids ?? [];
+        if (empty($ids)) return redirect()->route('karyawan.index');
+
+        $karyawan = User::whereIn('id', $ids)->get();
+
+        foreach ($karyawan as $k) {
+            $this->fp->deleteUser($k->pin);
+            $k->delete();
+        }
+
+        return redirect()->route('karyawan.index')
+            ->with('success', count($ids) . ' karyawan berhasil dihapus permanen dari database dan mesin.');
     }
 
     public function destroy($id)
