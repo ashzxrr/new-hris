@@ -9,16 +9,16 @@
         </span>
         <button type="button" id="btnEdit" onclick="submitEdit()"
             disabled
-            class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-400 cursor-not-allowed transition">
+            class="text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition">
             ✏️ Edit
         </button>
         <button type="button" id="btnResign" onclick="submitResign()"
             disabled
-            class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-400 cursor-not-allowed transition">
+            class="text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition">
             🚫 Resign
         </button>
         <a href="{{ route('karyawan.sync') }}"
-            class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-700 transition">
+            class="text-xs px-3 py-1.5 rounded-lg bg-[#4F46E5] text-white hover:bg-[#4338CA] transition">
             🔄 Sinkron dari Mesin
         </a>
     </div>
@@ -30,7 +30,7 @@
             id="searchInput"
             type="text"
             placeholder="Cari nama, NIP, atau PIN..."
-            class="w-72 border border-slate-200 rounded-lg px-4 py-2 text-sm"
+            class="w-72 border border-[#E5E7EB] rounded-lg px-4 py-2 text-sm"
         />
     </div>
 
@@ -42,7 +42,7 @@
     <div class="grid grid-cols-3 gap-4">
         <div class="flex flex-col">
             <label class="text-xs text-slate-400 uppercase tracking-wide font-semibold block mb-1">Bagian</label>
-            <select id="filterBagian" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300">
+            <select id="filterBagian" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300">
                 <option value="">Semua Bagian</option>
                 @foreach($bagianList as $bagian)
                     <option value="{{ $bagian }}">{{ $bagian }}</option>
@@ -54,24 +54,24 @@
             <label class="text-xs text-slate-400 uppercase tracking-wide font-semibold block mb-1">TL</label>
             <div class="relative" id="tlDropdownWrapper">
                 <button type="button" id="tlDropdownBtn"
-                    class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-slate-50 text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-slate-300">
+                    class="w-full border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-slate-300">
                     <span id="tlFilterLabel" class="text-slate-500 truncate">Semua TL</span>
                     <svg class="w-4 h-4 text-slate-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
                 </button>
 
-                <div id="tlDropdownMenu" class="hidden absolute z-30 mt-1 w-56 bg-white border border-slate-200 rounded-xl shadow-lg max-h-64 overflow-y-auto p-3">
+                <div id="tlDropdownMenu" class="hidden absolute z-30 mt-1 w-56 bg-white border border-[#E5E7EB] rounded-xl shadow-lg max-h-64 overflow-y-auto p-3">
                     <button type="button" onclick="clearTLFilter()"
-                        class="w-full text-left px-3 py-1.5 text-xs text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-lg mb-2">
+                        class="w-full text-left px-3 py-1.5 text-xs text-slate-500 bg-[#F8FAFC] hover:bg-[#F8FAFC] rounded-lg mb-2">
                         Bersihkan Pilihan
                     </button>
 
                     <div class="mb-3">
                         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide px-1 mb-1">Cabut</div>
                         @foreach([['id'=>8,'nama'=>'Karyawati'],['id'=>3,'nama'=>'Sri Utami'],['id'=>2,'nama'=>'ST Nur Farokah'],['id'=>25,'nama'=>'Fhilis Sulestari'],['id'=>22,'nama'=>'Muhammad Regatana Hidayatulloh'],['id'=>119,'nama'=>'Zusita Arsdhia Indrayani'],['id'=>34,'nama'=>'Wahyu Surodo'],['id'=>30,'nama'=>'Deniko Fergian'],['id'=>109,'nama'=>'Ruliatul Fidiah']] as $tl)
-                        <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer">
-                            <input type="checkbox" class="tl-filter-check accent-slate-700" value="{{ $tl['id'] }}" data-nama="{{ $tl['nama'] }}">
+                        <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-[#F8FAFC] rounded-lg cursor-pointer">
+                            <input type="checkbox" class="tl-filter-check accent-[#4F46E5]" value="{{ $tl['id'] }}" data-nama="{{ $tl['nama'] }}">
                             <span class="text-sm text-slate-700">{{ $tl['nama'] }}</span>
                         </label>
                         @endforeach
@@ -80,8 +80,8 @@
                     <div class="mb-3">
                         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide px-1 mb-1">Cetak</div>
                         @foreach([['id'=>57,'nama'=>'Muhammad Tamamur Ridlwan'],['id'=>7,'nama'=>'Anita'],['id'=>74,'nama'=>'Nur Alim Zainuri'],['id'=>27,'nama'=>"Anas Ja'far"],['id'=>48,'nama'=>'M.Jamaludin'],['id'=>99,'nama'=>'Nila Widya Sari'],['id'=>113,'nama'=>'Nurul Izzuddin'],['id'=>75,'nama'=>'Niko Yudho'],['id'=>71,'nama'=>'Tsalis Akmaludin'],['id'=>69,'nama'=>'Prayogo Dwi']] as $tl)
-                        <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer">
-                            <input type="checkbox" class="tl-filter-check accent-slate-700" value="{{ $tl['id'] }}" data-nama="{{ $tl['nama'] }}">
+                        <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-[#F8FAFC] rounded-lg cursor-pointer">
+                            <input type="checkbox" class="tl-filter-check accent-[#4F46E5]" value="{{ $tl['id'] }}" data-nama="{{ $tl['nama'] }}">
                             <span class="text-sm text-slate-700">{{ $tl['nama'] }}</span>
                         </label>
                         @endforeach
@@ -90,8 +90,8 @@
                     <div class="mb-1">
                         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide px-1 mb-1">Dan Lain Lain</div>
                         @foreach([['id'=>1,'nama'=>'Anik'],['id'=>98,'nama'=>'M Gaung Sidiq'],['id'=>40,'nama'=>'Cankiswan'],['id'=>118,'nama'=>'Kerinna'],['id'=>63,'nama'=>'Puput Indarwati'],['id'=>865,'nama'=>'TL CCP 1'],['id'=>871,'nama'=>'Sanitasi'],['id'=>872,'nama'=>'Checker'],['id'=>43,'nama'=>'GD Kart']] as $tl)
-                        <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer">
-                            <input type="checkbox" class="tl-filter-check accent-slate-700" value="{{ $tl['id'] }}" data-nama="{{ $tl['nama'] }}">
+                        <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-[#F8FAFC] rounded-lg cursor-pointer">
+                            <input type="checkbox" class="tl-filter-check accent-[#4F46E5]" value="{{ $tl['id'] }}" data-nama="{{ $tl['nama'] }}">
                             <span class="text-sm text-slate-700">{{ $tl['nama'] }}</span>
                         </label>
                         @endforeach
@@ -102,7 +102,7 @@
 
         <div class="flex flex-col">
             <label class="text-xs text-slate-400 uppercase tracking-wide font-semibold block mb-1">Kategori Gaji</label>
-            <select id="filterKategori" class="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300">
+            <select id="filterKategori" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300">
                 <option value="">Semua Kategori</option>
                 @foreach($kategoriList as $kategori)
                     <option value="{{ $kategori }}">{{ $kategori }}</option>
@@ -112,7 +112,7 @@
     </div>
 </div>
 
-<div class="mt-4 bg-white rounded-xl border border-slate-200 overflow-hidden">
+<div class="mt-4 bg-white rounded-xl border border-[#E5E7EB] overflow-hidden">
     <div class="overflow-auto max-h-[70vh]">
         <style>
             .karyawan-row:hover { background-color: #f0fdf4 !important; }
@@ -122,15 +122,15 @@
         </style>
         <table class="w-full text-xs whitespace-nowrap min-w-[1400px]">
             <thead>
-                <tr class="sticky top-0 bg-slate-50 z-20 text-[11px] font-medium text-slate-400 uppercase tracking-wide">
-                    <th class="px-2 py-2 sticky left-0 bg-slate-50 z-20 border-r border-slate-100 w-8">
-                        <input type="checkbox" id="checkAll" class="accent-slate-700" onclick="toggleAll(this)">
+                <tr class="sticky top-0 bg-[#F8FAFC] z-20 text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                    <th class="px-2 py-2 sticky left-0 bg-[#F8FAFC] z-20 border-r border-[#E5E7EB] w-8">
+                        <input type="checkbox" id="checkAll" class="accent-[#4F46E5]" onclick="toggleAll(this)">
                     </th>
-                    <th class="px-2 py-2 text-left sticky left-8 bg-slate-50 z-20 border-r border-slate-100 w-12">ID</th>
-                    <th class="px-2 py-2 text-left sticky left-16 bg-slate-50 z-20 border-r border-slate-100 w-14">PIN</th>
-                    <th class="px-2 py-2 text-left sticky left-28 bg-slate-50 z-20 border-r border-slate-100 min-w-[140px]">Nama (Mesin)</th>
-                    <th class="px-2 py-2 text-left sticky left-[196px] bg-slate-50 z-20 border-r border-slate-100 min-w-[160px]">Nama (Database)</th>
-                    <th class="px-2 py-2 text-left sticky left-[356px] bg-slate-50 z-20 border-r border-slate-100 min-w-[130px]">NIP</th>
+                    <th class="px-2 py-2 text-left sticky left-8 bg-[#F8FAFC] z-20 border-r border-[#E5E7EB] w-12">ID</th>
+                    <th class="px-2 py-1.5 text-left sticky left-16 bg-[#F8FAFC] z-20 border-r border-[#E5E7EB] w-14">PIN</th>
+                    <th class="px-2 py-2 text-left sticky left-28 bg-[#F8FAFC] z-20 border-r border-[#E5E7EB] min-w-[140px]">Nama (Mesin)</th>
+                    <th class="px-2 py-2 text-left sticky left-[196px] bg-[#F8FAFC] z-20 border-r border-[#E5E7EB] min-w-[160px]">Nama (Database)</th>
+                    <th class="px-2 py-2 text-left sticky left-[356px] bg-[#F8FAFC] z-20 border-r border-[#E5E7EB] min-w-[130px]">NIP</th>
                     <th class="px-2 py-2 text-left">NIK</th>
                     <th class="px-2 py-2 text-left">Gender</th>
                     <th class="px-2 py-2 text-left">Jabatan</th>
@@ -143,14 +143,14 @@
             <tbody class="divide-y divide-slate-200">
             @forelse ($karyawan as $k)
                 <tr class="karyawan-row border-t border-slate-50 cursor-pointer transition-colors duration-100" onclick="toggleRow(this)" data-bagian="{{ $k->bagian }}" data-kategori="{{ $k->kategori_gaji }}" data-tl-id="{{ $k->tl_id }}" data-search="{{ strtolower($k->pin . ' ' . $k->nama . ' ' . $k->nip . ' ' . $k->nik . ' ' . $k->bagian . ' ' . $k->job_title) }}">
-                    <td class="px-2 py-1.5 sticky left-0 bg-white z-10 border-r border-slate-100" onclick="event.stopPropagation()">
-                        <input type="checkbox" class="karyawan-check accent-slate-700" value="{{ $k->id }}" data-pin="{{ $k->pin }}" onchange="updateSelectedCount()">
+                    <td class="px-2 py-1.5 sticky left-0 bg-white z-10 border-r border-[#E5E7EB]" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="karyawan-check accent-[#4F46E5]" value="{{ $k->id }}" data-pin="{{ $k->pin }}" onchange="updateSelectedCount()">
                     </td>
-                    <td class="px-2 py-1.5 sticky left-8 bg-white z-10 border-r border-slate-100 text-slate-400">{{ $k->id }}</td>
-                    <td class="px-2 py-1.5 sticky left-16 bg-white z-10 border-r border-slate-100 font-mono text-slate-400">{{ $k->pin }}</td>
-                    <td class="px-2 py-1.5 sticky left-28 bg-white z-10 border-r border-slate-100 text-slate-600 uppercase min-w-[140px]">{{ strtoupper($machineUsers[$k->pin] ?? '-') }}</td>
-                    <td class="px-2 py-1.5 sticky left-[196px] bg-white z-10 border-r border-slate-100 font-medium text-slate-800 min-w-[160px]">{{ $k->nama }}</td>
-                    <td class="px-2 py-1.5 sticky left-[356px] bg-white z-10 border-r border-slate-100 text-slate-600 min-w-[130px]">{{ $k->nip ?: '-' }}</td>
+                    <td class="px-2 py-1.5 sticky left-8 bg-white z-10 border-r border-[#E5E7EB] text-slate-400">{{ $k->id }}</td>
+                    <td class="px-2 py-1.5 sticky left-16 bg-white z-10 border-r border-[#E5E7EB] font-mono text-slate-400">{{ $k->pin }}</td>
+                    <td class="px-2 py-1.5 sticky left-28 bg-white z-10 border-r border-[#E5E7EB] text-slate-600 uppercase min-w-[140px]">{{ strtoupper($machineUsers[$k->pin] ?? '-') }}</td>
+                    <td class="px-2 py-1.5 sticky left-[196px] bg-white z-10 border-r border-[#E5E7EB] font-medium text-slate-800 min-w-[160px]">{{ $k->nama }}</td>
+                    <td class="px-2 py-1.5 sticky left-[356px] bg-white z-10 border-r border-[#E5E7EB] text-slate-600 min-w-[130px]">{{ $k->nip ?: '-' }}</td>
                     <td class="px-2 py-1.5 text-slate-600">{{ $k->nik ?: '-' }}</td>
                     <td class="px-2 py-1.5 text-slate-600">{{ $k->jk === 'L' ? 'L' : 'P' }}</td>
                     <td class="px-2 py-1.5 text-slate-600">{{ $k->job_title ?: '-' }}</td>
@@ -201,31 +201,31 @@
                 <div class="col-span-1">
                     <label class="text-xs text-slate-500 mb-1 block">PIN</label>
                     <input type="text" id="edit_pin" readonly
-                        class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-sm text-slate-400">
+                        class="w-full bg-[#F8FAFC] border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm text-slate-400">
                 </div>
 
                 <div class="col-span-2">
                     <label class="text-xs text-slate-500 mb-1 block">Nama Lengkap <span class="text-red-500">*</span></label>
                     <input type="text" name="nama" id="edit_nama" required
-                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                 </div>
 
                 <div>
                     <label class="text-xs text-slate-500 mb-1 block">NIP</label>
                     <input type="text" name="nip" id="edit_nip"
-                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                 </div>
 
                 <div>
                     <label class="text-xs text-slate-500 mb-1 block">NIK</label>
                     <input type="text" name="nik" id="edit_nik"
-                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                 </div>
 
                 <div>
                     <label class="text-xs text-slate-500 mb-1 block">Jenis Kelamin</label>
                     <select name="jk" id="edit_jk"
-                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                         <option value="">- Pilih -</option>
                         <option value="L">Laki-laki</option>
                         <option value="P">Perempuan</option>
@@ -235,7 +235,7 @@
                 <div>
                     <label class="text-xs text-slate-500 mb-1 block">Jabatan</label>
                     <select name="job_title" id="edit_job_title"
-                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                         <option value="">- Pilih -</option>
                         @foreach(['TL Cuci','TL Cabut','TL Kedatangan','Operator','SPV Moulding','TL Moulding','GTL Moulding','GTL Cabut','Driver','Manager Produksi','SPV Kedatangan','Checker Cabut','Admin Produktivitas','Checker Moulding','TL Pengiriman','Admin','TL Packing','Superintenden','Ass. Superintenden','TL Cutter & Flek','SPV Packing','Security','Sanitasi','Purchasing/ Logistic','Maintenance','Finance Accounting','General Affair','HRD','Payroll','GTL Packing'] as $jt)
                         <option value="{{ $jt }}">{{ $jt }}</option>
@@ -246,7 +246,7 @@
                 <div>
                     <label class="text-xs text-slate-500 mb-1 block">Level Jabatan</label>
                     <select name="job_level" id="edit_job_level"
-                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                         <option value="">- Pilih -</option>
                         @foreach(['Operator','Team Leader','Supervisor','Group Team Leader','Manager','Checker','Administrasi','Driver','Superintenden','General Manager','Security','Sanitasi','Maintenance','Finance Accounting','General Affair','HRD','Payroll'] as $jl)
                         <option value="{{ $jl }}">{{ $jl }}</option>
@@ -257,7 +257,7 @@
                 <div>
                     <label class="text-xs text-slate-500 mb-1 block">Bagian</label>
                     <select name="bagian" id="edit_bagian"
-                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                         <option value="">- Pilih -</option>
                         @foreach(['-','Manager Produksi','Bahan Baku','Cabut','Dry A','Moulding','Cuci Bersih','Cuci Kotor','Admin','Rambang','Cutter & Flek','Dry B & HCR','HCR Moulding','Admin Cabut & Bahan Baku','Packing','Admin Drying & Moulding','SPV','TL Pre Cleaning','Checker Moulding','Timbang Indomie','Administrasi','Grading','Final Grading','Titil HCR','Moulding Indomie','CCP 1','Prewash','Driver','Admin Packing','Admin Cabut','Security','Sanitasi','Kasir Perusahaan','Maintenance IT','Finance Accounting','Maintenance','Borongan','Bulanan','Harian'] as $bg)
                         <option value="{{ $bg }}">{{ $bg }}</option>
@@ -268,7 +268,7 @@
                 <div>
                     <label class="text-xs text-slate-500 mb-1 block">Departemen</label>
                     <select name="departemen" id="edit_departemen"
-                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                         <option value="">- Pilih -</option>
                         <option value="Produksi">Produksi</option>
                         <option value="Support">Support</option>
@@ -279,7 +279,7 @@
                 <div>
                     <label class="text-xs text-slate-500 mb-1 block">Kategori Gaji</label>
                     <select name="kategori_gaji" id="edit_kategori_gaji"
-                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                         <option value="">- Pilih -</option>
                         <option value="borongan cabut">Borongan Cabut</option>
                         <option value="borongan cetak">Borongan Cetak</option>
@@ -291,7 +291,7 @@
                 <div class="col-span-3">
                     <label class="text-xs text-slate-500 mb-1 block">TL (Team Leader)</label>
                     <select name="tl_id" id="edit_tl_id"
-                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                         <option value="">- Tidak Ada -</option>
                         <optgroup label="CABUT">
                             @foreach([['id'=>8,'nama'=>'Karyawati'],['id'=>3,'nama'=>'Sri Utami'],['id'=>2,'nama'=>'ST Nur Farokah'],['id'=>25,'nama'=>'Fhilis Sulestari'],['id'=>22,'nama'=>'Muhammad Regatana Hidayatulloh'],['id'=>119,'nama'=>'Zusita Arsdhia Indrayani'],['id'=>34,'nama'=>'Wahyu Surodo'],['id'=>30,'nama'=>'Deniko Fergian'],['id'=>109,'nama'=>'Ruliatul Fidiah']] as $tl)
@@ -315,11 +315,11 @@
 
             <div class="flex gap-3 justify-end mt-6">
                 <button type="button" onclick="closeEditModal()"
-                    class="border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50">
+                    class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-[#F8FAFC]">
                     Batal
                 </button>
                 <button type="submit"
-                    class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-slate-700">
+                    class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
                     Simpan Perubahan
                 </button>
             </div>
@@ -518,7 +518,7 @@
         const prev = document.createElement('button');
         prev.textContent = '←';
         prev.disabled = currentPage === 1;
-        prev.className = 'px-2 py-1 text-xs rounded border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40';
+        prev.className = 'px-2 py-1 text-xs rounded border border-[#E5E7EB] text-slate-500 hover:bg-[#F8FAFC] disabled:opacity-40';
         prev.onclick = () => renderPage(currentPage - 1);
         container.appendChild(prev);
 
@@ -533,8 +533,8 @@
                 const btn = document.createElement('button');
                 btn.textContent = p;
                 btn.className = p === currentPage
-                    ? 'px-2 py-1 text-xs rounded bg-slate-800 text-white border border-slate-800'
-                    : 'px-2 py-1 text-xs rounded border border-slate-200 text-slate-500 hover:bg-slate-50';
+                    ? 'px-2 py-1 text-xs rounded bg-[#4F46E5] text-white border border-[#4F46E5]'
+                    : 'px-2 py-1 text-xs rounded border border-[#E5E7EB] text-slate-500 hover:bg-[#F8FAFC]';
                 btn.onclick = () => renderPage(p);
                 container.appendChild(btn);
             }
@@ -543,7 +543,7 @@
         const next = document.createElement('button');
         next.textContent = '→';
         next.disabled = currentPage === totalPages;
-        next.className = 'px-2 py-1 text-xs rounded border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40';
+        next.className = 'px-2 py-1 text-xs rounded border border-[#E5E7EB] text-slate-500 hover:bg-[#F8FAFC] disabled:opacity-40';
         next.onclick = () => renderPage(currentPage + 1);
         container.appendChild(next);
     }
@@ -574,10 +574,10 @@
         const btnEdit = document.getElementById('btnEdit');
         if (count > 0) {
             btnEdit.disabled = false;
-            btnEdit.className = 'text-xs px-3 py-1.5 rounded-lg border border-indigo-300 text-indigo-600 hover:bg-indigo-50 transition cursor-pointer';
+            btnEdit.className = 'text-xs px-3 py-1.5 rounded-lg border border-[#4F46E5]/30 text-[#4F46E5] hover:bg-[#4F46E5]/5 transition cursor-pointer';
         } else {
             btnEdit.disabled = true;
-            btnEdit.className = 'text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-400 cursor-not-allowed transition';
+            btnEdit.className = 'text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition';
         }
 
         const btnResign = document.getElementById('btnResign');
@@ -586,7 +586,7 @@
             btnResign.className = 'text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-500 hover:bg-red-50 transition cursor-pointer';
         } else {
             btnResign.disabled = true;
-            btnResign.className = 'text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-400 cursor-not-allowed transition';
+            btnResign.className = 'text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition';
         }
     }
 

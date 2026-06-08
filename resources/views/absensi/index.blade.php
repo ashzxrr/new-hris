@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('content')
     <div>
@@ -9,40 +9,40 @@
                 <h1 class="text-xl font-semibold text-slate-600">Data Absensi</h1>
             </div>
 
-            <div class="bg-white rounded-xl border border-slate-200 p-6">
+            <div class="bg-white rounded-xl border border-[#E5E7EB] p-6">
                 <div class="flex flex-wrap items-end gap-4 mb-5">
 
                     {{-- Date range --}}
                     <div>
                         
                         <div class="flex gap-2 mb-2">
-                            <button id="btn_today" type="button" onclick="setRange('today')" class="text-xs px-3 py-1.5 rounded-full border border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Hari Ini</button>
-                            <button id="btn_yesterday" type="button" onclick="setRange('yesterday')" class="text-xs px-3 py-1.5 rounded-full border border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Kemarin</button>
-                            <button id="btn_this_month" type="button" onclick="setRange('this_month')" class="text-xs px-3 py-1.5 rounded-full border border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Bulan Ini</button>
-                            <button id="btn_last_month" type="button" onclick="setRange('last_month')" class="text-xs px-3 py-1.5 rounded-full border border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Bulan Lalu</button>
+                            <button id="btn_today" type="button" onclick="setRange('today')" class="text-xs px-3 py-1.5 rounded-full border border-[#E5E7EB] text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Hari Ini</button>
+                            <button id="btn_yesterday" type="button" onclick="setRange('yesterday')" class="text-xs px-3 py-1.5 rounded-full border border-[#E5E7EB] text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Kemarin</button>
+                            <button id="btn_this_month" type="button" onclick="setRange('this_month')" class="text-xs px-3 py-1.5 rounded-full border border-[#E5E7EB] text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Bulan Ini</button>
+                            <button id="btn_last_month" type="button" onclick="setRange('last_month')" class="text-xs px-3 py-1.5 rounded-full border border-[#E5E7EB] text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Bulan Lalu</button>
                         </div>
                         <div class="flex items-center gap-2">
                             <div class="flex flex-col">
                                 <label class="text-xs text-slate-400 mb-1">Dari</label>
                                 <input type="date" name="tanggal_dari" id="tanggal_dari" value="{{ date('Y-m-d') }}"
-                                    class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 w-40">
+                                    class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300 w-40">
                             </div>
                             <span class="text-slate-300 mt-4">—</span>
                             <div class="flex flex-col">
                                 <label class="text-xs text-slate-400 mb-1">Sampai</label>
                                 <input type="date" name="tanggal_sampai" id="tanggal_sampai" value="{{ date('Y-m-d') }}"
-                                    class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 w-40">
+                                    class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300 w-40">
                             </div>
                         </div>
                     </div>
 
                     {{-- Divider vertical --}}
-                    <div class="hidden lg:block w-px bg-slate-200 self-stretch mx-2"></div>
+                    <div class="hidden lg:block w-px bg-[#E5E7EB] self-stretch mx-2"></div>
 
                     {{-- Filter Bagian --}}
                     <div class="flex flex-col">
                         
-                        <select id="filterBagian" class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 w-52">
+                        <select id="filterBagian" class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300 w-52">
                             <option value="">Semua Bagian</option>
                             @foreach($bagianList as $bagian)
                                 <option value="{{ $bagian }}">{{ $bagian }}</option>
@@ -55,16 +55,16 @@
                         
                         <div class="relative" id="tlDropdownWrapper">
                             <button type="button" id="tlDropdownBtn"
-                                class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-slate-50 text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-slate-300 w-80">
+                                class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-slate-300 w-80">
                                 <span id="tlDropdownLabel" class="text-slate-500 truncate">Semua TL</span>
                                 <svg class="w-4 h-4 text-slate-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                 </svg>
                             </button>
-                            <div id="tlDropdownMenu" class="hidden absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg max-h-64 overflow-y-auto p-3">
+                            <div id="tlDropdownMenu" class="hidden absolute z-20 mt-1 w-full bg-white border border-[#E5E7EB] rounded-xl shadow-lg max-h-64 overflow-y-auto p-3">
                                 {{-- Bersihkan pilihan --}}
                                 <button type="button" onclick="clearTLFilter()"
-                                    class="w-full text-left px-3 py-1.5 text-xs text-slate-500 bg-slate-50 hover:bg-slate-100 rounded-lg mb-2">
+                                    class="w-full text-left px-3 py-1.5 text-xs text-slate-500 bg-[#F8FAFC] hover:bg-[#F8FAFC] rounded-lg mb-2">
                                     Bersihkan Pilihan
                                 </button>
 
@@ -82,8 +82,8 @@
                                         ['id'=>30,  'nama'=>'Deniko Fergian'],
                                         ['id'=>109, 'nama'=>'Ruliatul Fidiah'],
                                     ] as $tl)
-                                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer tl-option">
-                                        <input type="checkbox" class="tl-check accent-slate-700"
+                                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-[#F8FAFC] rounded-lg cursor-pointer tl-option">
+                                        <input type="checkbox" class="tl-check accent-[#4F46E5]"
                                             value="{{ $tl['id'] }}" data-nama="{{ $tl['nama'] }}">
                                         <span class="text-sm text-slate-700">{{ $tl['nama'] }}</span>
                                     </label>
@@ -105,8 +105,8 @@
                                         ['id'=>71,  'nama'=>'Tsalis Akmaludin'],
                                         ['id'=>69,  'nama'=>'Prayogo Dwi'],
                                     ] as $tl)
-                                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer tl-option">
-                                        <input type="checkbox" class="tl-check accent-slate-700"
+                                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-[#F8FAFC] rounded-lg cursor-pointer tl-option">
+                                        <input type="checkbox" class="tl-check accent-[#4F46E5]"
                                             value="{{ $tl['id'] }}" data-nama="{{ $tl['nama'] }}">
                                         <span class="text-sm text-slate-700">{{ $tl['nama'] }}</span>
                                     </label>
@@ -127,8 +127,8 @@
                                         ['id'=>872, 'nama'=>'Checker'],
                                         ['id'=>43,  'nama'=>'GD Kart'],
                                     ] as $tl)
-                                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded-lg cursor-pointer tl-option">
-                                        <input type="checkbox" class="tl-check accent-slate-700"
+                                    <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-[#F8FAFC] rounded-lg cursor-pointer tl-option">
+                                        <input type="checkbox" class="tl-check accent-[#4F46E5]"
                                             value="{{ $tl['id'] }}" data-nama="{{ $tl['nama'] }}">
                                         <span class="text-sm text-slate-700">{{ $tl['nama'] }}</span>
                                     </label>
@@ -141,7 +141,7 @@
                     {{-- Filter Kategori Gaji --}}
                     <div class="flex flex-col">
                         
-                        <select id="filterKategori" class="border border-slate-200 rounded-lg px-3 py-1.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 w-52">
+                        <select id="filterKategori" class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300 w-52">
                             <option value="">Semua Kategori</option>
                             <option value="borongan cabut">Borongan Cabut</option>
                             <option value="borongan cetak">Borongan Cetak</option>
@@ -151,51 +151,51 @@
                     </div>
 
                 </div>
-                <hr class="my-5 border-slate-100">
+                <hr class="my-5 border-[#E5E7EB]">
 
                 <div>
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Pilih Karyawan</span>
-                            <span id="selectedCount" class="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full">0 dipilih</span>
+                            <span id="selectedCount" class="bg-[#F8FAFC] text-slate-600 text-xs px-2 py-0.5 rounded-full">0 dipilih</span>
                         </div>
                         <div class="flex items-center gap-2">
                             <button type="button" id="btnSelectAll" onclick="toggleSelectAllVisible()"
-                                class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 transition">
+                                class="text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] hover:bg-[#F8FAFC] text-slate-500 transition">
                                 Pilih Semua
                             </button>
 
-                            <div class="w-px h-5 bg-slate-200 mx-1"></div>
+                            <div class="w-px h-5 bg-[#E5E7EB] mx-1"></div>
 
                             <button type="button" id="btnKeterangan" onclick="openNoteModal()" disabled
-                                class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-400 cursor-not-allowed transition">
+                                class="text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition">
                                 + Tambah Keterangan
                             </button>
                             <button type="submit"
-                                class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-700 transition">
+                                class="text-xs px-3 py-1.5 rounded-lg bg-[#4F46E5] text-white hover:bg-[#4338CA] transition">
                                 Lihat Detail Absensi
                             </button>
                         </div>
                     </div>
 
                     <input id="searchKaryawan" type="text" placeholder="Cari nama karyawan..."
-                        class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 mb-2" />
+                        class="w-full bg-[#F8FAFC] border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm text-slate-700 mb-2" />
 
-                    <div class="overflow-auto max-h-[55vh] border border-slate-100 rounded-lg" id="karyawanList">
+                    <div class="overflow-auto max-h-[55vh] border border-[#E5E7EB] rounded-lg" id="karyawanList">
                         <style>
                             .karyawan-item:hover { background-color: #f0fdf4 !important; }
                             .karyawan-item:hover td { background-color: #f0fdf4 !important; }
                         </style>
                         <table class="w-full text-xs whitespace-nowrap min-w-[1400px]">
-                            <thead class="sticky top-0 bg-slate-50 z-10 text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+                            <thead class="sticky top-0 bg-[#F8FAFC] z-10 text-[11px] font-medium text-slate-400 uppercase tracking-wide">
                                 <tr>
-                                    <th class="px-2 py-2 sticky left-0 bg-slate-50 z-20 border-r border-slate-100">
-                                        <input type="checkbox" id="checkAllKaryawan" class="accent-slate-700"
+                                    <th class="px-2 py-2 sticky left-0 bg-[#F8FAFC] z-20 border-r border-[#E5E7EB]">
+                                        <input type="checkbox" id="checkAllKaryawan" class="accent-[#4F46E5]"
                                             onclick="document.querySelectorAll('.karyawan-check:not([style*=\'display: none\'])').forEach(c=>c.checked=this.checked); updateSelectedCount();">
                                     </th>
-                                    <th class="px-2 py-2 sticky left-10 bg-slate-50 z-20 border-r border-slate-100">PIN</th>
-                                    <th class="px-2 py-2 sticky left-20 bg-slate-50 z-20 border-r border-slate-100 min-w-[160px]">Nama</th>
-                                    <th class="px-2 py-2 sticky left-[264px] bg-slate-50 z-20 border-r border-slate-100 min-w-[140px]">NIP</th>
+                                    <th class="px-2 py-2 sticky left-10 bg-[#F8FAFC] z-20 border-r border-[#E5E7EB]">PIN</th>
+                                    <th class="px-2 py-2 sticky left-20 bg-[#F8FAFC] z-20 border-r border-[#E5E7EB] min-w-[160px]">Nama</th>
+                                    <th class="px-2 py-2 sticky left-[264px] bg-[#F8FAFC] z-20 border-r border-[#E5E7EB] min-w-[140px]">NIP</th>
                                     <th class="px-2 py-2 text-left">NIK</th>
                                     <th class="px-2 py-2 text-left">L/P</th>
                                     <th class="px-2 py-2 text-left">Jabatan</th>
@@ -211,21 +211,21 @@
                                 @php
                                     $tlName = $tlMap[$k->tl_id] ?? '-';
                                 @endphp
-                                <tr class="karyawan-item border-t border-slate-50 cursor-pointer transition-colors duration-100"
+                                <tr class="karyawan-item border-t border-[#E5E7EB] cursor-pointer transition-colors duration-100"
                                     data-bagian="{{ $k->bagian }}"
                                     data-kategori="{{ $k->kategori_gaji }}"
                                     data-tl-id="{{ $k->tl_id }}"
                                     onclick="this.querySelector('.karyawan-check').click()">
-                                    <td class="px-2 py-1.5 sticky left-0 bg-white z-10 border-r border-slate-100" onclick="event.stopPropagation()">
+                                    <td class="px-2 py-1.5 sticky left-0 bg-white z-10 border-r border-[#E5E7EB]" onclick="event.stopPropagation()">
                                         <input type="checkbox" 
                                             name="selected_users[]" 
                                             value="{{ $k->pin }}"
-                                            class="karyawan-check accent-slate-700"
+                                            class="karyawan-check accent-[#4F46E5]"
                                             onchange="updateSelectedCount()">
                                     </td>
-                                    <td class="px-2 py-1.5 sticky left-10 bg-white z-10 border-r border-slate-100 font-mono text-slate-400 text-xs">{{ $k->pin }}</td>
-                                    <td class="px-2 py-1.5 sticky left-20 bg-white z-10 border-r border-slate-100 min-w-[160px] font-medium text-slate-800">{{ $k->nama }}</td>
-                                    <td class="px-2 py-1.5 sticky left-[264px] bg-white z-10 border-r border-slate-100 text-slate-600">{{ $k->nip ?: '-' }}</td>
+                                    <td class="px-2 py-1.5 sticky left-10 bg-white z-10 border-r border-[#E5E7EB] font-mono text-slate-400 text-xs">{{ $k->pin }}</td>
+                                    <td class="px-2 py-1.5 sticky left-20 bg-white z-10 border-r border-[#E5E7EB] min-w-[160px] font-medium text-slate-800">{{ $k->nama }}</td>
+                                    <td class="px-2 py-1.5 sticky left-[264px] bg-white z-10 border-r border-[#E5E7EB] text-slate-600">{{ $k->nip ?: '-' }}</td>
                                     <td class="px-2 py-1.5 text-slate-600 font-mono text-xs">{{ $k->nik ?: '-' }}</td>
                                     <td class="px-2 py-1.5 text-center">{{ $k->jk ?: '-' }}</td>
                                     <td class="px-2 py-1.5">{{ $k->job_title ?: '-' }}</td>
@@ -258,20 +258,20 @@
                         <label class="text-sm font-medium text-slate-600 block mb-1">Tanggal Dari</label>
                         <input type="date" name="tanggal_dari" id="noteFrom"
                             value="{{ date('Y-m-d') }}"
-                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                            class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                     </div>
 
                     <div class="mb-4">
                         <label class="text-sm font-medium text-slate-600 block mb-1">Tanggal Sampai</label>
                         <input type="date" name="tanggal_sampai" id="noteTo"
                             value="{{ date('Y-m-d') }}"
-                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                            class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                     </div>
 
                     <div class="mb-6">
                         <label class="text-sm font-medium text-slate-600 block mb-1">Kode</label>
                         <select name="code" id="noteCode"
-                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                            class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                             <option value="">Pilih kode...</option>
                             <option value="S">S - Sakit</option>
                             <option value="I">I - Izin</option>
@@ -286,17 +286,17 @@
                     <div class="mb-6 hidden" id="noteReasonGroup">
                         <label class="text-sm font-medium text-slate-600 block mb-1">Keterangan untuk Dll</label>
                         <textarea name="note" id="noteReason" rows="3" placeholder="Tuliskan alasan / detail untuk kode Dll"
-                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"></textarea>
+                            class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"></textarea>
                         <p class="text-xs text-slate-400 mt-2">Wajib diisi jika memilih kode Dll.</p>
                     </div>
 
                     <div class="flex gap-3 justify-end">
                         <button type="button" onclick="closeNoteModal()"
-                            class="border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50">
+                            class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-[#F8FAFC]">
                             Batal
                         </button>
                         <button type="submit"
-                            class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-indigo-700">
+                            class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
                             Simpan Keterangan
                         </button>
                     </div>
@@ -328,7 +328,7 @@
             document.getElementById('tanggal_sampai').value = sampai;
 
             ['btn_today', 'btn_yesterday', 'btn_this_month', 'btn_last_month'].forEach(function(id) {
-                document.getElementById(id).className = 'text-xs px-3 py-1.5 rounded-full border border-slate-200 text-slate-500 hover:border-slate-400 hover:text-slate-700 transition';
+                document.getElementById(id).className = 'text-xs px-3 py-1.5 rounded-full border border-[#E5E7EB] text-slate-500 hover:border-slate-400 hover:text-slate-700 transition';
             });
 
             const activeMap = {
@@ -337,18 +337,18 @@
                 'this_month': 'btn_this_month',
                 'last_month': 'btn_last_month'
             };
-            document.getElementById(activeMap[type]).className = 'text-xs px-3 py-1.5 rounded-full border border-slate-800 bg-slate-800 text-white transition';
+            document.getElementById(activeMap[type]).className = 'text-xs px-3 py-1.5 rounded-full border border-[#4F46E5] bg-[#4F46E5] text-white transition';
         }
 
         function setActiveShortcut(button) {
             document.querySelectorAll('.shortcut-button').forEach(function(btn) {
-                btn.classList.remove('border-slate-800', 'bg-slate-800', 'text-white');
-                btn.classList.add('border-slate-200', 'text-slate-500');
+                btn.classList.remove('border-[#4F46E5]', 'bg-[#4F46E5]', 'text-white');
+                btn.classList.add('border-[#E5E7EB]', 'text-slate-500');
             });
 
             if (button) {
-                button.classList.add('border-slate-800', 'bg-slate-800', 'text-white');
-                button.classList.remove('border-slate-200', 'text-slate-500');
+                button.classList.add('border-[#4F46E5]', 'bg-[#4F46E5]', 'text-white');
+                button.classList.remove('border-[#E5E7EB]', 'text-slate-500');
             }
         }
 
@@ -365,17 +365,17 @@
             const btn = document.getElementById('btnKeterangan');
             if (count > 0) {
                 btn.disabled = false;
-                btn.className = 'text-xs px-3 py-1.5 rounded-lg border border-indigo-300 text-indigo-600 hover:bg-indigo-50 transition cursor-pointer';
+                btn.className = 'text-xs px-3 py-1.5 rounded-lg border border-[#4F46E5] text-[#4F46E5] hover:bg-[#EEF2FF] transition cursor-pointer';
             } else {
                 btn.disabled = true;
-                btn.className = 'text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-400 cursor-not-allowed transition';
+                btn.className = 'text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition';
             }
 
             const selectAllBtn = document.getElementById('btnSelectAll');
             if (visibleCheckboxes.length > 0 && visibleCheckboxes.every(c => c.checked)) {
                 selectAllBtn.className = 'text-xs px-3 py-1.5 rounded-lg border border-green-300 bg-green-100 text-green-700 hover:bg-green-200 transition';
             } else {
-                selectAllBtn.className = 'text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition';
+                selectAllBtn.className = 'text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-500 hover:bg-[#F8FAFC] transition';
             }
         }
 

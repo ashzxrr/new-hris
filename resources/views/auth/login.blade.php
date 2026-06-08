@@ -12,8 +12,8 @@
             }
         </style>
     </head>
-    <body class="min-h-screen bg-slate-50 flex items-center justify-center px-4" style="font-family: 'DM Sans', sans-serif;">
-        <div class="w-full max-w-sm bg-white rounded-2xl border border-slate-200 p-10 shadow-sm">
+    <body class="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4" style="font-family: 'DM Sans', sans-serif;">
+        <div class="w-full max-w-sm bg-white rounded-2xl border border-[#E5E7EB] p-10 shadow-sm">
             <div class="mb-8">
                 <h1 class="text-3xl font-bold text-slate-800">HRIS</h1>
                 <p class="mt-2 text-sm text-slate-400">PT Walet Abdillah Jabji</p>
@@ -29,7 +29,7 @@
                         name="username"
                         type="text"
                         value="{{ old('username') }}"
-                        class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                        class="w-full border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
                         required
                     />
                     @if ($errors->has('username'))
@@ -43,7 +43,7 @@
                         id="password"
                         name="password"
                         type="password"
-                        class="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                        class="w-full border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
                         required
                     />
                     @if ($errors->has('password'))
@@ -51,7 +51,7 @@
                     @endif
                 </div>
 
-                <button type="submit" class="w-full bg-slate-800 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-slate-700 transition mt-6">
+                <button type="submit" class="w-full bg-[#4F46E5] text-white rounded-lg py-2.5 text-sm font-medium hover:bg-[#4338CA] transition mt-6">
                     Masuk
                 </button>
             </form>

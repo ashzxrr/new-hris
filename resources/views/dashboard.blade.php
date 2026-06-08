@@ -68,9 +68,9 @@
 
         {{-- Alert sync --}}
         @if($needsSync)
-        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 flex items-center justify-between">
+        <div class="bg-[#F59E0B]/10 border border-[#F59E0B]/20 rounded-xl p-4 mb-5 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <span class="text-amber-500 text-xl">⚠️</span>
+                <span class="text-[#F59E0B] text-xl">⚠️</span>
                 <div>
                     <p class="text-sm font-medium text-amber-800">Data absensi perlu disinkronkan</p>
                     <p class="text-xs text-amber-600">
@@ -88,7 +88,7 @@
         @endif
 
         <div class="grid grid-cols-4 gap-4 mb-6">
-            <div class="bg-white rounded-xl border border-slate-200 p-5">
+            <div class="bg-white rounded-xl border border-[#E5E7EB] p-5">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Total Karyawan</span>
                     <span class="text-2xl">👥</span>
@@ -97,7 +97,7 @@
                 <div class="text-xs text-slate-400 mt-1">Karyawan aktif</div>
             </div>
 
-            <div class="bg-white rounded-xl border border-slate-200 p-5">
+            <div class="bg-white rounded-xl border border-[#E5E7EB] p-5">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Hadir Hari Ini</span>
                     <span class="text-2xl">✅</span>
@@ -106,7 +106,7 @@
                 <div class="text-xs text-slate-400 mt-1">{{ date('d M Y') }}</div>
             </div>
 
-            <div class="bg-white rounded-xl border border-slate-200 p-5">
+            <div class="bg-white rounded-xl border border-[#E5E7EB] p-5">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Tidak Hadir</span>
                     <span class="text-2xl">⚠️</span>
@@ -115,7 +115,7 @@
                 <div class="text-xs text-slate-400 mt-1">Estimasi hari ini</div>
             </div>
 
-            <div class="bg-white rounded-xl border border-slate-200 p-5">
+            <div class="bg-white rounded-xl border border-[#E5E7EB] p-5">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Status Mesin</span>
                     <span class="text-2xl">🖥️</span>
@@ -124,9 +124,9 @@
                     <div class="flex items-center justify-between mt-2">
                         <span class="text-xs text-slate-600 truncate max-w-[120px]">{{ $mesin['name'] }}</span>
                         @if($mesin['online'])
-                            <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Online</span>
+                            <span class="text-xs bg-[#22C55E]/10 text-[#22C55E] px-2 py-0.5 rounded-full font-medium">Online</span>
                         @else
-                            <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">Offline</span>
+                            <span class="text-xs bg-[#EF4444]/10 text-[#EF4444] px-2 py-0.5 rounded-full font-medium">Offline</span>
                         @endif
                     </div>
                 @endforeach
@@ -134,7 +134,7 @@
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-            <div class="bg-white rounded-xl border border-slate-200 p-5">
+            <div class="bg-white rounded-xl border border-[#E5E7EB] p-5">
                 <h3 class="text-sm font-semibold text-slate-700 mb-4">Info Sistem</h3>
                 <div class="space-y-3">
                     <div class="flex justify-between text-sm">
@@ -155,7 +155,7 @@
                         <span class="text-slate-500">Sync Manual</span>
                         <form method="POST" action="{{ route('dashboard.sync') }}" id="dashboardSyncFormManual">
                             @csrf
-                            <button type="submit" class="text-xs bg-slate-800 text-white px-3 py-1 rounded-lg hover:bg-slate-700">
+                            <button type="submit" class="text-xs bg-[#4F46E5] text-white px-3 py-1 rounded-lg hover:bg-[#4338CA]">
                                 🔄 Sync
                             </button>
                         </form>
@@ -167,26 +167,26 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl border border-slate-200 p-5">
+            <div class="bg-white rounded-xl border border-[#E5E7EB] p-5">
                 <h3 class="text-sm font-semibold text-slate-700 mb-4">Akses Cepat</h3>
                 <div class="grid grid-cols-2 gap-3">
                     <a href="{{ route('karyawan.index') }}"
-                        class="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition text-center">
+                        class="flex flex-col items-center justify-center p-4 bg-[#F8FAFC] rounded-xl hover:bg-slate-100 transition text-center">
                         <span class="text-2xl mb-1">👥</span>
                         <span class="text-xs font-medium text-slate-600">Data Karyawan</span>
                     </a>
                     <a href="{{ route('karyawan.sync') }}"
-                        class="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition text-center">
+                        class="flex flex-col items-center justify-center p-4 bg-[#F8FAFC] rounded-xl hover:bg-slate-100 transition text-center">
                         <span class="text-2xl mb-1">🔄</span>
                         <span class="text-xs font-medium text-slate-600">Sinkron Mesin</span>
                     </a>
                     <a href="{{ route('absensi.index') }}"
-                        class="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition text-center">
+                        class="flex flex-col items-center justify-center p-4 bg-[#F8FAFC] rounded-xl hover:bg-slate-100 transition text-center">
                         <span class="text-2xl mb-1">📋</span>
                         <span class="text-xs font-medium text-slate-600">Data Absensi</span>
                     </a>
                     <a href="{{ route('setting.index') }}"
-                        class="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition text-center">
+                        class="flex flex-col items-center justify-center p-4 bg-[#F8FAFC] rounded-xl hover:bg-slate-100 transition text-center">
                         <span class="text-2xl mb-1">⚙️</span>
                         <span class="text-xs font-medium text-slate-600">Setting</span>
                     </a>
