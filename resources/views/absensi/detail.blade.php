@@ -22,7 +22,7 @@
                     <input type="hidden" name="tl_order[]" value="{{ $tlId }}">
                 @endforeach
                 <button type="submit" class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
-                    Export CSV
+                    📊 Export Excel
                 </button>
             </form>
             <a href="{{ route('absensi.index') }}" class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-700">

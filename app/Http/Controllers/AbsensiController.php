@@ -6,6 +6,12 @@ use App\Models\AbsenceNote;
 use App\Models\User;
 use App\Services\FingerprintService;
 use Illuminate\Http\Request;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class AbsensiController extends Controller
 {
@@ -170,178 +176,247 @@ class AbsensiController extends Controller
         ));
     }
 
-    public function exportDetail(Request $request)
-    {
-        $request->validate([
-            'selected_users'  => 'required|array',
-            'tanggal_dari'    => 'required|date',
-            'tanggal_sampai'  => 'required|date',
-        ]);
 
-        $tanggalDari   = $request->tanggal_dari;
-        $tanggalSampai = $request->tanggal_sampai;
+public function exportDetail(Request $request)
+{
+    $request->validate([
+        'selected_users'  => 'required|array',
+        'tanggal_dari'    => 'required|date',
+        'tanggal_sampai'  => 'required|date',
+    ]);
 
-        $selectedUsers = array_map(function ($p) {
-            $p = trim((string) $p);
-            return preg_match('/^\d+$/', $p) ? (string) intval($p) : $p;
-        }, $request->selected_users);
+    $tanggalDari   = $request->tanggal_dari;
+    $tanggalSampai = $request->tanggal_sampai;
 
-        $tlOrder = $request->tl_order ?? [];
-        if (!empty($tlOrder)) {
-            $allUsers = User::whereIn('pin', $selectedUsers)
-                ->get()
-                ->keyBy(fn($u) => (string) intval($u->pin));
+    $selectedUsers = array_map(function ($p) {
+        $p = trim((string) $p);
+        return preg_match('/^\d+$/', $p) ? (string) intval($p) : $p;
+    }, $request->selected_users);
 
-            $grouped = [];
-            foreach ($tlOrder as $tlId) {
-                $grouped[(string) $tlId] = [];
-            }
-            $ungrouped = [];
-
-            foreach ($selectedUsers as $pin) {
-                $user = $allUsers[$pin] ?? null;
-                $tlId = $user ? (string) $user->tl_id : null;
-                if ($tlId && array_key_exists($tlId, $grouped)) {
-                    $grouped[$tlId][] = $pin;
-                } else {
-                    $ungrouped[] = $pin;
-                }
-            }
-
-            $ordered = [];
-            foreach ($grouped as $group) {
-                foreach ($group as $pin) {
-                    $ordered[] = $pin;
-                }
-            }
-            foreach ($ungrouped as $pin) {
-                $ordered[] = $pin;
-            }
-
-            $selectedUsers = $ordered;
-        }
-
-        $nipData = User::whereIn('pin', $selectedUsers)
+    $tlOrder = $request->tl_order ?? [];
+    if (!empty($tlOrder)) {
+        $allUsers = User::whereIn('pin', $selectedUsers)
             ->get()
             ->keyBy(fn($u) => (string) intval($u->pin));
 
-        $tlIds = $nipData->pluck('tl_id')->filter()->unique();
-        $tlMap = User::whereIn('id', $tlIds)->pluck('nama', 'id');
+        $grouped = [];
+        foreach ($tlOrder as $tlId) {
+            $grouped[(string) $tlId] = [];
+        }
+        $ungrouped = [];
 
-        $logs = \App\Models\AttendanceLog::whereIn('pin', $selectedUsers)
-            ->whereBetween('tanggal', [$tanggalDari, $tanggalSampai])
-            ->orderBy('datetime')
-            ->get()
-            ->groupBy(function ($item) {
-                return $item->pin . '_' . substr((string) $item->tanggal, 0, 10);
-            });
-
-        $absenceNotes = AbsenceNote::whereIn('pin', $selectedUsers)
-            ->whereBetween('date', [$tanggalDari, $tanggalSampai])
-            ->get()
-            ->groupBy('pin')
-            ->map(fn($n) => $n->keyBy('date'));
-
-        $periode = [];
-        $current = new \DateTime($tanggalDari);
-        $end = new \DateTime($tanggalSampai);
-        while ($current <= $end) {
-            $periode[] = $current->format('Y-m-d');
-            $current->modify('+1 day');
+        foreach ($selectedUsers as $pin) {
+            $user = $allUsers[$pin] ?? null;
+            $tlId = $user ? (string) $user->tl_id : null;
+            if ($tlId && array_key_exists($tlId, $grouped)) {
+                $grouped[$tlId][] = $pin;
+            } else {
+                $ungrouped[] = $pin;
+            }
         }
 
-        $filename = 'laporan-absensi-' . $tanggalDari . '-sampai-' . $tanggalSampai . '.csv';
-
-        $callback = function () use ($selectedUsers, $nipData, $tlMap, $logs, $absenceNotes, $periode) {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['No', 'NIP', 'Nama', 'L/P', 'Jabatan', 'Tanggal', 'In', 'Out', 'Overtime', 'Keterangan', 'TL']);
-
-            $namaHari = [
-                'Sunday' => 'Minggu',
-                'Monday' => 'Senin',
-                'Tuesday' => 'Selasa',
-                'Wednesday' => 'Rabu',
-                'Thursday' => 'Kamis',
-                'Friday' => 'Jumat',
-                'Saturday' => 'Sabtu',
-            ];
-            $no = 1;
-
-            foreach ($selectedUsers as $pin) {
-                $karyawan = $nipData[$pin] ?? null;
-                foreach ($periode as $tgl) {
-                    $dayName = $namaHari[date('l', strtotime($tgl))] ?? '';
-                    $tglDisplay = $dayName . ', ' . date('d/m/Y', strtotime($tgl));
-                    $isSunday = date('N', strtotime($tgl)) == 7;
-
-                    $dayLogs = $logs[$pin . '_' . $tgl] ?? collect();
-                    $inTimes = $dayLogs->where('status', 'IN')->pluck('datetime')->map(fn($d) => strtotime($d));
-                    $outTimes = $dayLogs->where('status', 'OUT')->pluck('datetime')->map(fn($d) => strtotime($d));
-
-                    $inTs = $inTimes->isNotEmpty() ? $inTimes->min() : null;
-                    $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
-
-                    $inDisplay = $inTs ? date('H.i', $inTs) : '-';
-                    $outDisplay = $outTs ? date('H.i', $outTs) : '-';
-
-                    $overtimeDisplay = '----';
-                    if ($outTs) {
-                        $threshold = strtotime($tgl . ' 16:30:00');
-                        $minutes = $outTs > $threshold ? floor(($outTs - $threshold) / 60) : 0;
-                        $overtimeDisplay = $minutes > 0 ? $minutes . ' menit' : '----';
-                    }
-
-                    $absenceNote = $absenceNotes[$pin][$tgl] ?? null;
-                    $absenceCode = $absenceNote->code ?? null;
-                    $absenceText = $absenceNote->note ?? null;
-                    $codeLabels = [
-                        'S' => 'S (Sakit)',
-                        'A' => 'A (Alpha)',
-                        'I' => 'I (Izin)',
-                        'SSD' => 'SSD (Sakit Surat Dokter)',
-                        'Cuti' => 'Cuti',
-                        'GL' => 'GL (Ganti Libur)',
-                        'Dll' => 'Dll (Lainnya)',
-                    ];
-
-                    if ($isSunday) {
-                        $keterangan = 'Minggu';
-                    } elseif ($dayLogs->isEmpty()) {
-                        $keterangan = $absenceCode ? ($codeLabels[$absenceCode] ?? $absenceCode) : '-';
-                        if ($absenceText) {
-                            $keterangan .= ' — ' . $absenceText;
-                        }
-                    } else {
-                        $keterangan = '----';
-                    }
-
-                    $jabatan = trim(($karyawan->job_title ?? '-') . ' (' . ($karyawan->job_level ?? '-') . ')');
-                    $tlName = $tlMap[$karyawan->tl_id ?? null] ?? '-';
-
-                    fputcsv($out, [
-                        $no++,
-                        $karyawan->nip ?? '-',
-                        $karyawan->nama ?? '-',
-                        $karyawan->jk ?? '-',
-                        $jabatan,
-                        $tglDisplay,
-                        $inDisplay,
-                        $outDisplay,
-                        $overtimeDisplay,
-                        $keterangan,
-                        $tlName,
-                    ]);
-                }
+        $ordered = [];
+        foreach ($grouped as $group) {
+            foreach ($group as $pin) {
+                $ordered[] = $pin;
             }
-            fclose($out);
-        };
+        }
+        foreach ($ungrouped as $pin) {
+            $ordered[] = $pin;
+        }
 
-        return response()->streamDownload($callback, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        $selectedUsers = $ordered;
     }
 
+    $nipData = User::whereIn('pin', $selectedUsers)
+        ->get()
+        ->keyBy(fn($u) => (string) intval($u->pin));
+
+    $tlIds = $nipData->pluck('tl_id')->filter()->unique();
+    $tlMap = User::whereIn('id', $tlIds)->pluck('nama', 'id');
+
+    $logs = \App\Models\AttendanceLog::whereIn('pin', $selectedUsers)
+        ->whereBetween('tanggal', [$tanggalDari, $tanggalSampai])
+        ->orderBy('datetime')
+        ->get()
+        ->groupBy(function ($item) {
+            return $item->pin . '_' . substr((string) $item->tanggal, 0, 10);
+        });
+
+    $absenceNotes = AbsenceNote::whereIn('pin', $selectedUsers)
+        ->whereBetween('date', [$tanggalDari, $tanggalSampai])
+        ->get()
+        ->groupBy('pin')
+        ->map(fn($n) => $n->keyBy('date'));
+
+    $periode = [];
+    $current = new \DateTime($tanggalDari);
+    $end = new \DateTime($tanggalSampai);
+    while ($current <= $end) {
+        $periode[] = $current->format('Y-m-d');
+        $current->modify('+1 day');
+    }
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Detail Absensi');
+
+    $headers = ['No','NIP','Nama','L/P','Jabatan','Kategori Gaji','Tanggal','In','Out','Overtime','Keterangan','TL','Ringkasan'];
+    $sheet->fromArray($headers, null, 'A1');
+
+    $headerStyle = [
+        'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1F2937']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']]],
+    ];
+    $sheet->getStyle('A1:M1')->applyFromArray($headerStyle);
+    $sheet->freezePane('A2');
+
+    $codeLabels = [
+        'S' => 'S (Sakit)',
+        'A' => 'A (Alpha)',
+        'I' => 'I (Izin)',
+        'SSD' => 'SSD',
+        'Cuti' => 'Cuti',
+        'GL' => 'GL',
+        'DLL' => 'DLL',
+    ];
+
+    $row = 2;
+    $no  = 1;
+
+    foreach ($selectedUsers as $pin) {
+        $karyawan = $nipData[$pin] ?? null;
+        $tlName = $tlMap[$karyawan->tl_id ?? null] ?? '-';
+        $jabatan = trim(($karyawan->job_title ?? '-') . ' (' . ($karyawan->job_level ?? '-') . ')');
+        $kategori = $karyawan->kategori_gaji ?? '-';
+
+        $totalHadir = 0;
+        $totalTidakHadir = 0;
+        $codes = ['A' => 0, 'S' => 0, 'I' => 0, 'SSD' => 0, 'Cuti' => 0, 'GL' => 0, 'DLL' => 0];
+
+        foreach ($periode as $tgl) {
+            $isSunday = date('N', strtotime($tgl)) == 7;
+            if ($isSunday) {
+                continue;
+            }
+
+            $dayKey = $pin . '_' . $tgl;
+            $dayLogs = $logs[$dayKey] ?? collect();
+            $absenceNote = $absenceNotes[$pin][$tgl] ?? null;
+            $absenceCode = $absenceNote->code ?? null;
+
+            if ($dayLogs->isEmpty()) {
+                $totalTidakHadir++;
+                if ($absenceCode && isset($codes[$absenceCode])) {
+                    $codes[$absenceCode]++;
+                }
+            } else {
+                $totalHadir++;
+            }
+        }
+
+        $ringkasan = "Total Hadir: {$totalHadir} | Tidak Absen: {$totalTidakHadir} | Alpha (A): {$codes['A']} | Sakit (S): {$codes['S']} | Ijin (I): {$codes['I']} | SSD: {$codes['SSD']} | Cuti: {$codes['Cuti']} | GL: {$codes['GL']} | DLL: {$codes['DLL']}";
+        $isFirstRow = true;
+
+        foreach ($periode as $tgl) {
+            $isSunday = date('N', strtotime($tgl)) == 7;
+            $tglDisplay = date('d/m/Y', strtotime($tgl));
+
+            $dayKey = $pin . '_' . $tgl;
+            $dayLogs = $logs[$dayKey] ?? collect();
+
+            $inTimes = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string) $l->datetime));
+            $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string) $l->datetime));
+
+            $inTs = $inTimes->isNotEmpty() ? $inTimes->min() : null;
+            $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
+
+            $inDisplay = $inTs ? date('H:i', $inTs) : '-';
+            $outDisplay = $outTs ? date('H:i', $outTs) : '-';
+
+            $overtimeDisplay = '';
+            if ($outTs) {
+                $threshold = strtotime($tgl . ' 16:30:00');
+                $minutes = $outTs > $threshold ? floor(($outTs - $threshold) / 60) : 0;
+                $overtimeDisplay = $minutes > 0 ? $minutes . ' menit' : '';
+            }
+
+            $absenceNote = $absenceNotes[$pin][$tgl] ?? null;
+            $absenceCode = $absenceNote->code ?? null;
+
+            $isAbsent = false;
+            $isSundayRow = false;
+
+            if ($isSunday) {
+                $keterangan = 'Minggu';
+                $isSundayRow = true;
+            } elseif ($dayLogs->isEmpty()) {
+                $isAbsent = true;
+                $keterangan = $absenceCode ?? '-';
+            } else {
+                $keterangan = '----';
+            }
+
+            $ringkasanCell = $isFirstRow ? $ringkasan : '';
+            $isFirstRow = false;
+
+            $sheet->fromArray([
+                $no++,
+                $karyawan->nip ?? '-',
+                $karyawan->nama ?? '-',
+                $karyawan->jk ?? '-',
+                $jabatan,
+                $kategori,
+                $tglDisplay,
+                $inDisplay,
+                $outDisplay,
+                $overtimeDisplay,
+                $keterangan,
+                $tlName,
+                $ringkasanCell,
+            ], null, "A{$row}");
+
+            if ($isSundayRow) {
+                $sheet->getStyle("A{$row}:M{$row}")->applyFromArray([
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F3F4F6']],
+                    'font' => ['color' => ['rgb' => '9CA3AF']],
+                ]);
+            } elseif ($isAbsent) {
+                $sheet->getStyle("A{$row}:M{$row}")->applyFromArray([
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FEE2E2']],
+                    'font' => ['color' => ['rgb' => 'DC2626']],
+                ]);
+            } else {
+                $sheet->getStyle("A{$row}:M{$row}")->applyFromArray([
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFFFF']],
+                ]);
+            }
+
+            $sheet->getStyle("A{$row}:M{$row}")->applyFromArray([
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
+            ]);
+
+            $row++;
+        }
+    }
+
+    foreach (range('A', 'M') as $col) {
+        $sheet->getColumnDimension($col)->setAutoSize(true);
+    }
+
+    $filename = 'laporan-absensi-' . $tanggalDari . '-sampai-' . $tanggalSampai . '.xlsx';
+
+    $writer = new Xlsx($spreadsheet);
+
+    return response()->streamDownload(function () use ($writer) {
+        $writer->save('php://output');
+    }, $filename, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+    ]);
+}
     public function storeBulkNotes(Request $request)
     {
         $request->validate([
