@@ -123,7 +123,7 @@ class AbsensiController extends Controller
             ->whereBetween('date', [$tanggalDari, $tanggalSampai])
             ->get()
             ->groupBy('pin')
-            ->map(fn($n) => $n->keyBy('date'));
+            ->map(fn($n) => $n->keyBy(fn($item) => $item->date->format('Y-m-d')));
 
         // Build periode
         $periode = [];
@@ -247,7 +247,7 @@ public function exportDetail(Request $request)
         ->whereBetween('date', [$tanggalDari, $tanggalSampai])
         ->get()
         ->groupBy('pin')
-        ->map(fn($n) => $n->keyBy('date'));
+        ->map(fn($n) => $n->keyBy(fn($item) => $item->date->format('Y-m-d')));
 
     $periode = [];
     $current = new \DateTime($tanggalDari);
@@ -442,12 +442,23 @@ public function exportDetail(Request $request)
             $current->modify('+1 day');
         }
 
+        $defaultNoteText = [
+            'S' => 'Sakit',
+            'I' => 'Izin',
+            'A' => 'Alpha',
+            'SSD' => 'Sakit Surat Dokter',
+            'Cuti' => 'Cuti',
+            'GL' => 'Ganti Libur',
+            'Dll' => trim((string) $request->note),
+        ];
+
         foreach ($pins as $pin) {
             foreach ($periode as $tanggal) {
-                $updateData = ['code' => $code, 'created_by' => $createdBy];
-                if ($request->filled('note')) {
-                    $updateData['note'] = trim((string) $request->note);
-                }
+                $updateData = [
+                    'code' => $code,
+                    'created_by' => $createdBy,
+                    'note' => $defaultNoteText[$code] ?? trim((string) $request->note),
+                ];
 
                 \App\Models\AbsenceNote::updateOrCreate(
                     ['pin' => $pin, 'date' => $tanggal],
