@@ -10,6 +10,15 @@
             </div>
 
             <div class="bg-white rounded-xl border border-[#E5E7EB] p-6">
+                @if ($errors->any())
+                    <div class="mb-4 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+                        <ul class="list-disc list-inside space-y-1">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
                 <div class="flex flex-wrap items-end gap-4 mb-5">
 
                     {{-- Date range --}}
@@ -253,11 +262,13 @@
                 <form method="POST" action="{{ route('absensi.notes.bulk') }}">
                     @csrf
                     <div id="selectedPinsContainer"></div>
+                    <div id="selectedPinsSummary" class="mb-4 text-sm text-slate-500">Pilih karyawan terlebih dahulu sebelum menambahkan keterangan.</div>
 
                     <div class="mb-4">
                         <label class="text-sm font-medium text-slate-600 block mb-1">Tanggal Dari</label>
                         <input type="date" name="tanggal_dari" id="noteFrom"
                             value="{{ date('Y-m-d') }}"
+                            required
                             class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                     </div>
 
@@ -265,12 +276,14 @@
                         <label class="text-sm font-medium text-slate-600 block mb-1">Tanggal Sampai</label>
                         <input type="date" name="tanggal_sampai" id="noteTo"
                             value="{{ date('Y-m-d') }}"
+                            required
                             class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                     </div>
 
                     <div class="mb-6">
                         <label class="text-sm font-medium text-slate-600 block mb-1">Kode</label>
                         <select name="code" id="noteCode"
+                            required
                             class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                             <option value="">Pilih kode...</option>
                             <option value="S">S - Sakit</option>
@@ -283,11 +296,11 @@
                         </select>
                     </div>
 
-                    <div class="mb-6 hidden" id="noteReasonGroup">
-                        <label class="text-sm font-medium text-slate-600 block mb-1">Keterangan untuk Dll</label>
-                        <textarea name="note" id="noteReason" rows="3" placeholder="Tuliskan alasan / detail untuk kode Dll"
+                    <div class="mb-6" id="noteReasonGroup">
+                        <label class="text-sm font-medium text-slate-600 block mb-1">Keterangan</label>
+                        <textarea name="note" id="noteReason" rows="3" readonly placeholder="Pilih kode untuk melihat atau mengisi keterangan"
                             class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"></textarea>
-                        <p class="text-xs text-slate-400 mt-2">Wajib diisi jika memilih kode Dll.</p>
+                        <p class="text-xs text-slate-400 mt-2" id="noteHelperText">Pilih kode untuk menambahkan keterangan.</p>
                     </div>
 
                     <div class="flex gap-3 justify-end">
@@ -388,7 +401,10 @@
 
         function openNoteModal() {
             const checked = document.querySelectorAll('.karyawan-check:checked');
-            if (checked.length === 0) return;
+            if (checked.length === 0) {
+                alert('Pilih karyawan terlebih dahulu sebelum menambahkan keterangan.');
+                return;
+            }
 
             const pins = Array.from(checked).map(c => c.value);
             const container = document.getElementById('selectedPinsContainer');
@@ -401,6 +417,11 @@
                 container.appendChild(input);
             });
 
+            const summary = document.getElementById('selectedPinsSummary');
+            if (summary) {
+                summary.textContent = 'Menambahkan keterangan untuk ' + pins.length + ' karyawan: ' + pins.join(', ');
+            }
+
             document.getElementById('noteModal').classList.remove('hidden');
         }
 
@@ -410,17 +431,39 @@
 
         function toggleNoteReason() {
             const code = document.getElementById('noteCode')?.value;
-            const reasonGroup = document.getElementById('noteReasonGroup');
             const reasonInput = document.getElementById('noteReason');
+            const helperText = document.getElementById('noteHelperText');
+            const defaultNoteText = {
+                'S': 'Sakit',
+                'I': 'Izin',
+                'A': 'Alpha',
+                'SSD': 'Sakit Surat Dokter',
+                'Cuti': 'Cuti',
+                'GL': 'Ganti Libur',
+            };
+
+            if (!reasonInput || !helperText) {
+                return;
+            }
+
             if (code === 'Dll') {
-                reasonGroup.classList.remove('hidden');
-                if (reasonInput) reasonInput.required = true;
+                reasonInput.value = '';
+                reasonInput.required = true;
+                reasonInput.readOnly = false;
+                reasonInput.placeholder = 'Tuliskan alasan / detail untuk kode Dll';
+                helperText.textContent = 'Wajib diisi jika memilih kode Dll.';
+            } else if (defaultNoteText.hasOwnProperty(code)) {
+                reasonInput.value = defaultNoteText[code];
+                reasonInput.required = false;
+                reasonInput.readOnly = true;
+                reasonInput.placeholder = 'Keterangan otomatis diisi';
+                helperText.textContent = 'Keterangan otomatis diisi untuk kode ' + code + '.';
             } else {
-                reasonGroup.classList.add('hidden');
-                if (reasonInput) {
-                    reasonInput.required = false;
-                    reasonInput.value = '';
-                }
+                reasonInput.value = '';
+                reasonInput.required = false;
+                reasonInput.readOnly = true;
+                reasonInput.placeholder = 'Pilih kode untuk melihat atau mengisi keterangan';
+                helperText.textContent = 'Pilih kode untuk menambahkan keterangan.';
             }
         }
 
@@ -439,6 +482,7 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             originalRows = Array.from(document.querySelectorAll('.karyawan-item'));
+            updateSelectedCount();
         });
 
         document.getElementById('searchKaryawan')?.addEventListener('input', applyAllFilters);
