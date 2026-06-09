@@ -214,17 +214,22 @@ class FingerprintService
                 continue;
             }
 
+            $success = false;
+            $hasAnyBody = false;
+
             // X100C: hapus semua data enroll (fingerprint + card) untuk PIN ini
             $soap = "<DeleteEnrollData>
                 <ArgComKey xsi:type=\"xsd:integer\">{$machine['key']}</ArgComKey>
                 <Arg>
                     <PIN xsi:type=\"xsd:integer\">{$pin}</PIN>
-                    <BackupNumber xsi:type=\"xsd:integer\">-1</BackupNumber>
+                    <BackupNumber xsi:type=\"xsd:integer\">10</BackupNumber>
                 </Arg>
             </DeleteEnrollData>";
 
             $response = $this->sendSoap($machine['ip'], $machine['port'], $soap);
             $body = $this->extractXmlBody($response ?: '');
+            $hasAnyBody = $hasAnyBody || $body !== '';
+            $success = $success || ($body !== '' && (strpos($body, '<Info>') !== false || strpos($body, '<Code>') !== false));
 
             \Log::info('DeleteEnrollData', [
                 'machine' => $machine['name'],
@@ -247,6 +252,8 @@ class FingerprintService
 
             $response2 = $this->sendSoap($machine['ip'], $machine['port'], $soap2);
             $body2 = $this->extractXmlBody($response2 ?: '');
+            $hasAnyBody = $hasAnyBody || $body2 !== '';
+            $success = $success || ($body2 !== '' && (strpos($body2, '<Info>') !== false || strpos($body2, '<Code>') !== false));
 
             \Log::info('SetUserInfo disabled', [
                 'machine' => $machine['name'],
@@ -254,9 +261,29 @@ class FingerprintService
                 'body'    => $body2 ?: '(empty body)',
             ]);
 
+            // Coba juga hapus user nya
+            $soap3 = "<DeleteUser>
+                <ArgComKey xsi:type=\"xsd:integer\">{$machine['key']}</ArgComKey>
+                <Arg>
+                    <PIN xsi:type=\"xsd:integer\">{$pin}</PIN>
+                </Arg>
+            </DeleteUser>";
+
+            $response3 = $this->sendSoap($machine['ip'], $machine['port'], $soap3);
+            $body3 = $this->extractXmlBody($response3 ?: '');
+            $hasAnyBody = $hasAnyBody || $body3 !== '';
+            $success = $success || ($body3 !== '' && (strpos($body3, '<Info>') !== false || strpos($body3, '<Code>') !== false));
+
+            \Log::info('DeleteUser', [
+                'machine' => $machine['name'],
+                'pin'     => $pin,
+                'body'    => $body3 ?: '(empty body)',
+            ]);
+
             $results[] = [
                 'machine' => $machine['name'],
-                'success' => true,
+                'success' => $success,
+                'reason'  => $success ? null : ($hasAnyBody ? 'failed' : 'no_response'),
             ];
         }
 
