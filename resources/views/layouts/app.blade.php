@@ -67,8 +67,45 @@
             </nav>
         </aside>
 
+        <div class="fixed inset-x-56 top-20 z-30 flex flex-col gap-3 px-4">
+            @foreach (['success' => 'green', 'error' => 'red', 'warning' => 'yellow'] as $type => $color)
+                @if(session($type))
+                    <div id="flash-{{ $type }}" class="rounded-xl border border-{{ $color }}-200 bg-{{ $color }}-50 px-4 py-3 text-sm text-{{ $color }}-800 shadow-sm flex items-start justify-between gap-4 max-w-2xl">
+                        <div>{{ session($type) }}</div>
+                        <button type="button" onclick="this.closest('[id^=\"flash-\"]')?.remove()" class="text-{{ $color }}-700 font-semibold">×</button>
+                    </div>
+                @endif
+            @endforeach
+        </div>
+
         <main class="ml-56 mt-14 p-8 bg-[#F8FAFC] min-h-screen">
             @yield('content')
         </main>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                document.querySelectorAll('[id^="flash-"]').forEach(function(el) {
+                    setTimeout(function() {
+                        el.style.transition = 'opacity 0.5s';
+                        el.style.opacity = '0';
+                        setTimeout(function() { el.remove(); }, 500);
+                    }, 3000);
+                });
+            });
+
+            function showFlash(message, type = 'success') {
+                const colors = { success: 'green', error: 'red', warning: 'yellow' };
+                const c = colors[type] || 'green';
+                const el = document.createElement('div');
+                el.className = `fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg bg-${c}-100 border border-${c}-300 text-${c}-800 text-sm max-w-sm`;
+                el.innerHTML = `${message} <button type="button" onclick="this.closest('div')?.remove()" class="font-semibold">×</button>`;
+                document.body.appendChild(el);
+                setTimeout(() => {
+                    el.style.transition='opacity 0.5s';
+                    el.style.opacity='0';
+                    setTimeout(()=>el.remove(),500);
+                }, 3000);
+            }
+        </script>
     </body>
 </html>
