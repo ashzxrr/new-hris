@@ -56,6 +56,7 @@
             <table class="min-w-full border-separate border-spacing-0 text-left text-sm">
                 <thead class="sticky top-0 bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
+                        <th class="px-3 py-3">No</th>
                         <th class="px-3 py-3">NIP</th>
                         <th class="px-3 py-3">Nama</th>
                         <th class="px-3 py-3">L/P</th>

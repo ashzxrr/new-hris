@@ -345,6 +345,7 @@ public function exportDetail(Request $request)
 
             $absenceNote = $absenceNotes[$pin][$tgl] ?? null;
             $absenceCode = $absenceNote->code ?? null;
+            $absenceText = trim((string) ($absenceNote->note ?? ''));
 
             $isAbsent = false;
             $isSundayRow = false;
@@ -354,7 +355,24 @@ public function exportDetail(Request $request)
                 $isSundayRow = true;
             } elseif ($dayLogs->isEmpty()) {
                 $isAbsent = true;
-                $keterangan = $absenceCode ?? '-';
+                $keterangan = $absenceCode ? strtoupper($absenceCode) : '-';
+                if ($absenceText !== '') {
+                    $keterangan .= ' — ' . $absenceText;
+                } elseif ($absenceCode && strtoupper($absenceCode) !== 'DLL') {
+                    $defaultNoteText = [
+                        'S' => 'Sakit',
+                        'I' => 'Izin',
+                        'A' => 'Alpha',
+                        'SSD' => 'Sakit Surat Dokter',
+                        'Cuti' => 'Cuti',
+                        'GL' => 'Ganti Libur',
+                        'DLL' => '',
+                    ];
+                    $defaultText = $defaultNoteText[strtoupper($absenceCode)] ?? '';
+                    if ($defaultText !== '') {
+                        $keterangan .= ' -- ' . $defaultText;
+                    }
+                }
             } else {
                 $keterangan = '----';
             }
