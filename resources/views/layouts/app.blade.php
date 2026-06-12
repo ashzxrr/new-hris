@@ -13,6 +13,20 @@
         </style>
     </head>
     <body class="bg-[#F8FAFC] text-slate-900">
+        @if(session('success'))
+        <div id="flashSuccess" class="fixed top-4 right-4 z-[100] bg-[#22C55E]/10 border border-[#22C55E]/20 text-[#15803D] text-sm rounded-xl px-4 py-3 shadow-lg flex items-center gap-2 max-w-sm">
+            <span>✅</span>
+            <span>{{ session('success') }}</span>
+        </div>
+        @endif
+
+        @if(session('error'))
+        <div id="flashError" class="fixed top-4 right-4 z-[100] bg-[#EF4444]/10 border border-[#EF4444]/20 text-[#DC2626] text-sm rounded-xl px-4 py-3 shadow-lg flex items-center gap-2 max-w-sm">
+            <span>⚠️</span>
+            <span>{{ session('error') }}</span>
+        </div>
+        @endif
+
         @php
             $user = Auth::guard('admin')->user();
             $role = $user?->role;
@@ -83,29 +97,17 @@
         </main>
 
         <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                document.querySelectorAll('[id^="flash-"]').forEach(function(el) {
-                    setTimeout(function() {
-                        el.style.transition = 'opacity 0.5s';
+            setTimeout(function() {
+                const success = document.getElementById('flashSuccess');
+                const error = document.getElementById('flashError');
+                [success, error].forEach(el => {
+                    if (el) {
+                        el.style.transition = 'opacity 0.5s ease';
                         el.style.opacity = '0';
-                        setTimeout(function() { el.remove(); }, 500);
-                    }, 3000);
+                        setTimeout(() => el.remove(), 500);
+                    }
                 });
-            });
-
-            function showFlash(message, type = 'success') {
-                const colors = { success: 'green', error: 'red', warning: 'yellow' };
-                const c = colors[type] || 'green';
-                const el = document.createElement('div');
-                el.className = `fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg bg-${c}-100 border border-${c}-300 text-${c}-800 text-sm max-w-sm`;
-                el.innerHTML = `${message} <button type="button" onclick="this.closest('div')?.remove()" class="font-semibold">×</button>`;
-                document.body.appendChild(el);
-                setTimeout(() => {
-                    el.style.transition='opacity 0.5s';
-                    el.style.opacity='0';
-                    setTimeout(()=>el.remove(),500);
-                }, 3000);
-            }
+            }, 4000);
         </script>
     </body>
 </html>

@@ -92,12 +92,17 @@
                                 $tglDisplay = $dayName . ', ' . date('d/m/Y', strtotime($tgl));
                                 $isSunday = date('N', strtotime($tgl)) == 7;
 
-                                $dayLogs = $logs[$pin . '_' . $tgl] ?? collect();
-                                $inTimes = $dayLogs->where('status', 'IN')->pluck('datetime')->map(fn($d) => strtotime($d));
-                                $outTimes = $dayLogs->where('status', 'OUT')->pluck('datetime')->map(fn($d) => strtotime($d));
+                                // Use pre-computed display data
+                                $result = $displayData[$pin . '_' . $tgl] ?? [];
+                                
+                                if ($result['skip'] ?? false) {
+                                    continue; // skip this row, OUT already used by previous night's shift
+                                }
 
-                                $inTs = $inTimes->isNotEmpty() ? $inTimes->min() : null;
-                                $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
+                                $inTs = $result['in_ts'] ?? null;
+                                $outTs = $result['out_ts'] ?? null;
+
+                                $dayLogs = $logs[$pin . '_' . $tgl] ?? collect();
 
                                 $inDisplay = $inTs ? date('H.i', $inTs) : '-';
                                 $outDisplay = $outTs ? date('H.i', $outTs) : '-';
@@ -125,7 +130,7 @@
                                 if ($isSunday) {
                                     $keterangan = 'Minggu';
                                     $rowClass = 'bg-slate-50';
-                                } elseif ($dayLogs->isEmpty()) {
+                                } elseif (!$inTs && !$outTs) {
                                     $keterangan = $absenceCode ? ($codeLabels[$absenceCode] ?? $absenceCode) : '-';
                                     if ($absenceText) {
                                         $keterangan .= ' — ' . $absenceText;

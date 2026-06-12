@@ -51,7 +51,16 @@ Route::middleware('auth:admin')->group(function () {
         Route::post('/absensi/notes/bulk', [AbsensiController::class, 'storeBulkNotes'])->name('absensi.notes.bulk');
     });
 
-    Route::middleware('role:admin')->group(function () {
-        Route::resource('/setting', SettingController::class);
+    Route::middleware(['auth.admin'])->group(function () {
+        Route::get('/setting', [SettingController::class, 'index'])->name('setting.index');
+        Route::post('/setting/profile', [SettingController::class, 'updateProfile'])->name('setting.profile');
+
+        Route::middleware(['role:admin'])->group(function () {
+            Route::post('/setting/users', [SettingController::class, 'storeUser'])->name('setting.users.store');
+            Route::put('/setting/users/{id}', [SettingController::class, 'updateUser'])->name('setting.users.update');
+            Route::put('/setting/users/{id}/toggle', [SettingController::class, 'toggleUser'])->name('setting.users.toggle');
+            Route::delete('/setting/users/{id}', [SettingController::class, 'destroyUser'])->name('setting.users.destroy');
+            Route::get('/setting/backup', [SettingController::class, 'backup'])->name('setting.backup');
+        });
     });
 });

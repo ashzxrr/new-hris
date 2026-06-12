@@ -60,12 +60,6 @@
             </div>
         </div>
 
-        @if(session('success'))
-            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-5 text-sm text-emerald-800">
-                {{ session('success') }}
-            </div>
-        @endif
-
         {{-- Alert sync --}}
         @if($needsSync)
         <div class="bg-[#F59E0B]/10 border border-[#F59E0B]/20 rounded-xl p-4 mb-5 flex items-center justify-between">
