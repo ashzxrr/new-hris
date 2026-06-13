@@ -224,6 +224,8 @@
                                     data-bagian="{{ $k->bagian }}"
                                     data-kategori="{{ $k->kategori_gaji }}"
                                     data-tl-id="{{ $k->tl_id }}"
+                                    data-search="{{ strtolower($k->pin . ' ' . $k->nama . ' ' . $k->nip . ' ' . $k->nik . ' ' . $k->bagian . ' ' . $k->job_title) }}"
+                                    data-nama="{{ strtolower($k->nama) }}"
                                     onclick="this.querySelector('.karyawan-check').click()">
                                     <td class="px-2 py-1.5 sticky left-0 bg-white z-10 border-r border-[#E5E7EB]" onclick="event.stopPropagation()">
                                         <input type="checkbox" 
@@ -544,6 +546,24 @@
                 const matchKategori = !kategori || (row.dataset.kategori || '').toLowerCase() === kategori;
                 return matchSearch && matchBagian && matchKategori;
             });
+
+            if (q) {
+                matched.sort((a, b) => {
+                    const aName = (a.dataset.nama || '').toLowerCase();
+                    const bName = (b.dataset.nama || '').toLowerCase();
+                    const aNameIndex = aName.indexOf(q);
+                    const bNameIndex = bName.indexOf(q);
+                    const aPrefix = aNameIndex === 0 ? 0 : (aNameIndex > -1 ? 1 : 2);
+                    const bPrefix = bNameIndex === 0 ? 0 : (bNameIndex > -1 ? 1 : 2);
+
+                    if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+                    if (aNameIndex !== bNameIndex) return aNameIndex - bNameIndex;
+
+                    const aSearchIndex = (a.dataset.search || '').indexOf(q);
+                    const bSearchIndex = (b.dataset.search || '').indexOf(q);
+                    return aSearchIndex - bSearchIndex;
+                });
+            }
 
             const container = document.querySelector('tbody') || document.getElementById('karyawanList');
             const unmatched = originalRows.filter(r => !matched.includes(r));
