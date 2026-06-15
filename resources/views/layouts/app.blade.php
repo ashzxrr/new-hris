@@ -35,7 +35,7 @@
         <header class="fixed left-0 right-0 top-0 z-20 bg-white border-b border-[#E5E7EB] h-14 px-6 flex items-center justify-between">
             <div>
                 <div class="text-[#111827] font-bold text-lg">HRIS</div>
-                <div class="text-xs text-slate-400">PT Walet Abdillah Jabji</div>
+                <div class="text-xs text-slate-400">PT Walet Abdillah Jabli</div>
             </div>
             <div class="flex items-center gap-4">
                 @if ($user)
