@@ -16,7 +16,7 @@
         <div class="w-full max-w-sm bg-white rounded-2xl border border-[#E5E7EB] p-10 shadow-sm">
             <div class="mb-8">
                 <h1 class="text-3xl font-bold text-slate-800">HRIS</h1>
-                <p class="mt-2 text-sm text-slate-400">PT Walet Abdillah Jabji</p>
+                <p class="mt-2 text-sm text-slate-400">PT Walet Abdillah Jabli</p>
             </div>
 
             <form action="{{ route('login') }}" method="POST" class="space-y-6">
