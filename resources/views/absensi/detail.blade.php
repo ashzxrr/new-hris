@@ -145,7 +145,11 @@
                                 $tlName = $tlMap[$karyawan->tl_id ?? null] ?? '-';
                             @endphp
 
-                            <tr class="border-t border-slate-100 text-sm detail-row {{ $rowClass }}" data-search="{{ strtolower($nipData[$pin]->nama ?? '') }} {{ $pin }}">
+                            <tr class="border-t border-slate-100 text-sm detail-row {{ $rowClass }}"
+                                data-pin="{{ $pin }}"
+                                data-nama="{{ strtolower($karyawan->nama ?? '') }}"
+                                data-nip="{{ strtolower($karyawan->nip ?? '') }}"
+                                data-search="{{ strtolower(($karyawan->nama ?? '') . ' ' . ($karyawan->nip ?? '') . ' ' . $pin) }}">
                                 <td class="px-3 py-2 text-slate-400">{{ $no++ }}</td>
                                 <td class="px-3 py-2 font-mono text-xs">{{ $karyawan->nip ?? '-' }}</td>
                                 <td class="px-3 py-2 font-medium text-slate-800">{{ $karyawan->nama ?? '-' }}</td>
@@ -225,17 +229,31 @@
             detailFilteredRows = Array.from(document.querySelectorAll('.detail-row'));
             renderDetailPage(1);
 
-            const searchInput = document.getElementById('searchDetail');
-            if (searchInput) {
-                searchInput.addEventListener('input', function() {
-                    const q = this.value.toLowerCase().trim();
-                    const allRows = Array.from(document.querySelectorAll('.detail-row'));
-                    detailFilteredRows = allRows.filter(row => {
-                        return !q || (row.dataset.search || '').includes(q);
+            document.getElementById('searchDetail').addEventListener('input', function() {
+                const q = this.value.toLowerCase().trim();
+                const allRows = Array.from(document.querySelectorAll('.detail-row'));
+
+                if (!q) {
+                    // Kalau search kosong, tampilkan semua
+                    detailFilteredRows = allRows;
+                } else {
+                    // Cari berdasarkan data-pin — semua baris dengan pin yang sama ikut tampil
+                    // Pertama, cari pin mana yang match dengan query
+                    const matchedPins = new Set();
+                    allRows.forEach(row => {
+                        const nama = (row.dataset.nama || '').toLowerCase();
+                        const nip  = (row.dataset.nip  || '').toLowerCase();
+                        if (nama.includes(q) || nip.includes(q)) {
+                            matchedPins.add(row.dataset.pin);
+                        }
                     });
-                    renderDetailPage(1);
-                });
-            }
+
+                    // Kemudian filter semua baris yang pin-nya ada di matchedPins
+                    detailFilteredRows = allRows.filter(row => matchedPins.has(row.dataset.pin));
+                }
+
+                renderDetailPage(1);
+            });
         }
 
         function renderDetailPage(page) {
@@ -244,6 +262,11 @@
             const start = (page - 1) * perPage;
             const end = start + perPage;
 
+            // Sembunyikan SEMUA baris dulu
+            const allRows = Array.from(document.querySelectorAll('.detail-row'));
+            allRows.forEach(row => row.style.display = 'none');
+
+            // Tampilkan hanya baris yang masuk range dari filteredRows
             detailFilteredRows.forEach((row, i) => {
                 row.style.display = (i >= start && i < end) ? '' : 'none';
             });
