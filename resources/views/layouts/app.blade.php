@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ $title ?? config('app.name', 'HRIS') }}</title>
+        <meta name="csrf-token" content="{{ csrf_token() }}">
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
         <script src="https://cdn.tailwindcss.com"></script>
         <style>
@@ -13,20 +14,6 @@
         </style>
     </head>
     <body class="bg-[#F8FAFC] text-slate-900">
-        @if(session('success'))
-        <div id="flashSuccess" class="fixed top-4 right-4 z-[100] bg-[#22C55E]/10 border border-[#22C55E]/20 text-[#15803D] text-sm rounded-xl px-4 py-3 shadow-lg flex items-center gap-2 max-w-sm">
-            <span>✅</span>
-            <span>{{ session('success') }}</span>
-        </div>
-        @endif
-
-        @if(session('error'))
-        <div id="flashError" class="fixed top-4 right-4 z-[100] bg-[#EF4444]/10 border border-[#EF4444]/20 text-[#DC2626] text-sm rounded-xl px-4 py-3 shadow-lg flex items-center gap-2 max-w-sm">
-            <span>⚠️</span>
-            <span>{{ session('error') }}</span>
-        </div>
-        @endif
-
         @php
             $user = Auth::guard('admin')->user();
             $role = $user?->role;
@@ -72,6 +59,13 @@
                     </a>
                 @endif
 
+                @if ($role)
+                    <a href="{{ route('payroll.index') }}" class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm {{ request()->routeIs('payroll.*') ? 'bg-white/10 text-white font-medium' : 'text-gray-400 hover:bg-white/10' }}">
+                        <span>💼</span>
+                        <span>Payroll</span>
+                    </a>
+                @endif
+
                 @if ($role === 'admin')
                     <a href="{{ route('setting.index') }}" class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm {{ request()->routeIs('setting.*') ? 'bg-white/10 text-white font-medium' : 'text-gray-400 hover:bg-white/10' }}">
                         <span>⚙️</span>
@@ -98,14 +92,10 @@
 
         <script>
             setTimeout(function() {
-                const success = document.getElementById('flashSuccess');
-                const error = document.getElementById('flashError');
-                [success, error].forEach(el => {
-                    if (el) {
-                        el.style.transition = 'opacity 0.5s ease';
-                        el.style.opacity = '0';
-                        setTimeout(() => el.remove(), 500);
-                    }
+                document.querySelectorAll('[id^="flash-"]').forEach(el => {
+                    el.style.transition = 'opacity 0.5s ease';
+                    el.style.opacity = '0';
+                    setTimeout(() => el.remove(), 500);
                 });
             }, 4000);
         </script>

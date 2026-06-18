@@ -177,14 +177,13 @@ class KaryawanController extends Controller
     }
 
     public function resignBulk(Request $request)
-    {
-        $ids = $request->ids ?? [];
-        if (empty($ids)) return redirect()->route('karyawan.index');
+{
+    $ids = $request->ids ?? [];
+    if (empty($ids)) return redirect()->route('karyawan.index');
 
-        User::whereIn('id', $ids)->update([
-            'nip' => 'resign',
-            'is_active' => 0,
-        ]);
+    User::whereIn('id', $ids)->update([
+        'is_active' => 0,
+    ]);
 
         return redirect()->route('karyawan.index')
             ->with('success', count($ids) . ' karyawan berhasil ditandai RESIGN.');

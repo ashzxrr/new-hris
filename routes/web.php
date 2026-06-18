@@ -4,6 +4,7 @@ use App\Http\Controllers\AbsensiController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KaryawanController;
+use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 
@@ -54,6 +55,20 @@ Route::middleware('auth:admin')->group(function () {
     Route::middleware(['auth.admin'])->group(function () {
         Route::get('/setting', [SettingController::class, 'index'])->name('setting.index');
         Route::post('/setting/profile', [SettingController::class, 'updateProfile'])->name('setting.profile');
+
+        Route::prefix('payroll')->name('payroll.')->group(function () {
+            Route::get('/',                          [PayrollController::class, 'index'])->name('index');
+            Route::get('/create',                    [PayrollController::class, 'create'])->name('create');
+            Route::post('/preview',                  [PayrollController::class, 'preview'])->name('preview');
+            Route::post('/',                         [PayrollController::class, 'store'])->name('store');
+            Route::get('/{id}',                      [PayrollController::class, 'show'])->name('show');
+            Route::get('/{id}/export-slip',          [PayrollController::class, 'exportSlipGaji'])->name('export.slip');
+            Route::put('/detail/{id}',               [PayrollController::class, 'updateDetail'])->name('detail.update');
+            Route::get('/detail/{id}/koreksi',      [PayrollController::class, 'getKoreksiData'])->name('detail.koreksi.get');
+            Route::post('/detail/{id}/koreksi',     [PayrollController::class, 'saveKoreksi'])->name('detail.koreksi.save');
+            Route::put('/{id}/finalize',             [PayrollController::class, 'finalize'])->name('finalize');
+            Route::delete('/{id}',                   [PayrollController::class, 'destroy'])->name('destroy');
+        });
 
         Route::middleware(['role:admin'])->group(function () {
             Route::post('/setting/users', [SettingController::class, 'storeUser'])->name('setting.users.store');
