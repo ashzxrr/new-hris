@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\BoronganHarian;
 use App\Models\BoronganImport;
 use App\Models\BoronganRate;
+use App\Models\BoronganRekap;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -294,11 +295,165 @@ class BoronganController extends Controller
     {
         $import = BoronganImport::findOrFail($id);
 
+        // Group borongan_harian by NIP → akumulasi gram & upah
+        $grouped = BoronganHarian::where('borongan_import_id', $id)
+            ->get()
+            ->groupBy('nip');
+
+        foreach ($grouped as $nip => $rows) {
+            $first = $rows->first();
+            $totalGram = $rows->sum('berat_gram');
+            $totalUpah = $rows->sum('upah_file');
+
+            // Upsert rekap — kalau sudah ada (re-approve), update akumulasi tapi jaga potongan/tambahan
+            $existing = BoronganRekap::where('borongan_import_id', $id)
+                ->where('nip', $nip)
+                ->first();
+
+            if ($existing) {
+                $existing->total_gram = $totalGram;
+                $existing->total_upah = $totalUpah;
+                $existing->total_akhir = $totalUpah + $existing->tambahan
+                    - $existing->potongan_bpjs
+                    - $existing->potongan_lain;
+                $existing->save();
+            } else {
+                BoronganRekap::create([
+                    'borongan_import_id' => $id,
+                    'pin'                => $first->pin,
+                    'nip'                => $nip,
+                    'nama'               => $first->nama,
+                    'periode_dari'       => $import->tanggal_dari,
+                    'periode_sampai'     => $import->tanggal_sampai,
+                    'total_gram'         => $totalGram,
+                    'total_upah'         => $totalUpah,
+                    'potongan_bpjs'      => 0,
+                    'potongan_lain'      => 0,
+                    'tambahan'           => 0,
+                    'total_akhir'        => $totalUpah,
+                    'status'             => 'draft',
+                ]);
+            }
+        }
+
         BoronganHarian::where('borongan_import_id', $id)->update(['status' => 'approved']);
         $import->update(['status' => 'approved']);
 
-        return redirect()->route('borongan.index')
-            ->with('success', 'Data borongan berhasil diapprove dan siap digabung ke payroll.');
+        return redirect()->route('borongan.rekapIndex', $id)
+            ->with('success', 'Data borongan berhasil diapprove. Rekap per karyawan sudah dibuat.');
+    }
+
+    public function updateRekap(Request $request, $rekapId)
+    {
+        $rekap = BoronganRekap::findOrFail($rekapId);
+
+        $request->validate([
+            'potongan_bpjs' => 'nullable|integer|min:0',
+            'potongan_lain' => 'nullable|integer|min:0',
+            'tambahan'      => 'nullable|integer|min:0',
+            'keterangan'    => 'nullable|string|max:255',
+        ]);
+
+        $rekap->potongan_bpjs = $request->potongan_bpjs ?? 0;
+        $rekap->potongan_lain = $request->potongan_lain ?? 0;
+        $rekap->tambahan = $request->tambahan ?? 0;
+        $rekap->keterangan = $request->keterangan;
+        $rekap->total_akhir = $rekap->total_upah
+            + $rekap->tambahan
+            - $rekap->potongan_bpjs
+            - $rekap->potongan_lain;
+        $rekap->updated_by = Auth::guard('admin')->id();
+        $rekap->save();
+
+        return response()->json([
+            'success'     => true,
+            'total_akhir' => $rekap->total_akhir,
+        ]);
+    }
+
+    public function rekapIndex($id)
+    {
+        $import = BoronganImport::findOrFail($id);
+        $rekaps = BoronganRekap::where('borongan_import_id', $id)
+            ->orderBy('nama')
+            ->get();
+
+        return view('borongan.rekap', compact('import', 'rekaps'));
+    }
+
+    public function getDetail(Request $request, $id, $nip)
+    {
+        $import = BoronganImport::findOrFail($id);
+
+        // Data borongan harian
+        $harian = BoronganHarian::where('borongan_import_id', $id)
+            ->where('nip', $nip)
+            ->orderBy('tanggal')
+            ->get()
+            ->keyBy(fn($h) => \Carbon\Carbon::parse($h->tanggal)->format('Y-m-d'));
+
+        // Rekap
+        $rekap = BoronganRekap::where('borongan_import_id', $id)
+            ->where('nip', $nip)
+            ->first();
+
+        // Absensi dari attendance_logs
+        $user = User::where('nip', $nip)->first();
+        $attendanceLogs = [];
+        $absenceNotes = [];
+
+        if ($user) {
+            $logs = \App\Models\AttendanceLog::where('pin', $user->pin)
+                ->whereBetween('tanggal', [$import->tanggal_dari, $import->tanggal_sampai])
+                ->orderBy('datetime')
+                ->get()
+                ->groupBy(fn($l) => substr((string)$l->tanggal, 0, 10));
+
+            $notes = \App\Models\AbsenceNote::where('pin', $user->pin)
+                ->whereBetween('date', [$import->tanggal_dari, $import->tanggal_sampai])
+                ->get()
+                ->keyBy(fn($n) => $n->date->format('Y-m-d'));
+
+            // Build per-hari
+            $periode = [];
+            $cur = new \DateTime($import->tanggal_dari->format('Y-m-d'));
+            $end = new \DateTime($import->tanggal_sampai->format('Y-m-d'));
+            while ($cur <= $end) {
+                $tgl = $cur->format('Y-m-d');
+                $isSunday = date('N', strtotime($tgl)) == 7;
+
+                $dayLogs = $logs[$tgl] ?? collect();
+                $inTimes = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string)$l->datetime));
+                $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string)$l->datetime));
+
+                $inTs = $inTimes->isNotEmpty() ? $inTimes->min() : null;
+                $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
+
+                $note = $notes[$tgl] ?? null;
+                $boronganRow = $harian[$tgl] ?? null;
+
+                $periode[] = [
+                    'tanggal' => $tgl,
+                    'is_sunday' => $isSunday,
+                    'jam_in' => $inTs ? date('H:i', $inTs) : null,
+                    'jam_out' => $outTs ? date('H:i', $outTs) : null,
+                    'keterangan' => $note ? $note->code : null,
+                    'gram' => $boronganRow?->berat_gram ?? 0,
+                    'upah' => $boronganRow?->upah_file ?? 0,
+                    'hadir' => ($inTs || $outTs) ? true : false,
+                ];
+
+                $cur->modify('+1 day');
+            }
+
+            $attendanceLogs = $periode;
+        }
+
+        return response()->json([
+            'rekap' => $rekap,
+            'harian' => $attendanceLogs,
+            'nama' => $rekap?->nama ?? $nip,
+        ]);
     }
 
     public function destroy($id)

@@ -78,6 +78,9 @@ Route::middleware('auth:admin')->group(function () {
             Route::post('/upload',      [BoronganController::class, 'upload'])->name('upload');
             Route::get('/{id}/review',  [BoronganController::class, 'review'])->name('review');
             Route::put('/{id}/approve', [BoronganController::class, 'approve'])->name('approve');
+            Route::get('/{id}/rekap',   [BoronganController::class, 'rekapIndex'])->name('rekapIndex');
+            Route::get('/{id}/detail/{nip}', [BoronganController::class, 'getDetail'])->name('getDetail');
+            Route::put('/rekap/{rekapId}', [BoronganController::class, 'updateRekap'])->name('updateRekap');
             Route::delete('/{id}',      [BoronganController::class, 'destroy'])->name('destroy');
         });
 
