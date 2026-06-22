@@ -173,26 +173,27 @@ class PayrollController extends Controller
             }
 
             // Hitung gaji
-            $gajiPokok  = $hadir * $nominal;
-            $upahPerJam = $nominal / 8;
-            $gajiLembur = floor($upahPerJam * 1.5 * ($lemburMenit / 60));
-            $totalGaji  = $gajiPokok + $gajiLembur;
+            $gajiPokok      = $hadir * $nominal;
+            $upahPerJam     = $nominal / 8;
+            $potensiLembur  = floor($upahPerJam * 1.5 * ($lemburMenit / 60)); // hanya untuk preview info
+            $totalGaji      = $gajiPokok; // total tanpa lembur (karena belum di-approve)
 
             $previewData[] = [
-                'pin'          => $pin,
-                'nip'          => $nip,
-                'nama'         => $k->nama,
-                'job_title'    => $k->job_title,
-                'nominal'      => $nominal,
-                'hadir'        => $hadir,
-                'alpha'        => $alpha,
-                'izin'         => $izin,
-                'sakit'        => $sakit,
-                'lembur_menit' => $lemburMenit,
-                'gaji_pokok'   => $gajiPokok,
-                'gaji_lembur'  => $gajiLembur,
-                'total_gaji'   => $totalGaji,
-                'detail_harian'=> $detailHarian,
+                'pin'             => $pin,
+                'nip'             => $nip,
+                'nama'            => $k->nama,
+                'job_title'       => $k->job_title,
+                'nominal'         => $nominal,
+                'hadir'           => $hadir,
+                'alpha'           => $alpha,
+                'izin'            => $izin,
+                'sakit'           => $sakit,
+                'lembur_menit'    => $lemburMenit,
+                'gaji_pokok'      => $gajiPokok,
+                'gaji_lembur'     => 0, // belum approved
+                'potensi_lembur'  => $potensiLembur, // info saja, untuk ditampilkan beda warna
+                'total_gaji'      => $totalGaji,
+                'detail_harian'   => $detailHarian,
             ];
         }
 
@@ -321,26 +322,28 @@ class PayrollController extends Controller
                     }
                 }
 
-                $gajiPokok  = $hadir * $nominal;
-                $gajiLembur = floor(($nominal / 8) * 1.5 * ($lemburMenit / 60));
-                $totalGaji  = $gajiPokok + $gajiLembur;
+                $gajiPokok = $hadir * $nominal;
+                // Lembur belum di-approve saat generate awal, jadi gaji_lembur = 0
+                $gajiLembur = 0;
+                $totalGaji  = $gajiPokok; // tanpa lembur
 
                 PayrollDetail::create([
-                    'payroll_id'     => $payroll->id,
-                    'pin'            => $pin,
-                    'nip'            => $nip,
-                    'nama'           => $k->nama,
-                    'nominal_harian' => $nominal,
-                    'hadir'          => $hadir,
-                    'alpha'          => $alpha,
-                    'izin'           => $izin,
-                    'sakit'          => $sakit,
-                    'lembur_menit'   => $lemburMenit,
-                    'gaji_pokok'     => $gajiPokok,
-                    'gaji_lembur'    => $gajiLembur,
-                    'tambahan'       => 0,
-                    'potongan'       => 0,
-                    'total_gaji'     => $totalGaji,
+                    'payroll_id'      => $payroll->id,
+                    'pin'             => $pin,
+                    'nip'             => $nip,
+                    'nama'            => $k->nama,
+                    'nominal_harian'  => $nominal,
+                    'hadir'           => $hadir,
+                    'alpha'           => $alpha,
+                    'izin'            => $izin,
+                    'sakit'           => $sakit,
+                    'lembur_menit'    => $lemburMenit,    // simpan menit lembur untuk referensi
+                    'lembur_approved' => false,            // default belum approved
+                    'gaji_pokok'      => $gajiPokok,
+                    'gaji_lembur'     => $gajiLembur,      // 0 sampai di-approve
+                    'tambahan'        => 0,
+                    'potongan'        => 0,
+                    'total_gaji'      => $totalGaji,
                 ]);
             }
 
@@ -361,6 +364,12 @@ class PayrollController extends Controller
     {
         $payroll = Payroll::findOrFail($id);
         $details = PayrollDetail::where('payroll_id', $id)->orderBy('nama')->get();
+        
+        foreach ($details as $d) {
+            $upahPerJam = $d->nominal_harian / 8;
+            $d->potensi_lembur = floor($upahPerJam * 1.5 * ($d->lembur_menit / 60));
+        }
+        
         return view('payroll.show', compact('payroll', 'details'));
     }
 
@@ -851,5 +860,35 @@ class PayrollController extends Controller
             DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    // ========================
+    // TOGGLE LEMBUR APPROVAL
+    // ========================
+    public function toggleLembur($id)
+    {
+        $detail = PayrollDetail::findOrFail($id);
+
+        $newStatus = !$detail->lembur_approved;
+        $detail->lembur_approved = $newStatus;
+
+        // Recalculate total gaji
+        $nominal    = $detail->nominal_harian;
+        $gajiPokok  = $detail->hadir * $nominal;
+        $gajiLembur = $newStatus
+            ? floor(($nominal / 8) * 1.5 * ($detail->lembur_menit / 60))
+            : 0;
+        $totalGaji  = $gajiPokok + $gajiLembur + $detail->tambahan - $detail->potongan;
+
+        $detail->gaji_lembur = $gajiLembur;
+        $detail->total_gaji  = $totalGaji;
+        $detail->save();
+
+        return response()->json([
+            'success'         => true,
+            'lembur_approved' => $newStatus,
+            'gaji_lembur'     => $gajiLembur,
+            'total_gaji'      => $totalGaji,
+        ]);
     }
 }

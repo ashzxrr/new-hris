@@ -68,7 +68,7 @@
                     <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Izin</th>
                     <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Sakit</th>
                     <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Gaji Pokok</th>
-                    <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Lembur</th>
+                    <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Lembur (Approval)</th>
                     <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Tambahan</th>
                     <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Potongan</th>
                     <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Total</th>
@@ -87,7 +87,34 @@
                     <td class="px-3 py-2.5 text-center text-amber-500">{{ $d->izin }}</td>
                     <td class="px-3 py-2.5 text-center text-blue-500">{{ $d->sakit }}</td>
                     <td class="px-3 py-2.5 text-right text-slate-700">Rp {{ number_format($d->gaji_pokok, 0, ',', '.') }}</td>
-                    <td class="px-3 py-2.5 text-right text-amber-600">Rp {{ number_format($d->gaji_lembur, 0, ',', '.') }}</td>
+                    <td class="px-3 py-2.5 text-right">
+                        @if($d->lembur_menit > 0)
+                            <div class="flex items-center justify-end gap-2">
+                                <span class="{{ $d->lembur_approved ? 'text-amber-600' : 'text-slate-300' }} font-medium">
+                                    Rp {{ number_format($d->gaji_lembur, 0, ',', '.') }}
+                                </span>
+                                @if($payroll->status === 'draft')
+                                <button type="button"
+                                    onclick="toggleLembur({{ $d->id }}, this)"
+                                    data-approved="{{ $d->lembur_approved ? '1' : '0' }}"
+                                    data-potensi="{{ $d->potensi_lembur }}"
+                                    data-jam="{{ round($d->lembur_menit / 60, 1) }}"
+                                    class="text-xs px-2 py-1 rounded-full border transition whitespace-nowrap
+                                        {{ $d->lembur_approved 
+                                            ? 'border-[#22C55E] text-[#22C55E] bg-[#22C55E]/10' 
+                                            : 'border-amber-200 text-amber-500 hover:border-amber-400 hover:bg-amber-50' }}">
+                                    @if($d->lembur_approved)
+                                        ✅ Approved
+                                    @else
+                                        Approve? Rp {{ number_format($d->potensi_lembur, 0, ',', '.') }} ({{ round($d->lembur_menit / 60, 1) }} jam)
+                                    @endif
+                                </button>
+                                @endif
+                            </div>
+                        @else
+                            <span class="text-slate-300">-</span>
+                        @endif
+                    </td>
                     <td class="px-3 py-2.5 text-right text-green-600">Rp {{ number_format($d->tambahan, 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-right text-red-500">Rp {{ number_format($d->potongan, 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-right font-bold text-[#4F46E5]">Rp {{ number_format($d->total_gaji, 0, ',', '.') }}</td>
@@ -330,5 +357,43 @@ function closeKoreksiModal() {
 document.getElementById('koreksiModal').addEventListener('click', function(e) {
     if (e.target === this) closeKoreksiModal();
 });
+
+function toggleLembur(detailId, btn) {
+    fetch(`/payroll/detail/${detailId}/toggle-lembur`, {
+        method: 'PUT',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) return;
+
+        const approved = data.lembur_approved;
+        const potensi  = parseInt(btn.dataset.potensi);
+        const jam      = btn.dataset.jam;
+
+        btn.dataset.approved = approved ? '1' : '0';
+        btn.textContent = approved
+            ? '✅ Approved'
+            : `Approve? Rp ${potensi.toLocaleString('id-ID')} (${jam} jam)`;
+        btn.className = 'text-xs px-2 py-1 rounded-full border transition whitespace-nowrap ' +
+            (approved
+                ? 'border-[#22C55E] text-[#22C55E] bg-[#22C55E]/10'
+                : 'border-amber-200 text-amber-500 hover:border-amber-400 hover:bg-amber-50');
+
+        const lemburSpan = btn.previousElementSibling;
+        lemburSpan.className = (approved ? 'text-amber-600' : 'text-slate-300') + ' font-medium';
+        lemburSpan.textContent = 'Rp ' + data.gaji_lembur.toLocaleString('id-ID');
+
+        const row = btn.closest('tr');
+        const totalCell = row.querySelector('td:nth-last-child(2)');
+        if (totalCell) {
+            totalCell.textContent = 'Rp ' + data.total_gaji.toLocaleString('id-ID');
+        }
+    })
+    .catch(e => alert('Gagal: ' + e.message));
+}
 </script>
 @endsection

@@ -38,13 +38,13 @@
             </div>
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
-            <div class="text-xs text-slate-400 mb-1">Total Lembur</div>
-            <div class="text-xl font-bold text-amber-500">
-                Rp {{ number_format(collect($previewData)->sum('gaji_lembur'), 0, ',', '.') }}
+            <div class="text-xs text-slate-400 mb-1">Potensi Lembur (belum approved)</div>
+            <div class="text-xl font-bold text-slate-400">
+                Rp {{ number_format(collect($previewData)->sum('potensi_lembur'), 0, ',', '.') }}
             </div>
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
-            <div class="text-xs text-slate-400 mb-1">Total Keseluruhan</div>
+            <div class="text-xs text-slate-400 mb-1">Total Keseluruhan (tanpa lembur)</div>
             <div class="text-xl font-bold text-[#4F46E5]">
                 Rp {{ number_format(collect($previewData)->sum('total_gaji'), 0, ',', '.') }}
             </div>
@@ -81,7 +81,9 @@
                     <td class="px-3 py-2.5 text-center text-blue-500">{{ $d['sakit'] }}</td>
                     <td class="px-3 py-2.5 text-center text-purple-500">{{ $d['lembur_menit'] }} mnt</td>
                     <td class="px-3 py-2.5 text-right text-slate-700">Rp {{ number_format($d['gaji_pokok'], 0, ',', '.') }}</td>
-                    <td class="px-3 py-2.5 text-right text-amber-600">Rp {{ number_format($d['gaji_lembur'], 0, ',', '.') }}</td>
+                    <td class="px-3 py-2.5 text-right text-slate-300" title="Belum di-approve, akan dihitung setelah generate">
+                        Rp {{ number_format($d['potensi_lembur'] ?? 0, 0, ',', '.') }} <span class="text-[10px]">(potensi)</span>
+                    </td>
                     <td class="px-3 py-2.5 text-right font-bold text-[#4F46E5]">Rp {{ number_format($d['total_gaji'], 0, ',', '.') }}</td>
                 </tr>
                 @endforeach
@@ -90,7 +92,7 @@
                 <tr>
                     <td colspan="8" class="px-3 py-2.5 font-semibold text-slate-700 text-right">TOTAL</td>
                     <td class="px-3 py-2.5 text-right font-bold text-slate-800">Rp {{ number_format(collect($previewData)->sum('gaji_pokok'), 0, ',', '.') }}</td>
-                    <td class="px-3 py-2.5 text-right font-bold text-amber-600">Rp {{ number_format(collect($previewData)->sum('gaji_lembur'), 0, ',', '.') }}</td>
+                    <td class="px-3 py-2.5 text-right font-bold text-slate-400">Rp {{ number_format(collect($previewData)->sum('potensi_lembur'), 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-right font-bold text-[#4F46E5]">Rp {{ number_format(collect($previewData)->sum('total_gaji'), 0, ',', '.') }}</td>
                 </tr>
             </tfoot>

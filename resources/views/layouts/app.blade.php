@@ -64,6 +64,15 @@
                         <span>💼</span>
                         <span>Payroll</span>
                     </a>
+
+                    <a href="{{ route('borongan.index') }}"
+                        class="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition
+                            {{ request()->routeIs('borongan.*') 
+                                ? 'bg-white/10 text-white' 
+                                : 'text-gray-300 hover:bg-white/10 hover:text-white' }}">
+                        <span>📦</span>
+                        <span>Import Borongan</span>
+                    </a>
                 @endif
 
                 @if ($role === 'admin')

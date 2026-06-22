@@ -4,6 +4,7 @@ use App\Http\Controllers\AbsensiController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KaryawanController;
+use App\Http\Controllers\BoronganController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
@@ -64,10 +65,20 @@ Route::middleware('auth:admin')->group(function () {
             Route::get('/{id}',                      [PayrollController::class, 'show'])->name('show');
             Route::get('/{id}/export-slip',          [PayrollController::class, 'exportSlipGaji'])->name('export.slip');
             Route::put('/detail/{id}',               [PayrollController::class, 'updateDetail'])->name('detail.update');
+            Route::put('/detail/{id}/toggle-lembur', [PayrollController::class, 'toggleLembur'])->name('detail.toggle.lembur');
             Route::get('/detail/{id}/koreksi',      [PayrollController::class, 'getKoreksiData'])->name('detail.koreksi.get');
             Route::post('/detail/{id}/koreksi',     [PayrollController::class, 'saveKoreksi'])->name('detail.koreksi.save');
             Route::put('/{id}/finalize',             [PayrollController::class, 'finalize'])->name('finalize');
             Route::delete('/{id}',                   [PayrollController::class, 'destroy'])->name('destroy');
+        });
+
+        Route::prefix('borongan')->name('borongan.')->group(function () {
+            Route::get('/',             [BoronganController::class, 'index'])->name('index');
+            Route::get('/create',       [BoronganController::class, 'create'])->name('create');
+            Route::post('/upload',      [BoronganController::class, 'upload'])->name('upload');
+            Route::get('/{id}/review',  [BoronganController::class, 'review'])->name('review');
+            Route::put('/{id}/approve', [BoronganController::class, 'approve'])->name('approve');
+            Route::delete('/{id}',      [BoronganController::class, 'destroy'])->name('destroy');
         });
 
         Route::middleware(['role:admin'])->group(function () {
