@@ -84,6 +84,10 @@
                                 class="text-xs px-2 py-1 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-slate-50">
                                 Review
                             </a>
+                            <a href="{{ route('borongan.rekapIndex', $imp->id) }}"
+                                class="text-xs px-2 py-1 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-slate-50">
+                                Rekap
+                            </a>
                             @if($imp->status !== 'approved')
                             <form method="POST" action="{{ route('borongan.destroy', $imp->id) }}"
                                 onsubmit="return confirm('Hapus import ini?')">

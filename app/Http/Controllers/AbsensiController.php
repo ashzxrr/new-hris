@@ -24,11 +24,16 @@ class AbsensiController extends Controller
 
     public function index()
     {
-        $karyawan = User::where('is_active', 1)
+        // Ambil semua karyawan (aktif dan resign)
+        $allKaryawan = User::orderBy('is_active', 'desc')
             ->orderBy('nama')
             ->get();
 
-        $tlMap = User::whereIn('id', $karyawan->pluck('tl_id')->filter()->unique())
+        // Pisahkan karyawan aktif dan resign
+        $karyawanAktif = $allKaryawan->where('is_active', 1)->values();
+        $karyawanResign = $allKaryawan->where('is_active', 0)->values();
+
+        $tlMap = User::whereIn('id', $allKaryawan->pluck('tl_id')->filter()->unique())
             ->pluck('nama', 'id');
         
         $bagianList = User::where('is_active', 1)
@@ -44,7 +49,7 @@ class AbsensiController extends Controller
             ->orderBy('nama')
             ->get(['id', 'nama']);
 
-        return view('absensi.index', compact('karyawan', 'bagianList', 'tlList', 'tlMap'));
+        return view('absensi.index', compact('karyawanAktif', 'karyawanResign', 'allKaryawan', 'bagianList', 'tlList', 'tlMap'));
     }
 
     public function detail(Request $request)

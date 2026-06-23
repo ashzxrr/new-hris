@@ -160,7 +160,7 @@
             </thead>
             <tbody class="divide-y divide-slate-200">
             @forelse ($karyawan as $k)
-                <tr class="karyawan-row border-t border-slate-50 cursor-pointer transition-colors duration-100 @if($k->is_active == 0 || strtolower(trim($k->nip ?? '')) === 'resign') bg-red-50 @endif" onclick="toggleRow(this)" data-status="{{ $k->is_active == 0 || strtolower(trim($k->nip ?? '')) === 'resign' ? 'resign' : 'aktif' }}" data-bagian="{{ $k->bagian }}" data-kategori="{{ $k->kategori_gaji }}" data-tl-id="{{ $k->tl_id }}" data-search="{{ strtolower($k->pin . ' ' . $k->nama . ' ' . $k->nip . ' ' . $k->nik . ' ' . $k->bagian . ' ' . $k->job_title) }}">
+                <tr class="karyawan-row border-t border-slate-50 cursor-pointer transition-colors duration-100 @if($k->is_active == 0) bg-red-50 @endif" onclick="toggleRow(this)" data-status="{{ $k->is_active == 0 ? 'resign' : 'aktif' }}" data-bagian="{{ $k->bagian }}" data-kategori="{{ $k->kategori_gaji }}" data-tl-id="{{ $k->tl_id }}" data-search="{{ strtolower($k->pin . ' ' . $k->nama . ' ' . $k->nip . ' ' . $k->nik . ' ' . $k->bagian . ' ' . $k->job_title) }}">
                     <td class="px-2 py-1.5 sticky left-0 bg-white z-10 border-r border-[#E5E7EB]" onclick="event.stopPropagation()">
                         <input type="checkbox" class="karyawan-check accent-[#4F46E5]" value="{{ $k->id }}" data-pin="{{ $k->pin }}" onchange="updateSelectedCount()">
                     </td>

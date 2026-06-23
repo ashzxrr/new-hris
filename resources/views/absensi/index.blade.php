@@ -188,12 +188,26 @@
                     </div>
 
                     <input id="searchKaryawan" type="text" placeholder="Cari nama karyawan..."
-                        class="w-full bg-[#F8FAFC] border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm text-slate-700 mb-2" />
+                        class="w-full bg-[#F8FAFC] border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm text-slate-700 mb-3" />
+
+                    <!-- Tab Karyawan Aktif / Resign -->
+                    <div class="flex gap-2 mb-3 border-b border-[#E5E7EB]">
+                        <button type="button" id="tabAktif" onclick="switchTab('aktif')"
+                            class="px-4 py-2 text-sm font-medium text-slate-600 border-b-2 border-[#4F46E5] text-[#4F46E5] transition">
+                            Karyawan Aktif
+                        </button>
+                        <button type="button" id="tabResign" onclick="switchTab('resign')"
+                            class="px-4 py-2 text-sm font-medium text-slate-500 border-b-2 border-transparent hover:border-slate-300 transition">
+                            Karyawan Resign
+                        </button>
+                    </div>
 
                     <div class="overflow-auto max-h-[55vh] border border-[#E5E7EB] rounded-lg" id="karyawanList">
                         <style>
                             .karyawan-item:hover { background-color: #f0fdf4 !important; }
                             .karyawan-item:hover td { background-color: #f0fdf4 !important; }
+                            .karyawan-resign { display: none; }
+                            .karyawan-resign.active { display: table-row; }
                         </style>
                         <table class="w-full text-xs whitespace-nowrap min-w-[1400px]">
                             <thead class="sticky top-0 bg-[#F8FAFC] z-10 text-[11px] font-medium text-slate-400 uppercase tracking-wide">
@@ -216,11 +230,45 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($karyawan as $k)
+                                <!-- Karyawan Aktif -->
+                                @foreach($karyawanAktif as $k)
                                 @php
                                     $tlName = $tlMap[$k->tl_id] ?? '-';
                                 @endphp
                                 <tr class="karyawan-item border-t border-[#E5E7EB] cursor-pointer transition-colors duration-100"
+                                    data-bagian="{{ $k->bagian }}"
+                                    data-kategori="{{ $k->kategori_gaji }}"
+                                    data-tl-id="{{ $k->tl_id }}"
+                                    data-search="{{ strtolower($k->pin . ' ' . $k->nama . ' ' . $k->nip . ' ' . $k->nik . ' ' . $k->bagian . ' ' . $k->job_title) }}"
+                                    data-nama="{{ strtolower($k->nama) }}"
+                                    onclick="this.querySelector('.karyawan-check').click()">
+                                    <td class="px-2 py-1.5 sticky left-0 bg-white z-10 border-r border-[#E5E7EB]" onclick="event.stopPropagation()">
+                                        <input type="checkbox" 
+                                            name="selected_users[]" 
+                                            value="{{ $k->pin }}"
+                                            class="karyawan-check accent-[#4F46E5]"
+                                            onchange="updateSelectedCount()">
+                                    </td>
+                                    <td class="px-2 py-1.5 sticky left-10 bg-white z-10 border-r border-[#E5E7EB] font-mono text-slate-400 text-xs">{{ $k->pin }}</td>
+                                    <td class="px-2 py-1.5 sticky left-20 bg-white z-10 border-r border-[#E5E7EB] min-w-[160px] font-medium text-slate-800">{{ $k->nama }}</td>
+                                    <td class="px-2 py-1.5 sticky left-[264px] bg-white z-10 border-r border-[#E5E7EB] text-slate-600">{{ $k->nip ?: '-' }}</td>
+                                    <td class="px-2 py-1.5 text-slate-600 font-mono text-xs">{{ $k->nik ?: '-' }}</td>
+                                    <td class="px-2 py-1.5 text-center">{{ $k->jk ?: '-' }}</td>
+                                    <td class="px-2 py-1.5">{{ $k->job_title ?: '-' }}</td>
+                                    <td class="px-2 py-1.5">{{ $k->job_level ?: '-' }}</td>
+                                    <td class="px-2 py-1.5">{{ $k->bagian ?: '-' }}</td>
+                                    <td class="px-2 py-1.5">{{ $k->kategori_gaji ?: '-' }}</td>
+                                    <td class="px-2 py-1.5">{{ $k->departemen ?: '-' }}</td>
+                                    <td class="px-2 py-1.5">{{ $tlName }}</td>
+                                </tr>
+                                @endforeach
+
+                                <!-- Karyawan Resign -->
+                                @foreach($karyawanResign as $k)
+                                @php
+                                    $tlName = $tlMap[$k->tl_id] ?? '-';
+                                @endphp
+                                <tr class="karyawan-resign karyawan-item border-t border-[#E5E7EB] cursor-pointer transition-colors duration-100"
                                     data-bagian="{{ $k->bagian }}"
                                     data-kategori="{{ $k->kategori_gaji }}"
                                     data-tl-id="{{ $k->tl_id }}"
@@ -321,6 +369,48 @@
     </div>
 
     <script>
+        let currentTab = 'aktif'; // Default tab
+
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update tab buttons
+            const tabAktif = document.getElementById('tabAktif');
+            const tabResign = document.getElementById('tabResign');
+            
+            if (tab === 'aktif') {
+                tabAktif.className = 'px-4 py-2 text-sm font-medium text-slate-600 border-b-2 border-[#4F46E5] text-[#4F46E5] transition';
+                tabResign.className = 'px-4 py-2 text-sm font-medium text-slate-500 border-b-2 border-transparent hover:border-slate-300 transition';
+            } else {
+                tabAktif.className = 'px-4 py-2 text-sm font-medium text-slate-500 border-b-2 border-transparent hover:border-slate-300 transition';
+                tabResign.className = 'px-4 py-2 text-sm font-medium text-slate-600 border-b-2 border-[#4F46E5] text-[#4F46E5] transition';
+            }
+            
+            // Show/hide rows based on tab
+            const resignRows = document.querySelectorAll('.karyawan-resign');
+            const aktifRows = document.querySelectorAll('.karyawan-item:not(.karyawan-resign)');
+            
+            if (tab === 'aktif') {
+                aktifRows.forEach(row => row.style.display = '');
+                resignRows.forEach(row => row.classList.remove('active'));
+            } else {
+                aktifRows.forEach(row => row.style.display = 'none');
+                resignRows.forEach(row => row.classList.add('active'));
+            }
+            
+            // Reset search and filters when switching tab
+            document.getElementById('searchKaryawan').value = '';
+            document.getElementById('filterBagian').value = '';
+            document.getElementById('filterKategori').value = '';
+            document.querySelectorAll('.tl-check').forEach(c => c.checked = false);
+            updateTLLabel();
+            applyAllFilters();
+            
+            // Reset all checkboxes
+            document.getElementById('checkAllKaryawan').checked = false;
+            updateSelectedCount();
+        }
+
         function setRange(type) {
             const today = new Date();
             let dari, sampai;
@@ -511,6 +601,28 @@
             return result;
         }
 
+        function getTLFilteredBaseForTab(rows) {
+            const checkedTLs = Array.from(document.querySelectorAll('.tl-filter-check:checked, .tl-check:checked')).map(c => c.value);
+
+            if (checkedTLs.length === 0) return rows;
+
+            const grouped = {};
+            checkedTLs.forEach(tlId => grouped[tlId] = []);
+
+            rows.forEach(row => {
+                const tlId = (row.dataset.tlId || '').toString();
+                if (grouped.hasOwnProperty(tlId)) {
+                    grouped[tlId].push(row);
+                }
+            });
+
+            const result = [];
+            checkedTLs.forEach(tlId => {
+                grouped[tlId].forEach(r => result.push(r));
+            });
+            return result;
+        }
+
         function updateTLLabel() {
             const checkedTLs = Array.from(document.querySelectorAll('.tl-filter-check:checked, .tl-check:checked'));
             const label = document.getElementById('tlFilterLabel') || document.getElementById('tlDropdownLabel');
@@ -538,9 +650,17 @@
             const bagian = document.getElementById('filterBagian')?.value.toLowerCase() || '';
             const kategori = document.getElementById('filterKategori')?.value.toLowerCase() || '';
 
-            const baseRows = getTLFilteredBase();
+            // Filter based on current tab
+            let baseRows;
+            if (currentTab === 'aktif') {
+                baseRows = Array.from(document.querySelectorAll('.karyawan-item:not(.karyawan-resign)'));
+            } else {
+                baseRows = Array.from(document.querySelectorAll('.karyawan-resign'));
+            }
 
-            const matched = baseRows.filter(row => {
+            const tlFilteredRows = getTLFilteredBaseForTab(baseRows);
+
+            const matched = tlFilteredRows.filter(row => {
                 const matchSearch = !q || row.dataset.search?.includes(q) || row.textContent.toLowerCase().includes(q);
                 const matchBagian = !bagian || (row.dataset.bagian || '').toLowerCase() === bagian;
                 const matchKategori = !kategori || (row.dataset.kategori || '').toLowerCase() === kategori;
@@ -565,19 +685,11 @@
                 });
             }
 
-            const container = document.querySelector('tbody') || document.getElementById('karyawanList');
-            const unmatched = originalRows.filter(r => !matched.includes(r));
-            [...matched, ...unmatched].forEach(row => container.appendChild(row));
+            baseRows.forEach(row => {
+                row.style.display = matched.includes(row) ? '' : 'none';
+            });
 
-            if (typeof filteredRows !== 'undefined') {
-                filteredRows = matched;
-                renderPage(1);
-            } else {
-                originalRows.forEach(row => {
-                    row.style.display = matched.includes(row) ? '' : 'none';
-                });
-                if (typeof updateSelectedCount === 'function') updateSelectedCount();
-            }
+            if (typeof updateSelectedCount === 'function') updateSelectedCount();
         }
 
         function clearTLFilter() {

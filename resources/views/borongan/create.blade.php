@@ -22,7 +22,7 @@
                 <select name="jenis" required
                     class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
                     <option value="cetak">Cetak / HCR Indomie</option>
-                    <option value="cabut" disabled>Cabut (coming soon)</option>
+                    <option value="cabut">Cabut</option>
                     <option value="moulding" disabled>Moulding (coming soon)</option>
                 </select>
             </div>
@@ -55,6 +55,14 @@
                 <label class="text-xs font-medium text-slate-500 mb-1 block">File Excel</label>
                 <input type="file" name="file" accept=".xlsx,.xls" required
                     class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
+            </div>
+
+            <div class="mb-4">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" name="debug" value="1" 
+                        class="rounded border-[#E5E7EB] text-[#4F46E5] focus:ring-[#4F46E5]/30">
+                    <span class="text-xs text-slate-500">🐛 Debug: Lihat kolom yang terdeteksi (jangan submit jika di-check)</span>
+                </label>
             </div>
 
             <div class="flex gap-3 justify-end">
