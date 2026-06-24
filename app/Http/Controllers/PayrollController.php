@@ -9,6 +9,7 @@ use App\Models\AttendanceCorrection;
 use App\Models\Payroll;
 use App\Models\PayrollDetail;
 use App\Models\SalaryConfig;
+use App\Models\BoronganImport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -358,9 +359,37 @@ class PayrollController extends Controller
     }
 
     // ========================
-    // SHOW — Detail payroll
+    // SHOW — Overview payroll (dashboard dengan jenis status)
     // ========================
     public function show($id)
+    {
+        $payroll = Payroll::findOrFail($id);
+        
+        // Query status masing-masing jenis
+        $cabutImport = BoronganImport::where('payroll_id', $id)
+            ->where('jenis', 'cabut')
+            ->latest()
+            ->first();
+        
+        $hcrImport = BoronganImport::where('payroll_id', $id)
+            ->where('jenis', 'cetak')
+            ->latest()
+            ->first();
+        
+        $mouldingImport = BoronganImport::where('payroll_id', $id)
+            ->where('jenis', 'moulding')
+            ->latest()
+            ->first();
+        
+        $harianDetailCount = PayrollDetail::where('payroll_id', $id)->count();
+        
+        return view('payroll.show', compact('payroll', 'cabutImport', 'hcrImport', 'mouldingImport', 'harianDetailCount'));
+    }
+
+    // ========================
+    // SHOW HARIAN — Detail payroll (tabel detail harian)
+    // ========================
+    public function showHarian($id)
     {
         $payroll = Payroll::findOrFail($id);
         $details = PayrollDetail::where('payroll_id', $id)->orderBy('nama')->get();
@@ -370,7 +399,7 @@ class PayrollController extends Controller
             $d->potensi_lembur = floor($upahPerJam * 1.5 * ($d->lembur_menit / 60));
         }
         
-        return view('payroll.show', compact('payroll', 'details'));
+        return view('payroll.harian.show', compact('payroll', 'details'));
     }
 
     // ========================

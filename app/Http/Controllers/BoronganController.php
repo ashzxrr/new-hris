@@ -27,29 +27,40 @@ class BoronganController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'jenis'         => 'required|in:cetak,cabut',
+            'jenis'         => 'required|in:cetak,cabut,moulding',
+            'payroll_id'    => 'nullable|exists:payrolls,id',
             'tanggal'       => 'required|date',
             'tanggal_dari'  => 'required|date',
             'tanggal_sampai'=> 'required|date|after_or_equal:tanggal_dari',
-            'file'          => 'required|file|mimes:xlsx,xls',
+            'file'          => 'required_if:jenis,cetak,cabut|file|mimes:xlsx,xls',
+            'file_kategori' => 'required_if:jenis,moulding|file|mimes:xlsx,xls',
+            'file_crosscheck' => 'required_if:jenis,moulding|file|mimes:xlsx,xls',
         ]);
 
         $tanggal      = $request->tanggal;
         $tanggalDari  = $request->tanggal_dari;
         $tanggalSampai= $request->tanggal_sampai;
-        $file    = $request->file('file');
-        $path    = $file->getRealPath();
 
-        $spreadsheet = IOFactory::load($path);
-        $sheet = $spreadsheet->getSheet(0); // ambil sheet pertama
+        // Load single file hanya untuk cetak/cabut; moulding akan load 2 file terpisah di branch-nya
+        if ($request->jenis === 'moulding') {
+            $file    = null;
+            $path    = null;
+            $spreadsheet = null;
+            $sheet   = null;
+        } else {
+            $file    = $request->file('file');
+            $path    = $file->getRealPath();
+            $spreadsheet = IOFactory::load($path);
+            $sheet = $spreadsheet->getSheet(0); // ambil sheet pertama
+        }
 
         $usersByNip = User::whereNotNull('nip')->get()->keyBy(fn($u) => trim($u->nip));
         $rates = BoronganRate::where('jenis', $request->jenis)
             ->orderByDesc('berlaku_dari')
             ->get();
 
-        $highestRow = $sheet->getHighestRow();
-        $highestCol = $sheet->getHighestColumn();
+        $highestRow = $sheet?->getHighestRow() ?? 0;
+        $highestCol = $sheet?->getHighestColumn() ?? 'A';
         $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
 
         $parsedData   = [];
@@ -272,7 +283,7 @@ class BoronganController extends Controller
                 $totalBaris++;
                 if ($isFlagged) $totalFlagged++;
             }
-        } else {
+        } elseif ($request->jenis === 'cetak') {
             $totalUpahCol = null;
             $totalGramCol = null;
             $upahColumns  = [];
@@ -391,6 +402,216 @@ class BoronganController extends Controller
                 $totalBaris++;
                 if ($isFlagged) $totalFlagged++;
             }
+        } elseif ($request->jenis === 'moulding') {
+            // === PARSE FILE 1: file_kategori ===
+            $file1 = $request->file('file_kategori');
+            $spreadsheet1 = IOFactory::load($file1->getRealPath());
+            $sheet1 = $spreadsheet1->getSheet(0);
+            $highestRow1 = $sheet1->getHighestRow();
+            $highestColIndex1 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet1->getHighestColumn());
+            
+            // Cari header row (baris 1-3) dengan NIP di B dan NAMA di C
+            $headerRow3 = null;
+            for ($r = 1; $r <= min(3, $highestRow1); $r++) {
+                $nipVal = trim(strtolower((string) $sheet1->getCell('B' . $r)->getValue()));
+                $namaVal = trim(strtolower((string) $sheet1->getCell('C' . $r)->getValue()));
+                if ($nipVal === 'nip' && $namaVal === 'nama') {
+                    $headerRow3 = $r;
+                    break;
+                }
+            }
+            
+            if (!$headerRow3) {
+                return back()->with('error', 'Moulding File 1: Header row tidak ditemukan (cari NIP di B dan NAMA di C).');
+            }
+            
+            // Update validCategories dengan 9 kategori final
+            $validCategories = ['nat sbg', 'sbg', 'sbg waj', 'nat waj', 'vip waj', 'pt', 'gpu normal', 'gpu rendaman', 'mk dj'];
+            $categoryColumns = [];  // array: header_lower => column_index
+            $totalGramColFile1 = null;
+            
+            // Cari kategori dan "Σ Berat" dengan logika baru: kategori harus match validCategories DAN baris rate ($headerRow3-1) harus numeric > 0
+            $rateRowNum = $headerRow3 - 1;
+            
+            for ($c = 1; $c <= $highestColIndex1; $c++) {
+                $headerVal = trim((string) $sheet1->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c) . $headerRow3)->getValue());
+                $headerLower = trim(strtolower(preg_replace('/\s+/', ' ', $headerVal)));
+                
+                // Skip kolom dengan 'hcr' atau 'indomie' di header
+                if (stripos($headerLower, 'hcr') !== false || stripos($headerLower, 'indomie') !== false) {
+                    continue;
+                }
+                
+                // Cek jika header ini match salah satu validCategories DAN rate row berisi numeric > 0
+                $rateRowVal = (float) $sheet1->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c) . $rateRowNum)->getCalculatedValue();
+                
+                foreach ($validCategories as $cat) {
+                    if ($headerLower === strtolower($cat) && is_numeric($rateRowVal) && $rateRowVal > 0) {
+                        $categoryColumns[$headerLower] = $c;
+                        break;
+                    }
+                }
+                
+                // Cek jika ini "Σ Berat" - catat sebagai kolom paling kanan (terakhir yang ditemukan)
+                if (trim(strtolower($headerVal)) === 'σ berat') {
+                    $totalGramColFile1 = $c;
+                }
+            }
+            
+            // Tentukan data start row (cari baris pertama dengan NIP valid seperti LMG-)
+            $dataStartRow = $headerRow3 + 1;
+            for ($r = $headerRow3 + 1; $r <= min($headerRow3 + 5, $highestRow1); $r++) {
+                $nipCell = trim((string) $sheet1->getCell('B' . $r)->getValue());
+                if (preg_match('/^LMG-/', $nipCell) || !empty($nipCell)) {
+                    $dataStartRow = $r;
+                    break;
+                }
+            }
+            
+            // Parse file 1 data
+            $file1Data = [];  // $file1Data[$nip] = ['nama' => ..., 'categories_gram' => [...]]
+            for ($row = $dataStartRow; $row <= $highestRow1; $row++) {
+                $nip = trim((string) $sheet1->getCell('B' . $row)->getValue());
+                if (empty($nip) || strtolower($nip) === 'total') continue;
+                
+                $nama = trim((string) $sheet1->getCell('C' . $row)->getValue());
+                $categoriesGram = [];
+                $totalGramRow = 0;
+                
+                // Ambil gram per kategori
+                foreach ($categoryColumns as $catName => $colIdx) {
+                    $gramVal = (int) $sheet1->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx) . $row)->getCalculatedValue();
+                    if ($gramVal > 0) {
+                        $categoriesGram[$catName] = $gramVal;
+                        $totalGramRow += $gramVal;
+                    }
+                }
+                
+                // Skip jika semua kategori = 0
+                if ($totalGramRow === 0) continue;
+                
+                $file1Data[$nip] = [
+                    'nama' => $nama,
+                    'categories_gram' => $categoriesGram,
+                    'total_gram' => $totalGramRow,
+                ];
+            }
+            
+            // === PARSE FILE 2: file_crosscheck ===
+            $file2 = $request->file('file_crosscheck');
+            $spreadsheet2 = IOFactory::load($file2->getRealPath());
+            $sheet2 = $spreadsheet2->getSheet(0);
+            $highestRow2 = $sheet2->getHighestRow();
+            $highestColIndex2 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet2->getHighestColumn());
+            
+            // Cari kolom di baris 1: EMP NO, RECEIVED QTY, Gaji Karyawan, EMP NAME
+            $empNoCol = null;
+            $receivedQtyCol = null;
+            $gajiCol = null;
+            $empNameCol = null;
+            
+            for ($c = 1; $c <= $highestColIndex2; $c++) {
+                $headerVal = trim(strtolower((string) $sheet2->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c) . '1')->getValue()));
+                if (stripos($headerVal, 'emp no') !== false) $empNoCol = $c;
+                if (stripos($headerVal, 'received qty') !== false) $receivedQtyCol = $c;
+                if (stripos($headerVal, 'gaji') !== false && stripos($headerVal, 'karyawan') !== false) $gajiCol = $c;
+                if (stripos($headerVal, 'emp name') !== false) $empNameCol = $c;
+            }
+            
+            // Parse file 2 - aggregate per NIP
+            $crosscheckByNip = [];  // $crosscheckByNip[$nip] = ['total_qty' => ..., 'total_gaji' => ...]
+            for ($row = 2; $row <= $highestRow2; $row++) {
+                $empNo = trim((string) ($empNoCol ? $sheet2->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($empNoCol) . $row)->getValue() : ''));
+                if (empty($empNo)) continue;
+                
+                $qty = (int) ($receivedQtyCol ? $sheet2->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($receivedQtyCol) . $row)->getCalculatedValue() : 0);
+                $gaji = (int) ($gajiCol ? $sheet2->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($gajiCol) . $row)->getCalculatedValue() : 0);
+                
+                if (!isset($crosscheckByNip[$empNo])) {
+                    $crosscheckByNip[$empNo] = ['total_qty' => 0, 'total_gaji' => 0];
+                }
+                $crosscheckByNip[$empNo]['total_qty'] += $qty;
+                $crosscheckByNip[$empNo]['total_gaji'] += $gaji;
+            }
+            
+            // === COMBINE FILE 1 + FILE 2 DATA ===
+            // Build rate mapping: kode_kategori => rate
+            $rateMap = [];
+            foreach ($rates as $rate) {
+                $kodeKey = strtoupper(str_replace(' ', '_', $rate->kode_kategori));
+                $rateMap[$kodeKey] = $rate->rate_per_gram;
+            }
+            
+            foreach ($file1Data as $nip => $data) {
+                $categoriesGram = $data['categories_gram'];
+                $totalGramFile1 = $data['total_gram'];
+                
+                // Hitung upah_sistem
+                $upahSistem = 0;
+                $categoryMissing = [];
+                foreach ($categoriesGram as $catName => $gram) {
+                    $kodeKey = strtoupper(str_replace(' ', '_', $catName));
+                    if (isset($rateMap[$kodeKey])) {
+                        $upahSistem += $gram * $rateMap[$kodeKey];
+                    } else {
+                        $categoryMissing[] = $catName;
+                    }
+                }
+                
+                // Kategori utama (gram terbesar)
+                $mainCategory = key($categoriesGram);  // Get first key (bisa diperbaiki jika perlu yang gram terbesar)
+                if (count($categoriesGram) > 1) {
+                    arsort($categoriesGram);
+                    $mainCategory = key($categoriesGram);
+                }
+                
+                // Ambil data dari crosscheck
+                $crosscheckData = $crosscheckByNip[$nip] ?? null;
+                $upahFile = $crosscheckData['total_gaji'] ?? 0;
+                $totalQtyFile2 = $crosscheckData['total_qty'] ?? null;
+                
+                // Set flags
+                $isFlagged = false;
+                $flagReason = null;
+                
+                if ($totalQtyFile2 === null) {
+                    $isFlagged = true;
+                    $flagReason = 'NIP tidak ditemukan di file cross-check';
+                } elseif ($totalGramFile1 !== $totalQtyFile2) {
+                    $isFlagged = true;
+                    $flagReason = 'Selisih gram: file kategori ' . $totalGramFile1 . ' vs file cross-check ' . $totalQtyFile2;
+                }
+                
+                if (!empty($categoryMissing)) {
+                    $isFlagged = true;
+                    $flagReason = ($flagReason ? $flagReason . '; ' : '') . 'Rate untuk kategori ' . implode(', ', $categoryMissing) . ' tidak ditemukan';
+                }
+                
+                $user = $usersByNip[$nip] ?? null;
+                if (!$user) {
+                    $isFlagged = true;
+                    $flagReason = ($flagReason ? $flagReason . '; ' : '') . 'NIP tidak ditemukan di master karyawan';
+                }
+                
+                $selisih = $upahSistem - $upahFile;
+                
+                $parsedData[] = [
+                    'pin'         => $user->pin ?? null,
+                    'nip'         => $nip,
+                    'nama'        => $user->nama ?? ($data['nama'] ?? $nip),
+                    'tanggal'     => $tanggal,
+                    'kategori'    => $mainCategory ?? 'UNKNOWN',
+                    'berat_gram'  => $totalGramFile1,
+                    'upah_sistem' => $upahSistem,
+                    'upah_file'   => $upahFile,
+                    'selisih'     => $selisih,
+                    'is_flagged'  => $isFlagged,
+                    'flag_reason' => $flagReason,
+                ];
+                
+                $totalBaris++;
+                if ($isFlagged) $totalFlagged++;
+            }
         }
 
         if ($totalBaris === 0) {
@@ -399,36 +620,25 @@ class BoronganController extends Controller
 
         DB::beginTransaction();
         try {
-            $existing = BoronganImport::where('jenis', $request->jenis)
-                ->where('tanggal_dari', $tanggalDari)
-                ->where('tanggal_sampai', $tanggalSampai)
-                ->first();
-
-            if ($existing) {
-                $oldRows = BoronganHarian::where('borongan_import_id', $existing->id)
-                    ->where('tanggal', $tanggal);
-                $oldCount = $oldRows->count();
-                $oldFlagged = (clone $oldRows)->where('is_flagged', true)->count();
-                $oldRows->delete();
-
-                $existing->total_baris = max(0, $existing->total_baris - $oldCount + $totalBaris);
-                $existing->total_flagged = max(0, $existing->total_flagged - $oldFlagged + $totalFlagged);
-                $existing->filename = $file->getClientOriginalName();
-                $existing->status = 'pending';
-                $existing->save();
-                $import = $existing;
+            // Tentukan filename: untuk moulding pakai file_kategori, untuk lainnya pakai file
+            if ($request->jenis === 'moulding') {
+                $fileForName = $request->file('file_kategori');
             } else {
-                $import = BoronganImport::create([
-                    'jenis'          => $request->jenis,
-                    'filename'       => $file->getClientOriginalName(),
-                    'tanggal_dari'   => $tanggalDari,
-                    'tanggal_sampai' => $tanggalSampai,
-                    'total_baris'    => $totalBaris,
-                    'total_flagged'  => $totalFlagged,
-                    'status'         => 'pending',
-                    'uploaded_by'    => Auth::guard('admin')->id(),
-                ]);
+                $fileForName = $file;
             }
+            
+            // Selalu buat import baru, jangan reuse/replace existing
+            $import = BoronganImport::create([
+                'jenis'          => $request->jenis,
+                'payroll_id'     => $request->payroll_id,
+                'filename'       => $fileForName->getClientOriginalName(),
+                'tanggal_dari'   => $tanggalDari,
+                'tanggal_sampai' => $tanggalSampai,
+                'total_baris'    => $totalBaris,
+                'total_flagged'  => $totalFlagged,
+                'status'         => 'pending',
+                'uploaded_by'    => Auth::guard('admin')->id(),
+            ]);
 
             foreach ($parsedData as $row) {
                 $row['borongan_import_id'] = $import->id;
@@ -437,9 +647,7 @@ class BoronganController extends Controller
             }
 
             DB::commit();
-            $msg = $existing
-                ? "Data tanggal {$tanggal} berhasil di-replace. {$totalBaris} baris diproses, {$totalFlagged} perlu direview."
-                : "Berhasil parse {$totalBaris} baris untuk tanggal {$tanggal}, {$totalFlagged} perlu direview.";
+            $msg = "Berhasil parse {$totalBaris} baris untuk tanggal {$tanggal}, {$totalFlagged} perlu direview.";
 
             return redirect()->route('borongan.review', $import->id)->with('success', $msg);
 
@@ -452,13 +660,64 @@ class BoronganController extends Controller
     public function review($id)
     {
         $import = BoronganImport::findOrFail($id);
-        $items  = BoronganHarian::where('borongan_import_id', $id)
-            ->orderBy('nama')
-            ->orderByDesc('is_flagged')
-            ->orderBy('tanggal')
-            ->get();
+
+        // Group by NIP, aggregate total gram & upah, flag jika ada yg flagged
+        $items = BoronganHarian::where('borongan_import_id', $id)
+            ->get()
+            ->groupBy('nip')
+            ->map(function ($rows) {
+                $first = $rows->first();
+                return [
+                    'nip'         => $first->nip,
+                    'nama'        => $first->nama,
+                    'total_gram'  => $rows->sum('berat_gram'),
+                    'total_upah'  => $rows->sum('upah_file'),
+                    'is_flagged'  => $rows->contains('is_flagged', true),
+                    'flag_count'  => $rows->where('is_flagged', true)->count(),
+                ];
+            })
+            ->sortBy('nama')
+            ->values();
 
         return view('borongan.review', compact('import', 'items'));
+    }
+
+    public function getReviewDetail(Request $request, $id, $nip)
+    {
+        $import = BoronganImport::findOrFail($id);
+
+        $rows = BoronganHarian::where('borongan_import_id', $id)
+            ->where('nip', $nip)
+            ->orderBy('tanggal')
+            ->orderBy('kategori')
+            ->get();
+
+        // Group by tanggal
+        $byTanggal = $rows->groupBy(fn($r) => \Carbon\Carbon::parse($r->tanggal)->format('Y-m-d'));
+
+        $detail = [];
+        foreach ($byTanggal as $tgl => $jobs) {
+            $detail[] = [
+                'tanggal'    => $tgl,
+                'jobs'       => $jobs->map(fn($j) => [
+                    'kategori'   => $j->kategori,
+                    'gram'       => $j->berat_gram,
+                    'upah_file'  => $j->upah_file,
+                    'upah_sistem'=> $j->upah_sistem,
+                    'selisih'    => $j->selisih,
+                    'is_flagged' => $j->is_flagged,
+                    'flag_reason'=> $j->flag_reason,
+                ])->values(),
+                'total_gram' => $jobs->sum('berat_gram'),
+                'total_upah' => $jobs->sum('upah_file'),
+            ];
+        }
+
+        return response()->json([
+            'nip'    => $nip,
+            'nama'   => $rows->first()?->nama ?? $nip,
+            'detail' => $detail,
+        ]);
     }
 
     public function approve($id)
@@ -555,12 +814,12 @@ class BoronganController extends Controller
     {
         $import = BoronganImport::findOrFail($id);
 
-        // Data borongan harian
-        $harian = BoronganHarian::where('borongan_import_id', $id)
+        // Data borongan harian - groupBy tanggal agar semua entries terakumulasi
+        $harianGrouped = BoronganHarian::where('borongan_import_id', $id)
             ->where('nip', $nip)
             ->orderBy('tanggal')
             ->get()
-            ->keyBy(fn($h) => \Carbon\Carbon::parse($h->tanggal)->format('Y-m-d'));
+            ->groupBy(fn($h) => \Carbon\Carbon::parse($h->tanggal)->format('Y-m-d'));
 
         // Rekap
         $rekap = BoronganRekap::where('borongan_import_id', $id)
@@ -600,7 +859,11 @@ class BoronganController extends Controller
                 $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
 
                 $note = $notes[$tgl] ?? null;
-                $boronganRow = $harian[$tgl] ?? null;
+                
+                // Accumulate gram & upah dari semua entries untuk tanggal ini
+                $boronganRows = $harianGrouped[$tgl] ?? collect();
+                $totalGram = $boronganRows->sum('berat_gram');
+                $totalUpah = $boronganRows->sum('upah_file');
 
                 $periode[] = [
                     'tanggal' => $tgl,
@@ -608,8 +871,8 @@ class BoronganController extends Controller
                     'jam_in' => $inTs ? date('H:i', $inTs) : null,
                     'jam_out' => $outTs ? date('H:i', $outTs) : null,
                     'keterangan' => $note ? $note->code : null,
-                    'gram' => $boronganRow?->berat_gram ?? 0,
-                    'upah' => $boronganRow?->upah_file ?? 0,
+                    'gram' => $totalGram,
+                    'upah' => $totalUpah,
                     'hadir' => ($inTs || $outTs) ? true : false,
                 ];
 
@@ -634,6 +897,22 @@ class BoronganController extends Controller
         }
         $import->delete();
         return redirect()->route('borongan.index')->with('success', 'Import berhasil dihapus.');
+    }
+
+    public function undo($id)
+    {
+        $import = BoronganImport::findOrFail($id);
+        if ($import->status === 'approved') {
+            return back()->with('error', 'Import yang sudah approved tidak bisa di-undo.');
+        }
+        
+        // Delete all borongan_harian for this import
+        BoronganHarian::where('borongan_import_id', $id)->delete();
+        
+        // Delete the import
+        $import->delete();
+        
+        return redirect()->route('borongan.index')->with('success', 'Upload berhasil di-undo. Semua data telah dihapus.');
     }
 
     private function normalizeBuluCategory(string $bulu): string

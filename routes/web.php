@@ -63,6 +63,7 @@ Route::middleware('auth:admin')->group(function () {
             Route::post('/preview',                  [PayrollController::class, 'preview'])->name('preview');
             Route::post('/',                         [PayrollController::class, 'store'])->name('store');
             Route::get('/{id}',                      [PayrollController::class, 'show'])->name('show');
+            Route::get('/{id}/harian',               [PayrollController::class, 'showHarian'])->name('harian.show');
             Route::get('/{id}/export-slip',          [PayrollController::class, 'exportSlipGaji'])->name('export.slip');
             Route::put('/detail/{id}',               [PayrollController::class, 'updateDetail'])->name('detail.update');
             Route::put('/detail/{id}/toggle-lembur', [PayrollController::class, 'toggleLembur'])->name('detail.toggle.lembur');
@@ -77,7 +78,9 @@ Route::middleware('auth:admin')->group(function () {
             Route::get('/create',       [BoronganController::class, 'create'])->name('create');
             Route::post('/upload',      [BoronganController::class, 'upload'])->name('upload');
             Route::get('/{id}/review',  [BoronganController::class, 'review'])->name('review');
+            Route::get('/{id}/review-detail/{nip}', [BoronganController::class, 'getReviewDetail'])->name('review.detail');
             Route::put('/{id}/approve', [BoronganController::class, 'approve'])->name('approve');
+            Route::delete('/{id}/undo', [BoronganController::class, 'undo'])->name('undo');
             Route::get('/{id}/rekap',   [BoronganController::class, 'rekapIndex'])->name('rekapIndex');
             Route::get('/{id}/detail/{nip}', [BoronganController::class, 'getDetail'])->name('getDetail');
             Route::put('/rekap/{rekapId}', [BoronganController::class, 'updateRekap'])->name('updateRekap');

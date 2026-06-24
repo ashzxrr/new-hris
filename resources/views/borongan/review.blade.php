@@ -1,3 +1,4 @@
+
 @extends('layouts.app')
 @section('content')
 <div>
@@ -14,11 +15,17 @@
             <a href="{{ route('borongan.index') }}"
                 class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">← Kembali</a>
             @if($import->status !== 'approved')
+            <form method="POST" action="{{ route('borongan.undo', $import->id) }}"
+                onsubmit="return confirm('Undo upload ini? Semua data akan dihapus.')" style="display:inline;">
+                @csrf @method('DELETE')
+                <button type="submit" class="border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-50">
+                    ↶ Undo Upload
+                </button>
+            </form>
             <form method="POST" action="{{ route('borongan.approve', $import->id) }}"
-                onsubmit="return confirm('Approve semua data ini? Data flagged tetap akan diapprove apa adanya.')">
+                onsubmit="return confirm('Approve semua data ini?')" style="display:inline;">
                 @csrf @method('PUT')
-                <button type="submit"
-                    class="bg-[#22C55E] text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600">
+                <button type="submit" class="bg-[#22C55E] text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600">
                     ✅ Approve Semua
                 </button>
             </form>
@@ -26,93 +33,75 @@
         </div>
     </div>
 
-    @if(session('success'))
-    <div class="bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl p-3 mb-4">
-        {{ session('success') }}
-    </div>
-    @endif
-
-    {{-- Summary cards --}}
+    {{-- Summary --}}
     <div class="grid grid-cols-4 gap-4 mb-5">
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
-            <div class="text-xs text-slate-400 mb-1">Total Baris</div>
-            <div class="text-2xl font-bold text-slate-800">{{ $import->total_baris }}</div>
+            <div class="text-xs text-slate-400 mb-1">Total Karyawan</div>
+            <div class="text-2xl font-bold text-slate-800">{{ $items->count() }}</div>
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Perlu Direview</div>
-            <div class="text-2xl font-bold text-amber-500">{{ $import->total_flagged }}</div>
+            <div class="text-2xl font-bold text-amber-500">{{ $items->where('is_flagged', true)->count() }}</div>
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Total Upah</div>
-            <div class="text-xl font-bold text-[#4F46E5]">
-                Rp {{ number_format($items->sum('upah_file'), 0, ',', '.') }}
-            </div>
+            <div class="text-xl font-bold text-[#4F46E5]">Rp {{ number_format($items->sum('total_upah'), 0, ',', '.') }}</div>
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
-            <div class="text-xs text-slate-400 mb-1">Total Selisih</div>
-            <div class="text-xl font-bold {{ $items->sum('selisih') != 0 ? 'text-red-500' : 'text-[#22C55E]' }}">
-                Rp {{ number_format($items->sum('selisih'), 0, ',', '.') }}
-            </div>
+            <div class="text-xs text-slate-400 mb-1">Total Gram</div>
+            <div class="text-xl font-bold text-slate-800">{{ number_format($items->sum('total_gram')) }}</div>
         </div>
     </div>
 
-    {{-- Search and Filter --}}
-    <div class="bg-white rounded-2xl border border-[#E5E7EB] p-4 mb-4 space-y-3">
-        <div>
-            <input type="text" id="searchInput" placeholder="Cari berdasarkan NIP atau Nama..."
-                class="w-full border border-[#E5E7EB] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="text-xs font-medium text-slate-600 mb-1 block">Dari Tanggal</label>
-                <input type="date" id="dateFrom"
-                    class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
-            </div>
-            <div>
-                <label class="text-xs font-medium text-slate-600 mb-1 block">Sampai Tanggal</label>
-                <input type="date" id="dateTo"
-                    class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
-            </div>
-        </div>
+    {{-- Search --}}
+    <div class="mb-4">
+        <input type="text" id="searchReview" placeholder="Cari NIP atau Nama..."
+            class="w-full border border-[#E5E7EB] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
     </div>
 
     {{-- Tabel --}}
     <div class="bg-white rounded-2xl border border-[#E5E7EB] overflow-x-auto">
-        <table class="w-full text-xs">
+        <table class="w-full text-sm">
             <thead class="bg-[#F8FAFC] border-b border-[#E5E7EB]">
                 <tr>
-                    <th class="px-3 py-2.5 text-left font-semibold text-slate-400 uppercase tracking-wide">Tanggal</th>
-                    <th class="px-3 py-2.5 text-left font-semibold text-slate-400 uppercase tracking-wide">NIP</th>
-                    <th class="px-3 py-2.5 text-left font-semibold text-slate-400 uppercase tracking-wide">Nama</th>
-                    <th class="px-3 py-2.5 text-left font-semibold text-slate-400 uppercase tracking-wide">Kategori</th>
-                    <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Gram</th>
-                    <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Upah Sistem</th>
-                    <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Upah File</th>
-                    <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Selisih</th>
-                    <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Status</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">NIP</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Nama</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">Total Gram</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">Total Upah</th>
+                    <th class="px-4 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wide">Status</th>
+                    <th class="px-4 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wide">Aksi</th>
                 </tr>
             </thead>
-            <tbody id="tableBody">
+            <tbody id="reviewBody">
                 @foreach($items as $item)
-                <tr class="border-b border-[#E5E7EB]/50 data-row {{ $item->is_flagged ? 'bg-amber-50' : 'hover:bg-[#F8FAFC]' }}" data-nip="{{ strtolower($item->nip) }}" data-nama="{{ strtolower($item->nama) }}">
-                    <td class="px-3 py-2 text-slate-600">{{ \Carbon\Carbon::parse($item->tanggal)->format('d M Y') }}</td>
-                    <td class="px-3 py-2 font-mono text-slate-500">{{ $item->nip }}</td>
-                    <td class="px-3 py-2 font-medium text-slate-800">{{ $item->nama }}</td>
-                    <td class="px-3 py-2 text-slate-600">{{ $item->kategori }}</td>
-                    <td class="px-3 py-2 text-right text-slate-600">{{ number_format($item->berat_gram) }}</td>
-                    <td class="px-3 py-2 text-right text-slate-600">Rp {{ number_format($item->upah_sistem) }}</td>
-                    <td class="px-3 py-2 text-right font-medium text-slate-800">Rp {{ number_format($item->upah_file) }}</td>
-                    <td class="px-3 py-2 text-right {{ abs($item->selisih) > 1000 ? 'text-red-500 font-medium' : 'text-slate-400' }}">
-                        {{ $item->selisih != 0 ? 'Rp ' . number_format($item->selisih) : '-' }}
+                <tr class="review-row border-b border-[#E5E7EB]/50 {{ $item['is_flagged'] ? 'bg-amber-50' : 'hover:bg-[#F8FAFC]' }}"
+                    data-nip="{{ strtolower($item['nip']) }}"
+                    data-nama="{{ strtolower($item['nama']) }}">
+                    <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ $item['nip'] }}</td>
+                    <td class="px-4 py-3 font-medium text-slate-800">
+                        <button type="button"
+                            onclick="openReviewModal('{{ $import->id }}', '{{ $item['nip'] }}', '{{ addslashes($item['nama']) }}')"
+                            class="text-[#4F46E5] hover:underline text-left">
+                            {{ $item['nama'] }}
+                        </button>
                     </td>
-                    <td class="px-3 py-2 text-center">
-                        @if($item->is_flagged)
-                            <span class="text-xs bg-[#F59E0B]/10 text-[#F59E0B] px-2 py-0.5 rounded-full font-medium" title="{{ $item->flag_reason }}">
-                                ⚠️ Flagged
+                    <td class="px-4 py-3 text-right text-slate-600">{{ number_format($item['total_gram']) }}</td>
+                    <td class="px-4 py-3 text-right font-medium text-slate-800">Rp {{ number_format($item['total_upah'], 0, ',', '.') }}</td>
+                    <td class="px-4 py-3 text-center">
+                        @if($item['is_flagged'])
+                            <span class="text-xs bg-[#F59E0B]/10 text-[#F59E0B] px-2 py-0.5 rounded-full font-medium">
+                                ⚠️ {{ $item['flag_count'] }} flagged
                             </span>
                         @else
                             <span class="text-xs bg-[#22C55E]/10 text-[#22C55E] px-2 py-0.5 rounded-full font-medium">OK</span>
                         @endif
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <button type="button"
+                            onclick="openReviewModal('{{ $import->id }}', '{{ $item['nip'] }}', '{{ addslashes($item['nama']) }}')"
+                            class="text-xs px-2 py-1 rounded-lg border border-[#4F46E5]/30 text-[#4F46E5] hover:bg-[#4F46E5]/5">
+                            Detail
+                        </button>
                     </td>
                 </tr>
                 @endforeach
@@ -121,37 +110,110 @@
     </div>
 </div>
 
+{{-- Modal Detail --}}
+<div id="reviewModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
+        <div class="sticky top-0 bg-white rounded-t-2xl border-b border-[#E5E7EB] px-6 py-4 flex items-center justify-between">
+            <div>
+                <h3 class="font-semibold text-slate-800" id="reviewModalNama"></h3>
+                <p class="text-xs text-slate-400" id="reviewModalNip"></p>
+            </div>
+            <button onclick="closeReviewModal()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+        </div>
+        <div class="p-6">
+            <div id="reviewModalLoading" class="text-center py-8 text-slate-400 text-sm">Memuat data...</div>
+            <div id="reviewModalContent" class="hidden">
+                <table class="w-full text-xs">
+                    <thead class="bg-[#F8FAFC] border-b border-[#E5E7EB]">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-slate-400">Tanggal</th>
+                            <th class="px-3 py-2 text-left text-slate-400">Kategori</th>
+                            <th class="px-3 py-2 text-right text-slate-400">Gram</th>
+                            <th class="px-3 py-2 text-right text-slate-400">Upah File</th>
+                            <th class="px-3 py-2 text-right text-slate-400">Upah Sistem</th>
+                            <th class="px-3 py-2 text-center text-slate-400">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reviewModalBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-function filterTable() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const dateFrom = document.getElementById('dateFrom').value;
-    const dateTo = document.getElementById('dateTo').value;
-    const rows = document.querySelectorAll('#tableBody .data-row');
-    
-    rows.forEach(row => {
-        const nip = row.getAttribute('data-nip');
-        const nama = row.getAttribute('data-nama');
-        const tanggalCell = row.querySelector('td:first-child').textContent;
-        const tanggalMatch = tanggalCell.match(/(\d{2})\s+(\w+)\s+(\d{4})/);
-        
-        let passSearch = nip.includes(searchTerm) || nama.includes(searchTerm);
-        let passDate = true;
-        
-        if (tanggalMatch && (dateFrom || dateTo)) {
-            const months = {'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06', 
-                           'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'};
-            const rowDate = `${tanggalMatch[3]}-${months[tanggalMatch[2]]}-${tanggalMatch[1]}`;
-            
-            if (dateFrom && rowDate < dateFrom) passDate = false;
-            if (dateTo && rowDate > dateTo) passDate = false;
-        }
-        
-        row.style.display = (passSearch && passDate) ? '' : 'none';
+const reviewBaseUrl = "{{ url('borongan') }}";
+
+function openReviewModal(importId, nip, nama) {
+    document.getElementById('reviewModalNama').textContent = nama;
+    document.getElementById('reviewModalNip').textContent = nip;
+    document.getElementById('reviewModalLoading').classList.remove('hidden');
+    document.getElementById('reviewModalContent').classList.add('hidden');
+    document.getElementById('reviewModal').classList.remove('hidden');
+
+    fetch(`${reviewBaseUrl}/${importId}/review-detail/${encodeURIComponent(nip)}`)
+    .then(r => r.json())
+    .then(data => {
+        const tbody = document.getElementById('reviewModalBody');
+        tbody.innerHTML = '';
+
+        data.detail.forEach(d => {
+            const tgl = formatTgl(d.tanggal);
+            d.jobs.forEach((job, i) => {
+                const flagCell = job.is_flagged
+                    ? `<span class="text-xs text-amber-500" title="${job.flag_reason || ''}">⚠️</span>`
+                    : `<span class="text-xs text-green-500">✅</span>`;
+                const selisihClass = Math.abs(job.selisih) > 1000 ? 'text-red-500' : 'text-slate-400';
+                tbody.innerHTML += `
+                <tr class="border-b border-[#E5E7EB]/50 ${job.is_flagged ? 'bg-amber-50' : ''}">
+                    <td class="px-3 py-1.5 text-slate-600">${i === 0 ? tgl : ''}</td>
+                    <td class="px-3 py-1.5 font-medium text-slate-800">${job.kategori}</td>
+                    <td class="px-3 py-1.5 text-right text-slate-700">${job.gram.toLocaleString('id-ID')}</td>
+                    <td class="px-3 py-1.5 text-right font-medium">Rp ${job.upah_file.toLocaleString('id-ID')}</td>
+                    <td class="px-3 py-1.5 text-right text-slate-500">Rp ${job.upah_sistem.toLocaleString('id-ID')}</td>
+                    <td class="px-3 py-1.5 text-center">${flagCell}</td>
+                </tr>`;
+            });
+            // Subtotal per tanggal
+            tbody.innerHTML += `
+            <tr class="bg-slate-50 border-b border-[#E5E7EB]">
+                <td class="px-3 py-1 text-slate-400 text-right" colspan="2"><span class="text-[10px] uppercase tracking-wide">Subtotal</span></td>
+                <td class="px-3 py-1 text-right font-semibold text-slate-700">${d.total_gram.toLocaleString('id-ID')}</td>
+                <td class="px-3 py-1 text-right font-semibold text-slate-800">Rp ${d.total_upah.toLocaleString('id-ID')}</td>
+                <td colspan="2"></td>
+            </tr>`;
+        });
+
+        document.getElementById('reviewModalLoading').classList.add('hidden');
+        document.getElementById('reviewModalContent').classList.remove('hidden');
+    })
+    .catch(e => {
+        alert('Gagal memuat data: ' + e.message);
+        closeReviewModal();
     });
 }
 
-document.getElementById('searchInput').addEventListener('keyup', filterTable);
-document.getElementById('dateFrom').addEventListener('change', filterTable);
-document.getElementById('dateTo').addEventListener('change', filterTable);
+function formatTgl(tgl) {
+    const d = new Date(tgl);
+    const days = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+}
+
+function closeReviewModal() {
+    document.getElementById('reviewModal').classList.add('hidden');
+}
+
+document.getElementById('reviewModal').addEventListener('click', function(e) {
+    if (e.target === this) closeReviewModal();
+});
+
+document.getElementById('searchReview').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('.review-row').forEach(row => {
+        const match = (row.dataset.nip + row.dataset.nama).includes(q);
+        row.style.display = match ? '' : 'none';
+    });
+});
 </script>
 @endsection

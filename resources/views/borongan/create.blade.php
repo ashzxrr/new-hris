@@ -17,13 +17,14 @@
     <div class="bg-white rounded-2xl border border-[#E5E7EB] p-6">
         <form method="POST" action="{{ route('borongan.upload') }}" enctype="multipart/form-data">
             @csrf
+            <input type="hidden" name="payroll_id" value="{{ request('payroll_id') }}">
             <div class="mb-4">
                 <label class="text-xs font-medium text-slate-500 mb-1 block">Jenis Borongan</label>
                 <select name="jenis" required
                     class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
-                    <option value="cetak">Cetak / HCR Indomie</option>
-                    <option value="cabut">Cabut</option>
-                    <option value="moulding" disabled>Moulding (coming soon)</option>
+                    <option value="cetak" {{ request('jenis') === 'cetak' ? 'selected' : '' }}>Cetak / HCR Indomie</option>
+                    <option value="cabut" {{ request('jenis') === 'cabut' ? 'selected' : '' }}>Cabut</option>
+                    <option value="moulding" {{ request('jenis') === 'moulding' ? 'selected' : '' }}>Moulding</option>
                 </select>
             </div>
 
@@ -53,8 +54,26 @@
 
             <div class="mb-6">
                 <label class="text-xs font-medium text-slate-500 mb-1 block">File Excel</label>
-                <input type="file" name="file" accept=".xlsx,.xls" required
-                    class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
+                
+                <!-- Single file input for cetak/cabut -->
+                <div id="fileInputSingle">
+                    <input type="file" name="file" accept=".xlsx,.xls"
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
+                </div>
+                
+                <!-- Dual file inputs for moulding -->
+                <div id="fileInputMoulding" class="hidden space-y-3">
+                    <div>
+                        <label class="text-xs text-slate-400 mb-1 block">File Kategori (Novi)</label>
+                        <input type="file" name="file_kategori" accept=".xlsx,.xls"
+                            class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 mb-1 block">File Cross-check (Raihan)</label>
+                        <input type="file" name="file_crosscheck" accept=".xlsx,.xls"
+                            class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
+                    </div>
+                </div>
             </div>
 
             <div class="mb-4">
@@ -111,5 +130,51 @@ function initPeriode() {
 }
 
 initPeriode();
+
+// Toggle file inputs based on jenis selection
+function toggleFileInputs() {
+    const jenis = document.querySelector('select[name="jenis"]').value;
+    const fileInputSingle = document.getElementById('fileInputSingle');
+    const fileInputMoulding = document.getElementById('fileInputMoulding');
+    const singleFileInput = fileInputSingle.querySelector('input[name="file"]');
+    const mouldingKategoriInput = fileInputMoulding.querySelector('input[name="file_kategori"]');
+    const mouldingCrosscheckInput = fileInputMoulding.querySelector('input[name="file_crosscheck"]');
+    
+    if (jenis === 'moulding') {
+        fileInputSingle.classList.add('hidden');
+        fileInputMoulding.classList.remove('hidden');
+        singleFileInput.removeAttribute('required');
+        mouldingKategoriInput.setAttribute('required', 'required');
+        mouldingCrosscheckInput.setAttribute('required', 'required');
+    } else {
+        fileInputSingle.classList.remove('hidden');
+        fileInputMoulding.classList.add('hidden');
+        singleFileInput.setAttribute('required', 'required');
+        mouldingKategoriInput.removeAttribute('required');
+        mouldingCrosscheckInput.removeAttribute('required');
+    }
+}
+
+// Call on page load to set initial state
+toggleFileInputs();
+
+// Call on jenis dropdown change
+document.querySelector('select[name="jenis"]').addEventListener('change', toggleFileInputs);
+
+// Confirm sebelum submit - pastikan user tidak salah pilih jenis
+document.querySelector('form').addEventListener('submit', function(e) {
+    const jenis = document.querySelector('select[name="jenis"]').value;
+    const jenisLabel = {
+        'cetak': 'CETAK / HCR Indomie',
+        'cabut': 'CABUT',
+        'moulding': 'MOULDING'
+    };
+    
+    const confirm_msg = `⚠️ PERHATIAN!\n\nYakin mau upload jenis: ${jenisLabel[jenis]}?\n\nData ini TERPISAH dari jenis lainnya dan tidak bisa dicampur.\n\nJika salah, gunakan Undo Upload di halaman review.`;
+    
+    if (!confirm(confirm_msg)) {
+        e.preventDefault();
+    }
+});
 </script>
 @endsection
