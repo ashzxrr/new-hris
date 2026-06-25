@@ -214,7 +214,7 @@
                                 <tr>
                                     <th class="px-2 py-2 sticky left-0 bg-[#F8FAFC] z-20 border-r border-[#E5E7EB]">
                                         <input type="checkbox" id="checkAllKaryawan" class="accent-[#4F46E5]"
-                                            onclick="document.querySelectorAll('.karyawan-check:not([style*=\'display: none\'])').forEach(c=>c.checked=this.checked); updateSelectedCount();">
+                                            onclick="getVisibleKaryawanCheckboxes().forEach(c=>c.checked=this.checked); updateSelectedCount();">
                                     </th>
                                     <th class="px-2 py-2 sticky left-10 bg-[#F8FAFC] z-20 border-r border-[#E5E7EB]">PIN</th>
                                     <th class="px-2 py-2 sticky left-20 bg-[#F8FAFC] z-20 border-r border-[#E5E7EB] min-w-[160px]">Nama</th>
@@ -461,8 +461,17 @@
             return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
 
+        function getVisibleKaryawanCheckboxes() {
+            return Array.from(document.querySelectorAll('.karyawan-item .karyawan-check')).filter(checkbox => {
+                const row = checkbox.closest('.karyawan-item');
+                if (row.style.display === 'none') return false;
+                if (row.classList.contains('karyawan-resign') && !row.classList.contains('active')) return false;
+                return true;
+            });
+        }
+
         function updateSelectedCount() {
-            const visibleCheckboxes = Array.from(document.querySelectorAll('.karyawan-item:not([style*=\'display: none\']) .karyawan-check'));
+            const visibleCheckboxes = getVisibleKaryawanCheckboxes();
             const selectedCheckboxes = document.querySelectorAll('.karyawan-check:checked');
             const count = selectedCheckboxes.length;
             document.getElementById('selectedCount').textContent = count + ' dipilih';
@@ -485,7 +494,7 @@
         }
 
         function toggleSelectAllVisible() {
-            const visibleCheckboxes = Array.from(document.querySelectorAll('.karyawan-item:not([style*=\'display: none\']) .karyawan-check'));
+            const visibleCheckboxes = getVisibleKaryawanCheckboxes();
             const allSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.every(c => c.checked);
             visibleCheckboxes.forEach(c => c.checked = !allSelected);
             updateSelectedCount();
