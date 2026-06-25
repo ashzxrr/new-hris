@@ -8,7 +8,7 @@ class PayrollDetail extends Model
 {
     protected $fillable = [
         'payroll_id','pin','nip','nama','nominal_harian',
-        'hadir','alpha','izin','sakit','lembur_menit',
+        'hadir','alpha','izin','sakit','setengah_hari','lembur_menit',
         'gaji_pokok','gaji_lembur','tambahan','potongan',
         'total_gaji','keterangan'
     ];

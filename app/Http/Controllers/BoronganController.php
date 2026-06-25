@@ -671,7 +671,7 @@ class BoronganController extends Controller
                     'nip'         => $first->nip,
                     'nama'        => $first->nama,
                     'total_gram'  => $rows->sum('berat_gram'),
-                    'total_upah'  => $rows->sum('upah_file'),
+                    'total_upah'  => $rows->sum('upah_sistem'),
                     'is_flagged'  => $rows->contains('is_flagged', true),
                     'flag_count'  => $rows->where('is_flagged', true)->count(),
                 ];
@@ -700,16 +700,20 @@ class BoronganController extends Controller
             $detail[] = [
                 'tanggal'    => $tgl,
                 'jobs'       => $jobs->map(fn($j) => [
+                    'id'         => $j->id,
                     'kategori'   => $j->kategori,
                     'gram'       => $j->berat_gram,
                     'upah_file'  => $j->upah_file,
                     'upah_sistem'=> $j->upah_sistem,
+                    'potongan'   => strtoupper($j->kategori) === 'ST'
+                        ? intval($j->upah_file * 0.5)
+                        : max(0, intval($j->upah_file - $j->upah_sistem)),
                     'selisih'    => $j->selisih,
                     'is_flagged' => $j->is_flagged,
                     'flag_reason'=> $j->flag_reason,
                 ])->values(),
                 'total_gram' => $jobs->sum('berat_gram'),
-                'total_upah' => $jobs->sum('upah_file'),
+                'total_upah' => $jobs->sum('upah_sistem'),
             ];
         }
 
@@ -717,6 +721,52 @@ class BoronganController extends Controller
             'nip'    => $nip,
             'nama'   => $rows->first()?->nama ?? $nip,
             'detail' => $detail,
+        ]);
+    }
+
+    public function updateUpahSistem(Request $request, $id)
+    {
+        $request->validate([
+            'harian_id' => 'required|exists:borongan_harian,id',
+            'upah_sistem' => 'required|integer|min:0',
+        ]);
+
+        $harian = BoronganHarian::findOrFail($request->harian_id);
+        $upahSistem = intval($request->upah_sistem);
+        $potongan = max(0, intval($harian->upah_file - $upahSistem));
+
+        $harian->update([
+            'upah_sistem' => $upahSistem,
+            'selisih' => intval($harian->upah_file - $upahSistem),
+        ]);
+
+        $importId = $harian->borongan_import_id;
+        $nip = $harian->nip;
+
+        $totalGram = BoronganHarian::where('borongan_import_id', $importId)
+            ->where('nip', $nip)
+            ->sum('berat_gram');
+        $totalUpah = BoronganHarian::where('borongan_import_id', $importId)
+            ->where('nip', $nip)
+            ->sum('upah_sistem');
+
+        $rekap = BoronganRekap::where('borongan_import_id', $importId)
+            ->where('nip', $nip)
+            ->first();
+
+        if ($rekap) {
+            $rekap->total_gram = $totalGram;
+            $rekap->total_upah = $totalUpah;
+            $rekap->total_akhir = $totalUpah + $rekap->tambahan - $rekap->potongan_bpjs - $rekap->potongan_lain;
+            $rekap->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'upah_sistem' => $upahSistem,
+            'potongan' => $potongan,
+            'total_upah_rekap' => $rekap->total_upah ?? null,
+            'total_akhir_rekap' => $rekap->total_akhir ?? null,
         ]);
     }
 
@@ -732,7 +782,7 @@ class BoronganController extends Controller
         foreach ($grouped as $nip => $rows) {
             $first = $rows->first();
             $totalGram = $rows->sum('berat_gram');
-            $totalUpah = $rows->sum('upah_file');
+            $totalUpah = $rows->sum('upah_sistem');
 
             // Upsert rekap — kalau sudah ada (re-approve), update akumulasi tapi jaga potongan/tambahan
             $existing = BoronganRekap::where('borongan_import_id', $id)
@@ -863,7 +913,7 @@ class BoronganController extends Controller
                 // Accumulate gram & upah dari semua entries untuk tanggal ini
                 $boronganRows = $harianGrouped[$tgl] ?? collect();
                 $totalGram = $boronganRows->sum('berat_gram');
-                $totalUpah = $boronganRows->sum('upah_file');
+                $totalUpah = $boronganRows->sum('upah_sistem');
 
                 $periode[] = [
                     'tanggal' => $tgl,

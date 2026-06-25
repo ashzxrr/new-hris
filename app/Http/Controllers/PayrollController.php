@@ -325,10 +325,11 @@ class PayrollController extends Controller
                     }
                 }
 
-                $gajiPokok = ($hadir * $nominal) + ($setengahHari * $nominal * 0.5);
+                $gajiPokok   = ($hadir + $setengahHari) * $nominal;
+                $potonganSt  = $setengahHari * ($nominal / 2);
                 // Lembur belum di-approve saat generate awal, jadi gaji_lembur = 0
-                $gajiLembur = 0;
-                $totalGaji  = $gajiPokok; // tanpa lembur
+                $gajiLembur  = 0;
+                $totalGaji   = $gajiPokok + $gajiLembur - $potonganSt;
 
                 PayrollDetail::create([
                     'payroll_id'      => $payroll->id,
@@ -341,9 +342,9 @@ class PayrollController extends Controller
                     'izin'            => $izin,
                     'sakit'           => $sakit,
                     'setengah_hari'   => $setengahHari,
-                    'lembur_menit'    => $lemburMenit,    // simpan menit lembur untuk referensi
+                    'lembur_menit'    => $lemburMenit,
                     'gaji_pokok'      => $gajiPokok,
-                    'gaji_lembur'     => $gajiLembur,      // 0 sampai di-approve
+                    'gaji_lembur'     => $gajiLembur,
                     'tambahan'        => 0,
                     'potongan'        => 0,
                     'total_gaji'      => $totalGaji,
@@ -417,12 +418,13 @@ class PayrollController extends Controller
         ]);
 
         $tambahan = $request->tambahan ?? 0;
-        $potongan = $request->potongan ?? 0;
-        $total    = $detail->gaji_pokok + $detail->gaji_lembur + $tambahan - $potongan;
+        $manualPotongan = $request->potongan ?? 0;
+        $potonganSt = $detail->setengah_hari * ($detail->nominal_harian / 2);
+        $total    = $detail->gaji_pokok + $detail->gaji_lembur + $tambahan - $manualPotongan - $potonganSt;
 
         $detail->update([
             'tambahan'    => $tambahan,
-            'potongan'    => $potongan,
+            'potongan'    => $manualPotongan,
             'total_gaji'  => $total,
             'keterangan'  => $request->keterangan,
         ]);
@@ -871,9 +873,10 @@ class PayrollController extends Controller
             }
 
             $nominal    = $detail->nominal_harian;
-            $gajiPokok  = ($hadir * $nominal) + ($setengahHari * $nominal * 0.5);
+            $gajiPokok  = ($hadir + $setengahHari) * $nominal;
+            $potonganSt = $setengahHari * ($nominal / 2);
             $gajiLembur = floor(($nominal / 8) * 1.5 * ($lemburMenit / 60));
-            $totalGaji  = $gajiPokok + $gajiLembur + $detail->tambahan - $detail->potongan;
+            $totalGaji  = $gajiPokok + $gajiLembur + $detail->tambahan - $detail->potongan - $potonganSt;
 
             $detail->update([
                 'hadir'        => $hadir,

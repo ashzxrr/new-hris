@@ -123,6 +123,9 @@
         <div class="p-6">
             <div id="reviewModalLoading" class="text-center py-8 text-slate-400 text-sm">Memuat data...</div>
             <div id="reviewModalContent" class="hidden">
+                <div id="reviewModalTotalUpah" class="mb-4 text-sm font-semibold text-slate-700 hidden">
+                    Total Upah (NIP ini): Rp 0
+                </div>
                 <table class="w-full text-xs">
                     <thead class="bg-[#F8FAFC] border-b border-[#E5E7EB]">
                         <tr>
@@ -131,6 +134,7 @@
                             <th class="px-3 py-2 text-right text-slate-400">Gram</th>
                             <th class="px-3 py-2 text-right text-slate-400">Upah File</th>
                             <th class="px-3 py-2 text-right text-slate-400">Upah Sistem</th>
+                            <th class="px-3 py-2 text-right text-slate-400">Potongan</th>
                             <th class="px-3 py-2 text-center text-slate-400">Status</th>
                         </tr>
                     </thead>
@@ -143,8 +147,11 @@
 
 <script>
 const reviewBaseUrl = "{{ url('borongan') }}";
+let currentReviewNip = null;
+let hasUpahChanged = false;
 
 function openReviewModal(importId, nip, nama) {
+    currentReviewNip = nip.toLowerCase();
     document.getElementById('reviewModalNama').textContent = nama;
     document.getElementById('reviewModalNip').textContent = nip;
     document.getElementById('reviewModalLoading').classList.remove('hidden');
@@ -165,25 +172,32 @@ function openReviewModal(importId, nip, nama) {
                     : `<span class="text-xs text-green-500">✅</span>`;
                 const selisihClass = Math.abs(job.selisih) > 1000 ? 'text-red-500' : 'text-slate-400';
                 tbody.innerHTML += `
-                <tr class="border-b border-[#E5E7EB]/50 ${job.is_flagged ? 'bg-amber-50' : ''}">
+                <tr class="job-row border-b border-[#E5E7EB]/50 ${job.is_flagged ? 'bg-amber-50' : ''}">
                     <td class="px-3 py-1.5 text-slate-600">${i === 0 ? tgl : ''}</td>
                     <td class="px-3 py-1.5 font-medium text-slate-800">${job.kategori}</td>
                     <td class="px-3 py-1.5 text-right text-slate-700">${job.gram.toLocaleString('id-ID')}</td>
                     <td class="px-3 py-1.5 text-right font-medium">Rp ${job.upah_file.toLocaleString('id-ID')}</td>
-                    <td class="px-3 py-1.5 text-right text-slate-500">Rp ${job.upah_sistem.toLocaleString('id-ID')}</td>
+                    <td class="px-3 py-1.5 text-right">
+                        <input type="number" class="w-20 px-2 py-1 border border-[#E5E7EB] rounded text-right text-sm" 
+                            value="${job.upah_sistem}" data-harian-id="${job.id}" 
+                            onchange="updateUpahSistem(${job.id}, this.value, '{{ $import->id }}')"/>
+                    </td>
+                    <td class="px-3 py-1.5 text-right font-medium text-red-500">Rp <span class="potongan-${job.id}">${job.potongan.toLocaleString('id-ID')}</span></td>
                     <td class="px-3 py-1.5 text-center">${flagCell}</td>
                 </tr>`;
             });
             // Subtotal per tanggal
             tbody.innerHTML += `
-            <tr class="bg-slate-50 border-b border-[#E5E7EB]">
+            <tr class="subtotal-row bg-slate-50 border-b border-[#E5E7EB]" data-tanggal="${d.tanggal}">
                 <td class="px-3 py-1 text-slate-400 text-right" colspan="2"><span class="text-[10px] uppercase tracking-wide">Subtotal</span></td>
-                <td class="px-3 py-1 text-right font-semibold text-slate-700">${d.total_gram.toLocaleString('id-ID')}</td>
-                <td class="px-3 py-1 text-right font-semibold text-slate-800">Rp ${d.total_upah.toLocaleString('id-ID')}</td>
-                <td colspan="2"></td>
+                <td class="px-3 py-1 text-right font-semibold text-slate-700 subtotal-gram">${d.total_gram.toLocaleString('id-ID')}</td>
+                <td class="px-3 py-1"></td>
+                <td class="px-3 py-1 text-right font-semibold text-slate-800 subtotal-upah">Rp ${d.total_upah.toLocaleString('id-ID')}</td>
+                <td class="px-3 py-1" colspan="2"></td>
             </tr>`;
         });
 
+        recalculateReviewModalTotals();
         document.getElementById('reviewModalLoading').classList.add('hidden');
         document.getElementById('reviewModalContent').classList.remove('hidden');
     })
@@ -200,7 +214,120 @@ function formatTgl(tgl) {
     return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
 }
 
+function updateUpahSistem(harianId, newUpahSistem, importId) {
+    fetch(`${reviewBaseUrl}/${importId}/update-upah-sistem`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+        },
+        body: JSON.stringify({
+            harian_id: harianId,
+            upah_sistem: parseInt(newUpahSistem)
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            hasUpahChanged = true;
+
+            // Update potongan display
+            const potonganEl = document.querySelector(`.potongan-${harianId}`);
+            if (potonganEl) {
+                potonganEl.textContent = data.potongan.toLocaleString('id-ID');
+            }
+
+            // Sync main table row and import total summary
+            if (currentReviewNip && data.total_upah_rekap !== undefined && data.total_upah_rekap !== null) {
+                let row = null;
+                try {
+                    row = document.querySelector(`.review-row[data-nip="${CSS.escape(currentReviewNip)}"]`);
+                } catch (error) {
+                    row = null;
+                }
+                if (!row) {
+                    row = document.querySelector(`.review-row[data-nip="${currentReviewNip}"]`);
+                }
+
+                if (row) {
+                    const totalCell = row.children[3];
+                    const oldTotal = parseIdNumber(totalCell?.textContent || '0');
+                    const newTotal = parseIdNumber(data.total_upah_rekap);
+                    const diff = newTotal - oldTotal;
+
+                    if (totalCell) {
+                        totalCell.textContent = `Rp ${newTotal.toLocaleString('id-ID')}`;
+                    }
+
+                    if (diff !== 0) {
+                        const summaryCard = Array.from(document.querySelectorAll('div.grid.grid-cols-4 > div'))
+                            .find(card => card.querySelector('div.text-xs')?.textContent.trim() === 'Total Upah');
+                        if (summaryCard) {
+                            const valueEl = summaryCard.querySelector('div.text-xl, div.text-2xl');
+                            if (valueEl) {
+                                const currentSummary = parseIdNumber(valueEl.textContent || '0');
+                                valueEl.textContent = `Rp ${Math.max(0, currentSummary + diff).toLocaleString('id-ID')}`;
+                            }
+                        }
+                    }
+                }
+            }
+
+            recalculateReviewModalTotals();
+        }
+    })
+    .catch(e => console.error('Error:', e));
+}
+
+function parseIdNumber(value) {
+    return parseInt(value.toString().replace(/[^0-9-]/g, '')) || 0;
+}
+
+function recalculateReviewModalTotals() {
+    const tbody = document.getElementById('reviewModalBody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    let subtotalGram = 0;
+    let subtotalUpah = 0;
+    let totalUpah = 0;
+
+    rows.forEach(row => {
+        if (row.classList.contains('job-row')) {
+            const gramText = row.children[2]?.textContent.trim() || '0';
+            const upahInput = row.querySelector('input[data-harian-id]');
+            const gramValue = parseIdNumber(gramText);
+            const upahValue = parseIdNumber(upahInput?.value || '0');
+
+            subtotalGram += gramValue;
+            subtotalUpah += upahValue;
+            totalUpah += upahValue;
+        }
+
+        if (row.classList.contains('subtotal-row')) {
+            const gramCell = row.querySelector('.subtotal-gram');
+            const upahCell = row.querySelector('.subtotal-upah');
+            if (gramCell) {
+                gramCell.textContent = subtotalGram.toLocaleString('id-ID');
+            }
+            if (upahCell) {
+                upahCell.textContent = `Rp ${subtotalUpah.toLocaleString('id-ID')}`;
+            }
+            subtotalGram = 0;
+            subtotalUpah = 0;
+        }
+    });
+
+    const totalEl = document.getElementById('reviewModalTotalUpah');
+    if (totalEl) {
+        totalEl.textContent = `Total Upah (NIP ini): Rp ${totalUpah.toLocaleString('id-ID')}`;
+        totalEl.classList.remove('hidden');
+    }
+}
+
 function closeReviewModal() {
+    if (hasUpahChanged) {
+        window.location.reload();
+        return;
+    }
     document.getElementById('reviewModal').classList.add('hidden');
 }
 

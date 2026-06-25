@@ -67,6 +67,7 @@
                     <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Alpha</th>
                     <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Izin</th>
                     <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Sakit</th>
+                    <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">ST</th>
                     <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Gaji Pokok</th>
                     <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Lembur</th>
                     <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Tambahan</th>
@@ -84,6 +85,7 @@
                     <td class="px-3 py-2.5 text-center text-red-500">{{ $d->alpha }}</td>
                     <td class="px-3 py-2.5 text-center text-amber-500">{{ $d->izin }}</td>
                     <td class="px-3 py-2.5 text-center text-blue-500">{{ $d->sakit }}</td>
+                    <td class="px-3 py-2.5 text-center text-slate-700">{{ $d->setengah_hari }}</td>
                     <td class="px-3 py-2.5 text-right text-slate-700">Rp {{ number_format($d->gaji_pokok, 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-right">
                         @if($d->gaji_lembur > 0)
@@ -93,7 +95,13 @@
                         @endif
                     </td>
                     <td class="px-3 py-2.5 text-right text-green-600">Rp {{ number_format($d->tambahan, 0, ',', '.') }}</td>
-                    <td class="px-3 py-2.5 text-right text-red-500">Rp {{ number_format($d->potongan, 0, ',', '.') }}</td>
+                    <td class="px-3 py-2.5 text-right text-red-500">
+                        @php
+                            $stDeduction = $d->setengah_hari * ($d->nominal_harian / 2);
+                            $displayPotongan = $d->potongan + $stDeduction;
+                        @endphp
+                        Rp {{ number_format($displayPotongan, 0, ',', '.') }}
+                    </td>
                     <td class="px-3 py-2.5 text-right font-bold text-[#4F46E5]" id="total-{{ $d->id }}">Rp {{ number_format($d->total_gaji, 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-center">
                         <button type="button"
@@ -107,11 +115,11 @@
             </tbody>
             <tfoot class="bg-[#F8FAFC] border-t-2 border-[#E5E7EB]">
                 <tr>
-                    <td colspan="6" class="px-3 py-2.5 font-semibold text-slate-700 text-right">TOTAL</td>
+                    <td colspan="7" class="px-3 py-2.5 font-semibold text-slate-700 text-right">TOTAL</td>
                     <td class="px-3 py-2.5 text-right font-bold text-slate-800">Rp {{ number_format($details->sum('gaji_pokok'), 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-right font-bold text-amber-600">Rp {{ number_format($details->sum('gaji_lembur'), 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-right font-bold text-green-600">Rp {{ number_format($details->sum('tambahan'), 0, ',', '.') }}</td>
-                    <td class="px-3 py-2.5 text-right font-bold text-red-500">Rp {{ number_format($details->sum('potongan'), 0, ',', '.') }}</td>
+                    <td class="px-3 py-2.5 text-right font-bold text-red-500">Rp {{ number_format($details->sum(fn($d) => $d->potongan + ($d->setengah_hari * ($d->nominal_harian / 2))), 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-right font-bold text-[#4F46E5]">Rp {{ number_format($details->sum('total_gaji'), 0, ',', '.') }}</td>
                     <td></td>
                 </tr>
