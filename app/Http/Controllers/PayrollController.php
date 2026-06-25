@@ -10,6 +10,9 @@ use App\Models\Payroll;
 use App\Models\PayrollDetail;
 use App\Models\SalaryConfig;
 use App\Models\BoronganImport;
+use App\Models\BoronganRekap;
+use App\Models\BoronganHarian;
+use App\Models\PayrollGrandTotal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -385,8 +388,15 @@ class PayrollController extends Controller
             ->first();
         
         $harianDetailCount = PayrollDetail::where('payroll_id', $id)->count();
+
+        $cabutOk = !$cabutImport || $cabutImport->status === 'approved';
+        $hcrOk = !$hcrImport || $hcrImport->status === 'approved';
+        $mouldingOk = !$mouldingImport || $mouldingImport->status === 'approved';
+        $adaData = boolval($cabutImport || $hcrImport || $mouldingImport || $harianDetailCount > 0);
+        $bisaGenerateGrandTotal = $cabutOk && $hcrOk && $mouldingOk && $payroll->status === 'final' && $adaData;
         
-        return view('payroll.show', compact('payroll', 'cabutImport', 'hcrImport', 'mouldingImport', 'harianDetailCount'));
+        $grandTotals = PayrollGrandTotal::where('payroll_id', $id)->orderBy('nama')->get();
+        return view('payroll.show', compact('payroll', 'cabutImport', 'hcrImport', 'mouldingImport', 'harianDetailCount', 'bisaGenerateGrandTotal', 'grandTotals'));
     }
 
     // ========================
@@ -403,6 +413,184 @@ class PayrollController extends Controller
         }
         
         return view('payroll.harian.show', compact('payroll', 'details'));
+    }
+
+    public function generateGrandTotal($id)
+    {
+        $payroll = Payroll::findOrFail($id);
+
+        $cabut = BoronganImport::where('payroll_id', $id)
+            ->where('jenis', 'cabut')
+            ->latest()
+            ->first();
+        $hcr = BoronganImport::where('payroll_id', $id)
+            ->where('jenis', 'cetak')
+            ->latest()
+            ->first();
+        $moulding = BoronganImport::where('payroll_id', $id)
+            ->where('jenis', 'moulding')
+            ->latest()
+            ->first();
+
+        foreach (['cabut' => $cabut, 'cetak' => $hcr, 'moulding' => $moulding] as $type => $import) {
+            if ($import && $import->status !== 'approved') {
+                return back()->with('error', 'Semua jenis borongan harus di-approve dulu sebelum generate Grand Total.');
+            }
+        }
+
+        if ($payroll->status !== 'final') {
+            return back()->with('error', 'Periode harus difinalisasi dulu (lewat halaman Harian) sebelum generate Grand Total.');
+        }
+
+        PayrollGrandTotal::where('payroll_id', $id)->delete();
+
+        $boronganImportIds = collect([$cabut?->id, $hcr?->id, $moulding?->id])->filter()->all();
+
+        $boronganNips = BoronganRekap::whereIn('borongan_import_id', $boronganImportIds)
+            ->pluck('nip')
+            ->unique();
+
+        $harianNips = PayrollDetail::where('payroll_id', $id)
+            ->pluck('nip')
+            ->unique();
+
+        $allNips = $boronganNips->merge($harianNips)->unique();
+
+        $dateFrom = new \DateTime($payroll->tanggal_dari);
+        $dateTo = new \DateTime($payroll->tanggal_sampai);
+
+        foreach ($allNips as $nip) {
+            $detailHarianGram = [];
+            $jobCategories = [];
+
+            // cek apakah ada rekap borongan untuk nip ini
+            $rekapQuery = BoronganRekap::whereIn('borongan_import_id', $boronganImportIds)
+                ->where('nip', $nip);
+
+            // jika ada borongan, pakai data borongan per-hari seperti sebelumnya
+            if ($rekapQuery->exists()) {
+                $currentDate = clone $dateFrom;
+                while ($currentDate <= $dateTo) {
+                    $tanggal = $currentDate->format('Y-m-d');
+
+                    $dailyBorongan = BoronganHarian::whereIn('borongan_import_id', $boronganImportIds)
+                        ->where('nip', $nip)
+                        ->where('tanggal', $tanggal)
+                        ->get();
+
+                    $dailyTotal = $dailyBorongan->sum('upah_sistem');
+                    if ($dailyBorongan->isNotEmpty()) {
+                        $jobCategories = array_merge($jobCategories, $dailyBorongan->pluck('kategori')->toArray());
+                    }
+
+                    $detailHarianGram[$tanggal] = $dailyTotal;
+                    $currentDate->modify('+1 day');
+                }
+            } else {
+                // tidak punya borongan: hitung dari PayrollDetail + koreksi / attendance logs
+                $payrollDetail = PayrollDetail::where('payroll_id', $id)->where('nip', $nip)->first();
+                $user = User::where('nip', $nip)->first();
+                $pin = $user?->pin;
+
+                // ambil koreksi untuk pin ini, keyed by tanggal Y-m-d
+                $corrections = AttendanceCorrection::where('pin', $pin)
+                    ->whereBetween('tanggal', [$payroll->tanggal_dari, $payroll->tanggal_sampai])
+                    ->get()
+                    ->keyBy(fn($c) => \Carbon\Carbon::parse($c->tanggal)->format('Y-m-d'));
+
+                // ambil logs fingerprint, grouped by tanggal Y-m-d
+                $logs = AttendanceLog::where('pin', $pin)
+                    ->whereBetween('tanggal', [$payroll->tanggal_dari, $payroll->tanggal_sampai])
+                    ->orderBy('datetime')
+                    ->get()
+                    ->groupBy(fn($l) => substr((string)$l->tanggal, 0, 10));
+
+                // kumpulkan daftar hari hadir terlebih dahulu
+                $hariHadirList = [];
+                $currentDate = clone $dateFrom;
+                while ($currentDate <= $dateTo) {
+                    $tanggal = $currentDate->format('Y-m-d');
+
+                    $correction = $corrections[$tanggal] ?? null;
+                    $isHadir = false;
+
+                    if ($correction) {
+                        $isHadir = ($correction->status === 'H');
+                    } else {
+                        // fallback ke attendance log: hadir jika ada minimal 1 log pada tanggal ini
+                        $dayLogs = $logs[$tanggal] ?? collect();
+                        if ($dayLogs->isNotEmpty()) {
+                            $isHadir = true;
+                        }
+                    }
+
+                    if ($isHadir) $hariHadirList[] = $tanggal;
+
+                    $currentDate->modify('+1 day');
+                }
+
+                $hadirCount = count($hariHadirList);
+                $gajiPerHari = ($hadirCount > 0 && $payrollDetail) ? intdiv($payrollDetail->gaji_pokok, $hadirCount) : 0;
+
+                // hitung per-tanggal
+                $currentDate = clone $dateFrom;
+                while ($currentDate <= $dateTo) {
+                    $tanggal = $currentDate->format('Y-m-d');
+
+                    if (in_array($tanggal, $hariHadirList)) {
+                        $correction = $corrections[$tanggal] ?? null;
+
+                        $lemburHariIni = 0;
+                        if ($correction?->lembur_approved) {
+                            $lemburMenit = $correction->lembur_menit ?? 0;
+                            $upahPerJam = $payrollDetail?->nominal_harian ? ($payrollDetail->nominal_harian / 8) : 0;
+                            $lemburHariIni = (int) floor($upahPerJam * 1.5 * ($lemburMenit / 60));
+                        }
+
+                        $detailHarianGram[$tanggal] = $gajiPerHari + $lemburHariIni;
+                    } else {
+                        $detailHarianGram[$tanggal] = 0;
+                    }
+
+                    $currentDate->modify('+1 day');
+                }
+            }
+
+            $jobLabel = 'Harian';
+            if (!empty($jobCategories)) {
+                $jobLabel = collect($jobCategories)->countBy()->sortDesc()->keys()->first();
+            }
+
+            $rekapQuery = BoronganRekap::whereIn('borongan_import_id', $boronganImportIds)
+                ->where('nip', $nip);
+
+            $insentif = $rekapQuery->sum('tambahan');
+            $komplain = $rekapQuery->sum('komplain');
+            $potonganLain = $rekapQuery->sum('potongan_lain');
+            $potonganBpjs = $rekapQuery->sum('potongan_bpjs');
+
+            // TODO: Tambahkan kontribusi PayrollDetail ke insentif/komplain/potongan jika diperlukan di versi selanjutnya.
+            $totalAkhir = array_sum($detailHarianGram) + $insentif + $komplain - $potonganLain - $potonganBpjs;
+
+            $user = User::where('nip', $nip)->first();
+
+            PayrollGrandTotal::create([
+                'payroll_id'   => $id,
+                'nip'          => $nip,
+                'nama'         => $user?->nama ?? $nip,
+                'job_label'    => $jobLabel,
+                'detail_harian'=> json_encode($detailHarianGram),
+                'insentif'     => $insentif,
+                'komplain'     => $komplain,
+                'potongan_lain'=> $potonganLain,
+                'potongan_bpjs'=> $potonganBpjs,
+                'total_akhir'  => $totalAkhir,
+                'generated_at' => now(),
+            ]);
+        }
+
+        return redirect()->route('payroll.show', $id)
+            ->with('success', 'Grand Total berhasil di-generate untuk ' . $allNips->count() . ' karyawan.');
     }
 
     // ========================
@@ -741,6 +929,23 @@ class PayrollController extends Controller
 
             $correction = $corrections[$tgl] ?? null;
 
+            // Hitung lembur otomatis dari FP OUT jika koreksi tidak menyediakan jam_out
+            $effectiveOutTs = null;
+            if ($correction && !empty($correction->jam_out)) {
+                $effectiveOutTs = strtotime($tgl . ' ' . $correction->jam_out);
+            } else {
+                $effectiveOutTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
+            }
+
+            if ($effectiveOutTs && !$isSunday) {
+                $threshold = strtotime($tgl . ' 16:30:00');
+                $lemburMenitAuto = $effectiveOutTs > $threshold ? floor(($effectiveOutTs - $threshold) / 60) : 0;
+            } else {
+                $lemburMenitAuto = 0;
+            }
+
+            $lemburMenitFinal = $correction ? ($correction->lembur_menit ?? $lemburMenitAuto) : $lemburMenitAuto;
+
             $rows[] = [
                 'tgl'             => $tgl,
                 'tgl_display'     => \Carbon\Carbon::parse($tgl)->translatedFormat('D, d M Y'),
@@ -752,7 +957,8 @@ class PayrollController extends Controller
                 'kor_status'      => $correction ? $correction->status : null,
                 'kor_ket'         => $correction ? $correction->keterangan : null,
                 'has_kor'         => (bool) $correction,
-                'lembur_menit'    => $correction?->lembur_menit ?? 0,
+                'lembur_menit'    => $lemburMenitFinal,
+                'lembur_jam'      => $this->bulatkanLemburJam($lemburMenitFinal),
                 'lembur_approved' => $correction?->lembur_approved ?? false,
             ];
         }
@@ -791,18 +997,20 @@ class PayrollController extends Controller
                 $status = $row['status']  ?? 'H';
                 $ket    = $row['keterangan'] ?? null;
 
-                // Jika jam_in dan jam_out kosong dan status H → hapus koreksi (pakai fingerprint)
-                if (!$jamIn && !$jamOut && $status === 'H' && !$ket) {
+                // Jika jam_in dan jam_out kosong dan status H → hapus koreksi (pakai fingerprint), kecuali ada data lembur yang harus disimpan
+                $hasLemburData = ($row['lembur_approved'] ?? false) || (($row['lembur_menit'] ?? 0) > 0);
+                if (!$jamIn && !$jamOut && $status === 'H' && !$ket && !$hasLemburData) {
                     AttendanceCorrection::where('pin', $pin)->where('tanggal', $tgl)->delete();
                     continue;
                 }
 
                 $correctionData = [
-                    'jam_in'     => $jamIn  ?: null,
-                    'jam_out'    => $jamOut ?: null,
-                    'status'     => $status,
-                    'keterangan' => $ket,
-                    'edited_by'  => $userId,
+                    'jam_in'       => $jamIn  ?: null,
+                    'jam_out'      => $jamOut ?: null,
+                    'status'       => $status,
+                    'keterangan'   => $ket,
+                    'edited_by'    => $userId,
+                    'lembur_menit' => $row['lembur_menit'] ?? null,
                 ];
 
                 if (isset($row['lembur_approved'])) {
@@ -875,7 +1083,8 @@ class PayrollController extends Controller
             $nominal    = $detail->nominal_harian;
             $gajiPokok  = ($hadir + $setengahHari) * $nominal;
             $potonganSt = $setengahHari * ($nominal / 2);
-            $gajiLembur = floor(($nominal / 8) * 1.5 * ($lemburMenit / 60));
+            $totalJamLemburDibulatkan = $this->bulatkanLemburJam($lemburMenit);
+            $gajiLembur = floor(($nominal / 8) * 1.5 * $totalJamLemburDibulatkan);
             $totalGaji  = $gajiPokok + $gajiLembur + $detail->tambahan - $detail->potongan - $potonganSt;
 
             $detail->update([
@@ -897,6 +1106,12 @@ class PayrollController extends Controller
             DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    private function bulatkanLemburJam(int $menit): float
+    {
+        if ($menit <= 0) return 0;
+        return round($menit / 30) * 0.5;
     }
 
     // ========================

@@ -17,7 +17,7 @@
             </p>
         </div>
         <div class="flex gap-3">
-            <a href="{{ route('payroll.index') }}"
+            <a href="{{ isset($payroll) ? route('payroll.show', $payroll->id) : route('payroll.index') }}"
                 class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">← Kembali</a>
             <a href="{{ route('payroll.export.slip', $payroll->id) }}"
                 class="border border-[#22C55E] text-[#22C55E] px-4 py-2 rounded-lg text-sm hover:bg-green-50 transition">
@@ -54,6 +54,12 @@
             <div class="text-xs text-slate-400 mb-1">Total Keseluruhan</div>
             <div class="text-xl font-bold text-[#4F46E5]">Rp {{ number_format($details->sum('total_gaji'), 0, ',', '.') }}</div>
         </div>
+    </div>
+
+    {{-- Search --}}
+    <div class="mb-4">
+        <input type="text" id="searchHarian" placeholder="Cari NIP atau Nama..."
+            class="w-full border border-[#E5E7EB] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
     </div>
 
     {{-- Tabel detail --}}
@@ -288,7 +294,6 @@ function renderDetailTable(rows) {
             `<option value="${s}" ${row.kor_status === s ? 'selected' : (!row.kor_status && s === 'H' ? 'selected' : '')}>${s}</option>`
         ).join('');
 
-        const lemburText = row.lembur_menit > 0 ? `${row.lembur_menit} mnt` : '-';
         const lemburChecked = row.lembur_approved ? 'checked' : '';
 
         let cells = '';
@@ -323,7 +328,14 @@ function renderDetailTable(rows) {
                         ? `<select class="border border-[#E5E7EB] rounded px-1.5 py-1 text-xs focus:outline-none" onchange="updateDetailRow(${i}, 'status', this.value)">${selectOpts}</select>`
                         : `<span class="inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full ${dot} inline-block"></span>${effectiveStatus}</span>`}
                 </td>
-                <td class="px-3 py-2 text-center text-slate-500">${lemburText}</td>
+                <td class="px-3 py-2 text-center text-slate-500">
+                    ${isSunday ? '-' : (payrollIsDraft
+                        ? `<div class="flex items-center justify-center gap-2">
+                                <input type="number" min="0" class="w-20 px-2 py-1 border border-[#E5E7EB] rounded text-sm" value="${row.lembur_menit || 0}" onchange="updateDetailRow(${i}, 'lembur_menit', parseInt(this.value) || 0)" ${row.is_sunday ? 'disabled' : ''}>
+                                <span class="text-[10px] text-slate-400">(${row.lembur_jam || 0} jam)</span>
+                            </div>`
+                        : (row.lembur_menit > 0 ? `${row.lembur_menit} mnt` : '-'))}
+                </td>
                 <td class="px-3 py-2 text-center">
                     ${payrollIsDraft
                         ? `<input type="checkbox" ${lemburChecked} class="w-4 h-4 accent-[#4F46E5] cursor-pointer" onchange="updateDetailRow(${i}, 'lembur_approved', this.checked)" ${row.lembur_menit > 0 ? '' : 'disabled'}>`
@@ -361,6 +373,7 @@ function submitDetail() {
         jam_out        : r.jam_out     || null,
         status         : r.status      || (r.kor_status || 'H'),
         keterangan     : r.keterangan  || null,
+        lembur_menit   : r.lembur_menit || 0,
         lembur_approved: r.lembur_approved || false,
     }));
 
@@ -401,6 +414,13 @@ function closeDetailModal() {
 
 document.getElementById('detailModal').addEventListener('click', function(e) {
     if (e.target === this) closeDetailModal();
+});
+document.getElementById('searchHarian')?.addEventListener('input', function() {
+    const query = this.value.toLowerCase().trim();
+    document.querySelectorAll('tbody tr[id^="row-"]').forEach(row => {
+        const rowText = row.textContent.toLowerCase();
+        row.style.display = !query || rowText.includes(query) ? '' : 'none';
+    });
 });
 </script>
 @endsection

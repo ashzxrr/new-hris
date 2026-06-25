@@ -12,7 +12,7 @@
         <div class="flex gap-3">
             <a href="{{ route('borongan.review', $import->id) }}"
                 class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">← Review</a>
-            <a href="{{ route('borongan.index') }}"
+            <a href="{{ $payrollId ? route('payroll.show', $payrollId) : route('borongan.index') }}"
                 class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">List Import</a>
         </div>
     </div>

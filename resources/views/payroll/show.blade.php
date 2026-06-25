@@ -187,15 +187,127 @@
 
     {{-- Grand Total Section --}}
     <div class="bg-white rounded-2xl border border-[#E5E7EB] p-6">
-        <h2 class="font-semibold text-slate-800 mb-4">Grand Total</h2>
-        <div class="text-center py-8">
-            <p class="text-sm text-slate-500 mb-4">Grand Total akan tersedia setelah semua jenis di-approve</p>
-            <button type="button"
-                disabled
-                class="bg-slate-200 text-slate-400 px-4 py-2 rounded-lg text-sm cursor-not-allowed">
-                Generate Grand Total
-            </button>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="font-semibold text-slate-800">Grand Total</h2>
+            <div class="flex items-center gap-3">
+                @if($bisaGenerateGrandTotal)
+                    <form method="POST" action="{{ route('payroll.generateGrandTotal', $payroll->id) }}" onsubmit="return confirm('Generate Grand Total untuk periode ini? Data lama (jika ada) akan ditimpa.')">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center gap-2 bg-[#6D28D9] text-white px-4 py-2 rounded-full text-sm hover:bg-[#5B21B6] shadow-md">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 011-1h4a1 1 0 110 2H5v12h10V4h-3a1 1 0 110-2h4a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3z" /></svg>
+                            Generate Grand Total
+                        </button>
+                    </form>
+                @else
+                    <button disabled class="bg-slate-200 text-slate-400 px-4 py-2 rounded-full text-sm cursor-not-allowed">
+                        Generate Grand Total
+                    </button>
+                @endif
+            </div>
         </div>
+
+        <p class="text-sm text-slate-500 mb-4">Grand Total akan tersedia setelah semua jenis di-approve</p>
+
+        {{-- Controls: search + job filter + visible total --}}
+        @php $jobOptions = isset($grandTotals) ? $grandTotals->pluck('job_label')->unique()->filter()->values() : collect(); @endphp
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+            <input id="searchGrandTotal" type="text" placeholder="Cari NIP atau Nama..."
+                class="border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none w-64" />
+
+            <select id="filterJob" class="border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none">
+                <option value="">Semua Job</option>
+                @foreach($jobOptions as $job)
+                    <option value="{{ $job }}">{{ $job }}</option>
+                @endforeach
+            </select>
+
+            <div class="ml-auto text-sm text-slate-600">Total Terlihat: <span id="visibleGrandTotal" class="font-semibold">Rp {{ isset($grandTotals) ? number_format($grandTotals->sum('total_akhir'),0,',','.') : '0' }}</span></div>
+        </div>
+
+        @if(isset($grandTotals) && $grandTotals->isNotEmpty())
+            @php $groups = $grandTotals->groupBy('job_label'); @endphp
+            <div class="space-y-6">
+                @foreach($groups as $job => $group)
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-sm font-semibold text-slate-700">{{ $job ?: 'Unspecified' }}</div>
+                            <div class="text-sm text-slate-500">Total Job: <span class="job-visible-total font-medium" data-job="{{ $job }}">Rp {{ number_format($group->sum('total_akhir'),0,',','.') }}</span></div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="text-xs text-slate-500 uppercase tracking-wide bg-[#F8FAFC] border-b">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left">NIP</th>
+                                        <th class="px-3 py-2 text-left">Nama</th>
+                                        <th class="px-3 py-2 text-right">Total Akhir</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($group as $g)
+                                    <tr class="border-b border-[#E5E7EB]/50 hover:bg-[#F8FAFC] grandtotal-row" data-job="{{ $g->job_label }}" data-nip="{{ $g->nip }}" data-nama="{{ strtolower($g->nama) }}" data-total="{{ $g->total_akhir }}">
+                                        <td class="px-3 py-2 font-mono text-xs">{{ $g->nip }}</td>
+                                        <td class="px-3 py-2 font-medium text-slate-800">{{ $g->nama }}</td>
+                                        <td class="px-3 py-2 text-right font-bold">Rp {{ number_format($g->total_akhir, 0, ',', '.') }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        @else
+            <div class="text-center py-6">
+                <p class="text-sm text-slate-400 mb-3">Belum ada Grand Total</p>
+            </div>
+        @endif
     </div>
 </div>
 @endsection
+
+<script>
+    (function(){
+        function formatRp(n){
+            return 'Rp ' + (n||0).toLocaleString('id-ID');
+        }
+
+        function applyGrandFilters(){
+            const qEl = document.getElementById('searchGrandTotal');
+            const jobEl = document.getElementById('filterJob');
+            const q = qEl ? qEl.value.toLowerCase().trim() : '';
+            const jobFilter = jobEl ? jobEl.value : '';
+            let overall = 0;
+            const groupSums = {};
+
+            document.querySelectorAll('.grandtotal-row').forEach(row => {
+                const nama = (row.dataset.nama || '').toLowerCase();
+                const nip = (row.dataset.nip || '').toLowerCase();
+                const job = (row.dataset.job || '');
+                const total = parseInt(row.dataset.total) || 0;
+
+                const matchesQuery = !q || nama.includes(q) || nip.includes(q) || row.textContent.toLowerCase().includes(q);
+                const matchesJob = !jobFilter || jobFilter === job;
+                const visible = matchesQuery && matchesJob;
+
+                row.style.display = visible ? '' : 'none';
+
+                if (visible) {
+                    overall += total;
+                    groupSums[job] = (groupSums[job] || 0) + total;
+                }
+            });
+
+            document.querySelectorAll('.job-visible-total').forEach(el => {
+                const j = el.dataset.job;
+                el.textContent = formatRp(groupSums[j] || 0);
+            });
+
+            const visibleEl = document.getElementById('visibleGrandTotal');
+            if (visibleEl) visibleEl.textContent = formatRp(overall);
+        }
+
+        document.getElementById('searchGrandTotal')?.addEventListener('input', applyGrandFilters);
+        document.getElementById('filterJob')?.addEventListener('change', applyGrandFilters);
+    })();
+</script>

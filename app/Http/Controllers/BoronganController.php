@@ -679,7 +679,8 @@ class BoronganController extends Controller
             ->sortBy('nama')
             ->values();
 
-        return view('borongan.review', compact('import', 'items'));
+        $payrollId = $import->payroll_id;
+        return view('borongan.review', compact('import', 'items', 'payrollId'));
     }
 
     public function getReviewDetail(Request $request, $id, $nip)
@@ -857,7 +858,8 @@ class BoronganController extends Controller
             ->orderBy('nama')
             ->get();
 
-        return view('borongan.rekap', compact('import', 'rekaps'));
+        $payrollId = $import->payroll_id;
+        return view('borongan.rekap', compact('import', 'rekaps', 'payrollId'));
     }
 
     public function getDetail(Request $request, $id, $nip)

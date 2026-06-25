@@ -70,6 +70,7 @@ Route::middleware('auth:admin')->group(function () {
             Route::get('/detail/{id}/koreksi',      [PayrollController::class, 'getKoreksiData'])->name('detail.koreksi.get');
             Route::post('/detail/{id}/koreksi',     [PayrollController::class, 'saveKoreksi'])->name('detail.koreksi.save');
             Route::put('/{id}/finalize',             [PayrollController::class, 'finalize'])->name('finalize');
+            Route::post('/{id}/generate-grand-total', [PayrollController::class, 'generateGrandTotal'])->name('generateGrandTotal');
             Route::delete('/{id}',                   [PayrollController::class, 'destroy'])->name('destroy');
         });
 

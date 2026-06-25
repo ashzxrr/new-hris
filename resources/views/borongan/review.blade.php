@@ -12,7 +12,7 @@
             </p>
         </div>
         <div class="flex gap-3">
-            <a href="{{ route('borongan.index') }}"
+            <a href="{{ $payrollId ? route('payroll.show', $payrollId) : route('borongan.index') }}"
                 class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">← Kembali</a>
             @if($import->status !== 'approved')
             <form method="POST" action="{{ route('borongan.undo', $import->id) }}"
