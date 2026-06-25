@@ -68,13 +68,11 @@
                     <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Izin</th>
                     <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Sakit</th>
                     <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Gaji Pokok</th>
-                    <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Lembur (Approval)</th>
+                    <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Lembur</th>
                     <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Tambahan</th>
                     <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Potongan</th>
                     <th class="px-3 py-2.5 text-right font-semibold text-slate-400 uppercase tracking-wide">Total</th>
-                    @if($payroll->status === 'draft')
                     <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Aksi</th>
-                    @endif
                 </tr>
             </thead>
             <tbody>
@@ -88,52 +86,22 @@
                     <td class="px-3 py-2.5 text-center text-blue-500">{{ $d->sakit }}</td>
                     <td class="px-3 py-2.5 text-right text-slate-700">Rp {{ number_format($d->gaji_pokok, 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-right">
-                        @if($d->lembur_menit > 0)
-                            <div class="flex items-center justify-end gap-2">
-                                <span class="{{ $d->lembur_approved ? 'text-amber-600' : 'text-slate-300' }} font-medium">
-                                    Rp {{ number_format($d->gaji_lembur, 0, ',', '.') }}
-                                </span>
-                                @if($payroll->status === 'draft')
-                                <button type="button"
-                                    onclick="toggleLembur({{ $d->id }}, this)"
-                                    data-approved="{{ $d->lembur_approved ? '1' : '0' }}"
-                                    data-potensi="{{ $d->potensi_lembur }}"
-                                    data-jam="{{ round($d->lembur_menit / 60, 1) }}"
-                                    class="text-xs px-2 py-1 rounded-full border transition whitespace-nowrap
-                                        {{ $d->lembur_approved 
-                                            ? 'border-[#22C55E] text-[#22C55E] bg-[#22C55E]/10' 
-                                            : 'border-amber-200 text-amber-500 hover:border-amber-400 hover:bg-amber-50' }}">
-                                    @if($d->lembur_approved)
-                                        ✅ Approved
-                                    @else
-                                        Approve? Rp {{ number_format($d->potensi_lembur, 0, ',', '.') }} ({{ round($d->lembur_menit / 60, 1) }} jam)
-                                    @endif
-                                </button>
-                                @endif
-                            </div>
+                        @if($d->gaji_lembur > 0)
+                            <span class="text-amber-600 font-medium">Rp {{ number_format($d->gaji_lembur, 0, ',', '.') }}</span>
                         @else
                             <span class="text-slate-300">-</span>
                         @endif
                     </td>
                     <td class="px-3 py-2.5 text-right text-green-600">Rp {{ number_format($d->tambahan, 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-right text-red-500">Rp {{ number_format($d->potongan, 0, ',', '.') }}</td>
-                    <td class="px-3 py-2.5 text-right font-bold text-[#4F46E5]">Rp {{ number_format($d->total_gaji, 0, ',', '.') }}</td>
-                    @if($payroll->status === 'draft')
+                    <td class="px-3 py-2.5 text-right font-bold text-[#4F46E5]" id="total-{{ $d->id }}">Rp {{ number_format($d->total_gaji, 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-center">
-                        <div class="flex gap-1 justify-center">
-                            <button type="button"
-                                onclick="openEditModal({{ $d->id }}, {{ $d->tambahan }}, {{ $d->potongan }}, '{{ addslashes($d->keterangan ?? '') }}')"
-                                class="text-xs px-2 py-1 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-slate-50">
-                                Edit
-                            </button>
-                            <button type="button"
-                                onclick="openKoreksiModal({{ $d->id }}, '{{ addslashes($d->nama) }}')"
-                                class="text-xs px-2 py-1 rounded-lg border border-indigo-200 text-[#4F46E5] hover:bg-indigo-50">
-                                Koreksi
-                            </button>
-                        </div>
+                        <button type="button"
+                            onclick="openDetailModal({{ $d->id }}, '{{ addslashes($d->nama) }}', '{{ $d->nip }}', {{ $d->tambahan }}, {{ $d->potongan }}, '{{ addslashes($d->keterangan ?? '') }}')"
+                            class="text-xs px-3 py-1.5 rounded-lg bg-[#4F46E5] text-white hover:bg-[#4338CA] transition font-medium">
+                            Detail
+                        </button>
                     </td>
-                    @endif
                 </tr>
                 @endforeach
             </tbody>
@@ -145,255 +113,286 @@
                     <td class="px-3 py-2.5 text-right font-bold text-green-600">Rp {{ number_format($details->sum('tambahan'), 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-right font-bold text-red-500">Rp {{ number_format($details->sum('potongan'), 0, ',', '.') }}</td>
                     <td class="px-3 py-2.5 text-right font-bold text-[#4F46E5]">Rp {{ number_format($details->sum('total_gaji'), 0, ',', '.') }}</td>
-                    @if($payroll->status === 'draft')<td></td>@endif
+                    <td></td>
                 </tr>
             </tfoot>
         </table>
     </div>
 </div>
 
-{{-- Modal Edit Tambahan/Potongan --}}
-<div id="editModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
-        <div class="flex items-center justify-between mb-5">
-            <h3 class="font-semibold text-slate-800">Edit Tambahan / Potongan</h3>
-            <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600">✕</button>
-        </div>
-        <form id="editForm" method="POST">
-            @csrf @method('PUT')
-            <div class="mb-3">
-                <label class="text-xs text-slate-500 mb-1 block">Tambahan (Rp)</label>
-                <input type="number" name="tambahan" id="edit_tambahan" min="0" value="0"
-                    class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
-            </div>
-            <div class="mb-3">
-                <label class="text-xs text-slate-500 mb-1 block">Potongan (Rp)</label>
-                <input type="number" name="potongan" id="edit_potongan" min="0" value="0"
-                    class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
-            </div>
-            <div class="mb-4">
-                <label class="text-xs text-slate-500 mb-1 block">Keterangan</label>
-                <input type="text" name="keterangan" id="edit_keterangan"
-                    class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
-            </div>
-            <div class="flex gap-3 justify-end">
-                <button type="button" onclick="closeEditModal()"
-                    class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">Batal</button>
-                <button type="submit"
-                    class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">Simpan</button>
-            </div>
-        </form>
-    </div>
-</div>
+{{-- ===== MODAL DETAIL KARYAWAN ===== --}}
+<div id="detailModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col">
 
-{{-- Modal Koreksi Absensi --}}
-<div id="koreksiModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-5">
+        {{-- Header --}}
+        <div class="flex items-start justify-between px-6 py-4 border-b border-[#E5E7EB] shrink-0">
             <div>
-                <h3 class="font-semibold text-slate-800">✏️ Koreksi Absensi</h3>
-                <p class="text-xs text-slate-400 mt-0.5" id="koreksiNama"></p>
+                <h3 class="font-bold text-slate-800 text-base" id="detailNama"></h3>
+                <p class="text-xs text-slate-400 mt-0.5" id="detailNip"></p>
             </div>
-            <button onclick="closeKoreksiModal()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-600 text-xl leading-none mt-0.5">✕</button>
         </div>
 
-        <div id="koreksiLoading" class="text-center py-8 text-slate-400 text-sm">
-            Memuat data...
-        </div>
+        {{-- Body scrollable --}}
+        <div class="overflow-y-auto flex-1 px-6 py-4">
 
-        <div id="koreksiContent" class="hidden">
-            <div class="overflow-x-auto mb-4">
-                <table class="w-full text-xs">
-                    <thead class="bg-[#F8FAFC] border-b border-[#E5E7EB]">
-                        <tr>
-                            <th class="px-3 py-2 text-left text-slate-400 font-semibold uppercase tracking-wide">Tanggal</th>
-                            <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide">FP In</th>
-                            <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide">FP Out</th>
-                            <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide">Koreksi In</th>
-                            <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide">Koreksi Out</th>
-                            <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide">Status</th>
-                            <th class="px-3 py-2 text-left text-slate-400 font-semibold uppercase tracking-wide">Keterangan</th>
-                        </tr>
-                    </thead>
-                    <tbody id="koreksiTableBody"></tbody>
-                </table>
+            {{-- Loading --}}
+            <div id="detailLoading" class="text-center py-12 text-slate-400 text-sm">
+                <div class="animate-spin text-3xl mb-3">⏳</div>
+                Memuat data absensi...
             </div>
 
-            <div class="flex gap-3 justify-end">
-                <button type="button" onclick="closeKoreksiModal()"
-                    class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">Batal</button>
-                <button type="button" onclick="submitKoreksi()"
-                    class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
-                    💾 Simpan & Recalculate
+            {{-- Content --}}
+            <div id="detailContent" class="hidden">
+
+                {{-- Section: Rincian Absensi Harian --}}
+                <div class="mb-6">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-xs font-bold text-[#4F46E5] uppercase tracking-widest">📋 Rincian Per Hari</span>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-[#E5E7EB]">
+                        <table class="w-full text-xs">
+                            <thead class="bg-[#F8FAFC]">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-slate-400 font-semibold uppercase tracking-wide border-b border-[#E5E7EB]">Tanggal</th>
+                                    <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide border-b border-[#E5E7EB]">FP In</th>
+                                    <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide border-b border-[#E5E7EB]">FP Out</th>
+                                    <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide border-b border-[#E5E7EB]">Kor. In</th>
+                                    <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide border-b border-[#E5E7EB]">Kor. Out</th>
+                                    <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide border-b border-[#E5E7EB]">Status</th>
+                                    <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide border-b border-[#E5E7EB]">Lembur</th>
+                                    <th class="px-3 py-2 text-center text-slate-400 font-semibold uppercase tracking-wide border-b border-[#E5E7EB]">ACC Lembur</th>
+                                    <th class="px-3 py-2 text-left text-slate-400 font-semibold uppercase tracking-wide border-b border-[#E5E7EB]">Keterangan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {{-- Section: Tambahan & Potongan --}}
+                <div class="mb-2">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-xs font-bold text-amber-500 uppercase tracking-widest">⚙️ Potongan & Tambahan</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs text-slate-500 mb-1 block">Tambahan (Rp)</label>
+                            <input type="number" id="detail_tambahan" min="0" value="0"
+                                class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-500 mb-1 block">Potongan (Rp)</label>
+                            <input type="number" id="detail_potongan" min="0" value="0"
+                                class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-xs text-slate-500 mb-1 block">Keterangan Umum</label>
+                            <input type="text" id="detail_keterangan" placeholder="opsional"
+                                class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
+                        </div>
+                    </div>
+                </div>
+
+            </div>{{-- end #detailContent --}}
+        </div>
+
+        {{-- Footer --}}
+        <div id="detailFooter" class="hidden shrink-0 px-6 py-4 border-t border-[#E5E7EB] flex items-center justify-between">
+            <div class="text-sm text-slate-600">
+                Total Akhir: <span id="detailTotalLabel" class="font-bold text-[#4F46E5] text-base ml-1">Rp 0</span>
+            </div>
+            <div class="flex gap-3">
+                <button type="button" onclick="closeDetailModal()"
+                    class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50">Tutup</button>
+                @if($payroll->status === 'draft')
+                <button type="button" onclick="submitDetail()"
+                    class="bg-[#4F46E5] text-white px-5 py-2 rounded-lg text-sm hover:bg-[#4338CA] font-medium flex items-center gap-2">
+                    💾 Simpan
                 </button>
+                @endif
             </div>
         </div>
+
     </div>
 </div>
 
 <script>
-function openEditModal(id, tambahan, potongan, keterangan) {
-    document.getElementById('edit_tambahan').value = tambahan;
-    document.getElementById('edit_potongan').value = potongan;
-    document.getElementById('edit_keterangan').value = keterangan;
-    document.getElementById('editForm').action = '/payroll/detail/' + id;
-    document.getElementById('editModal').classList.remove('hidden');
-}
-function closeEditModal() {
-    document.getElementById('editModal').classList.add('hidden');
-}
-document.getElementById('editModal').addEventListener('click', function(e) {
-    if (e.target === this) closeEditModal();
-});
+const payrollIsDraft = {{ $payroll->status === 'draft' ? 'true' : 'false' }};
 
-let currentKoreksiDetailId = null;
-let koreksiRows = [];
+let currentDetailId  = null;
+let currentDetailNominal = 0;
+let detailRows = [];
 
-function openKoreksiModal(detailId, nama) {
-    currentKoreksiDetailId = detailId;
-    document.getElementById('koreksiNama').textContent = nama;
-    document.getElementById('koreksiLoading').classList.remove('hidden');
-    document.getElementById('koreksiContent').classList.add('hidden');
-    document.getElementById('koreksiModal').classList.remove('hidden');
+function openDetailModal(detailId, nama, nip, tambahan, potongan, keterangan) {
+    currentDetailId = detailId;
 
-    fetch(`/payroll/detail/${detailId}/koreksi`, {
+    document.getElementById('detailNama').textContent = nama;
+    document.getElementById('detailNip').textContent  = nip;
+    document.getElementById('detail_tambahan').value  = tambahan;
+    document.getElementById('detail_potongan').value  = potongan;
+    document.getElementById('detail_keterangan').value = keterangan;
+
+    document.getElementById('detailLoading').classList.remove('hidden');
+    document.getElementById('detailContent').classList.add('hidden');
+    document.getElementById('detailFooter').classList.add('hidden');
+    document.getElementById('detailModal').classList.remove('hidden');
+
+    fetch(`{{ url('/payroll/detail') }}/${detailId}/koreksi`, {
         headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
     })
     .then(r => r.json())
     .then(data => {
-        koreksiRows = data.rows;
-        renderKoreksiTable(data.rows);
-        document.getElementById('koreksiLoading').classList.add('hidden');
-        document.getElementById('koreksiContent').classList.remove('hidden');
+        detailRows = data.rows;
+        renderDetailTable(data.rows);
+        document.getElementById('detailLoading').classList.add('hidden');
+        document.getElementById('detailContent').classList.remove('hidden');
+        document.getElementById('detailFooter').classList.remove('hidden');
+        updateTotalLabel();
     })
     .catch(e => {
         alert('Gagal memuat data: ' + e.message);
-        closeKoreksiModal();
+        closeDetailModal();
     });
 }
 
-function renderKoreksiTable(rows) {
-    const tbody = document.getElementById('koreksiTableBody');
+function renderDetailTable(rows) {
+    const tbody  = document.getElementById('detailTableBody');
     tbody.innerHTML = '';
+
+    const statusOptions = ['H','A','I','S','ST','GL','Cuti','DLL'];
 
     rows.forEach((row, i) => {
         const isSunday = row.is_sunday;
-        const bgClass  = isSunday ? 'bg-slate-50 text-slate-400' : '';
+        const isKoreksi = row.has_kor;
 
-        const statusOptions = ['H','A','I','S','GL','Cuti','DLL'].map(s =>
-            `<option value="${s}" ${row.kor_status === s ? 'selected' : ((!row.kor_status && s === 'H') ? 'selected' : '')}>${s}</option>`
+        // Row color cues
+        let trClass = 'border-b border-[#E5E7EB]';
+        if (isSunday) trClass += ' bg-slate-50 text-slate-400';
+        else if (isKoreksi) trClass += ' bg-indigo-50/40';
+
+        // Status indicator dot
+        const statusDotMap = { H: 'bg-green-400', A: 'bg-red-400', I: 'bg-amber-400', S: 'bg-blue-400', ST: 'bg-purple-400', GL: 'bg-orange-400', Cuti: 'bg-teal-400', DLL: 'bg-slate-400' };
+        const effectiveStatus = row.kor_status || 'H';
+        const dot = statusDotMap[effectiveStatus] || 'bg-slate-300';
+
+        const selectOpts = statusOptions.map(s =>
+            `<option value="${s}" ${row.kor_status === s ? 'selected' : (!row.kor_status && s === 'H' ? 'selected' : '')}>${s}</option>`
         ).join('');
 
-        tbody.innerHTML += `
-        <tr class="border-b border-[#E5E7EB] ${bgClass}" id="kor-row-${i}">
-            <td class="px-3 py-1.5 font-medium">${row.tgl_display}</td>
-            <td class="px-3 py-1.5 text-center text-green-600">${row.fp_in || '-'}</td>
-            <td class="px-3 py-1.5 text-center text-blue-600">${row.fp_out || '-'}</td>
-            <td class="px-3 py-1.5 text-center">
-                ${isSunday ? '-' : `<input type="time" value="${row.kor_in || ''}"
-                    class="border border-[#E5E7EB] rounded px-2 py-1 text-xs w-24 focus:outline-none focus:ring-1 focus:ring-[#4F46E5]/30"
-                    onchange="updateKoreksiRow(${i}, 'jam_in', this.value)">`}
-            </td>
-            <td class="px-3 py-1.5 text-center">
-                ${isSunday ? '-' : `<input type="time" value="${row.kor_out || ''}"
-                    class="border border-[#E5E7EB] rounded px-2 py-1 text-xs w-24 focus:outline-none focus:ring-1 focus:ring-[#4F46E5]/30"
-                    onchange="updateKoreksiRow(${i}, 'jam_out', this.value)">`}
-            </td>
-            <td class="px-3 py-1.5 text-center">
-                ${isSunday ? 'Minggu' : `<select class="border border-[#E5E7EB] rounded px-2 py-1 text-xs focus:outline-none"
-                    onchange="updateKoreksiRow(${i}, 'status', this.value)">
-                    ${statusOptions}
-                </select>`}
-            </td>
-            <td class="px-3 py-1.5">
-                ${isSunday ? '-' : `<input type="text" value="${row.kor_ket || ''}" placeholder="opsional"
-                    class="border border-[#E5E7EB] rounded px-2 py-1 text-xs w-full focus:outline-none"
-                    onchange="updateKoreksiRow(${i}, 'keterangan', this.value)">`}
-            </td>
-        </tr>`;
+        const lemburText = row.lembur_menit > 0 ? `${row.lembur_menit} mnt` : '-';
+        const lemburChecked = row.lembur_approved ? 'checked' : '';
+
+        let cells = '';
+        if (isSunday) {
+            cells = `
+                <td class="px-3 py-2 font-medium">${row.tgl_display}</td>
+                <td class="px-3 py-2 text-center">-</td>
+                <td class="px-3 py-2 text-center">-</td>
+                <td class="px-3 py-2 text-center">-</td>
+                <td class="px-3 py-2 text-center">-</td>
+                <td class="px-3 py-2 text-center text-xs">Minggu</td>
+                <td class="px-3 py-2 text-center">-</td>
+                <td class="px-3 py-2 text-center">-</td>
+                <td class="px-3 py-2">-</td>`;
+        } else {
+            cells = `
+                <td class="px-3 py-2 font-medium text-slate-700">${row.tgl_display}</td>
+                <td class="px-3 py-2 text-center text-green-600 font-mono">${row.fp_in || '<span class="text-slate-300">-</span>'}</td>
+                <td class="px-3 py-2 text-center text-blue-600 font-mono">${row.fp_out || '<span class="text-slate-300">-</span>'}</td>
+                <td class="px-3 py-2 text-center">
+                    ${payrollIsDraft
+                        ? `<input type="time" value="${row.kor_in || ''}" class="border border-[#E5E7EB] rounded px-1.5 py-1 text-xs w-22 focus:outline-none focus:ring-1 focus:ring-[#4F46E5]/30" onchange="updateDetailRow(${i}, 'jam_in', this.value)">`
+                        : (row.kor_in || '<span class="text-slate-300">-</span>')}
+                </td>
+                <td class="px-3 py-2 text-center">
+                    ${payrollIsDraft
+                        ? `<input type="time" value="${row.kor_out || ''}" class="border border-[#E5E7EB] rounded px-1.5 py-1 text-xs w-22 focus:outline-none focus:ring-1 focus:ring-[#4F46E5]/30" onchange="updateDetailRow(${i}, 'jam_out', this.value)">`
+                        : (row.kor_out || '<span class="text-slate-300">-</span>')}
+                </td>
+                <td class="px-3 py-2 text-center">
+                    ${payrollIsDraft
+                        ? `<select class="border border-[#E5E7EB] rounded px-1.5 py-1 text-xs focus:outline-none" onchange="updateDetailRow(${i}, 'status', this.value)">${selectOpts}</select>`
+                        : `<span class="inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full ${dot} inline-block"></span>${effectiveStatus}</span>`}
+                </td>
+                <td class="px-3 py-2 text-center text-slate-500">${lemburText}</td>
+                <td class="px-3 py-2 text-center">
+                    ${payrollIsDraft
+                        ? `<input type="checkbox" ${lemburChecked} class="w-4 h-4 accent-[#4F46E5] cursor-pointer" onchange="updateDetailRow(${i}, 'lembur_approved', this.checked)" ${row.lembur_menit > 0 ? '' : 'disabled'}>`
+                        : (row.lembur_approved ? '✅' : '<span class="text-slate-300">-</span>')}
+                </td>
+                <td class="px-3 py-2">
+                    ${payrollIsDraft
+                        ? `<input type="text" value="${row.kor_ket || ''}" placeholder="keterangan..." class="border border-[#E5E7EB] rounded px-2 py-1 text-xs w-full focus:outline-none" onchange="updateDetailRow(${i}, 'keterangan', this.value)">`
+                        : (row.kor_ket || '<span class="text-slate-300">-</span>')}
+                </td>`;
+        }
+
+        tbody.innerHTML += `<tr class="${trClass}">${cells}</tr>`;
     });
 }
 
-function updateKoreksiRow(i, field, value) {
-    koreksiRows[i][field] = value;
+function updateDetailRow(i, field, value) {
+    detailRows[i][field] = value;
 }
 
-function submitKoreksi() {
-    const payload = koreksiRows.filter(r => !r.is_sunday).map(r => ({
-        tgl        : r.tgl,
-        jam_in     : r.jam_in     || null,
-        jam_out    : r.jam_out    || null,
-        status     : r.status     || 'H',
-        keterangan : r.keterangan || null,
+function updateTotalLabel() {
+    // Just display static from loaded – will refresh on save
+    const totalEl = document.getElementById('detailTotalLabel');
+    // Can't calculate easily without nominal on frontend, just leave as refreshed after save
+}
+
+function submitDetail() {
+    const tambahan   = parseInt(document.getElementById('detail_tambahan').value) || 0;
+    const potongan   = parseInt(document.getElementById('detail_potongan').value) || 0;
+    const keterangan = document.getElementById('detail_keterangan').value;
+
+    const koreksiPayload = detailRows.filter(r => !r.is_sunday).map(r => ({
+        tgl            : r.tgl,
+        jam_in         : r.jam_in      || null,
+        jam_out        : r.jam_out     || null,
+        status         : r.status      || (r.kor_status || 'H'),
+        keterangan     : r.keterangan  || null,
+        lembur_approved: r.lembur_approved || false,
     }));
 
-    fetch(`/payroll/detail/${currentKoreksiDetailId}/koreksi`, {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+    // 1. Save koreksi absensi + recalculate
+    fetch(`{{ url('/payroll/detail') }}/${currentDetailId}/koreksi`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        },
-        body: JSON.stringify({ rows: payload })
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+        body: JSON.stringify({ rows: koreksiPayload })
     })
     .then(r => r.json())
     .then(data => {
-        if (data.success) {
-            alert(data.message);
-            closeKoreksiModal();
-            location.reload(); // reload untuk update total gaji
-        } else {
-            alert('Error: ' + data.message);
-        }
+        if (!data.success) throw new Error(data.message);
+
+        // 2. Save tambahan/potongan
+        const form = new FormData();
+        form.append('_method', 'PUT');
+        form.append('_token', csrfToken);
+        form.append('tambahan', tambahan);
+        form.append('potongan', potongan);
+        form.append('keterangan', keterangan);
+
+        return fetch(`{{ url('/payroll/detail') }}/${currentDetailId}`, { method: 'POST', body: form });
     })
-    .catch(e => alert('Gagal: ' + e.message));
+    .then(() => {
+        closeDetailModal();
+        location.reload();
+    })
+    .catch(e => alert('Gagal menyimpan: ' + e.message));
 }
 
-function closeKoreksiModal() {
-    document.getElementById('koreksiModal').classList.add('hidden');
-    currentKoreksiDetailId = null;
-    koreksiRows = [];
+function closeDetailModal() {
+    document.getElementById('detailModal').classList.add('hidden');
+    currentDetailId = null;
+    detailRows = [];
 }
 
-document.getElementById('koreksiModal').addEventListener('click', function(e) {
-    if (e.target === this) closeKoreksiModal();
+document.getElementById('detailModal').addEventListener('click', function(e) {
+    if (e.target === this) closeDetailModal();
 });
-
-function toggleLembur(detailId, btn) {
-    fetch(`/payroll/detail/${detailId}/toggle-lembur`, {
-        method: 'PUT',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (!data.success) return;
-
-        const approved = data.lembur_approved;
-        const potensi  = parseInt(btn.dataset.potensi);
-        const jam      = btn.dataset.jam;
-
-        btn.dataset.approved = approved ? '1' : '0';
-        btn.textContent = approved
-            ? '✅ Approved'
-            : `Approve? Rp ${potensi.toLocaleString('id-ID')} (${jam} jam)`;
-        btn.className = 'text-xs px-2 py-1 rounded-full border transition whitespace-nowrap ' +
-            (approved
-                ? 'border-[#22C55E] text-[#22C55E] bg-[#22C55E]/10'
-                : 'border-amber-200 text-amber-500 hover:border-amber-400 hover:bg-amber-50');
-
-        const lemburSpan = btn.previousElementSibling;
-        lemburSpan.className = (approved ? 'text-amber-600' : 'text-slate-300') + ' font-medium';
-        lemburSpan.textContent = 'Rp ' + data.gaji_lembur.toLocaleString('id-ID');
-
-        const row = btn.closest('tr');
-        const totalCell = row.querySelector('td:nth-last-child(2)');
-        if (totalCell) {
-            totalCell.textContent = 'Rp ' + data.total_gaji.toLocaleString('id-ID');
-        }
-    })
-    .catch(e => alert('Gagal: ' + e.message));
-}
 </script>
 @endsection

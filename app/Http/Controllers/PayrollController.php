@@ -287,6 +287,7 @@ class PayrollController extends Controller
                 $nominal = $config ? $config->nominal : 0;
 
                 $hadir = $alpha = $izin = $sakit = $lemburMenit = 0;
+                $setengahHari = 0;
 
                 foreach ($periode as $tgl) {
                     if (date('N', strtotime($tgl)) == 7) continue;
@@ -320,10 +321,11 @@ class PayrollController extends Controller
                         case 'A': $alpha++; break;
                         case 'I': $izin++;  break;
                         case 'S': $sakit++; break;
+                        case 'ST': $setengahHari++; break;
                     }
                 }
 
-                $gajiPokok = $hadir * $nominal;
+                $gajiPokok = ($hadir * $nominal) + ($setengahHari * $nominal * 0.5);
                 // Lembur belum di-approve saat generate awal, jadi gaji_lembur = 0
                 $gajiLembur = 0;
                 $totalGaji  = $gajiPokok; // tanpa lembur
@@ -338,8 +340,8 @@ class PayrollController extends Controller
                     'alpha'           => $alpha,
                     'izin'            => $izin,
                     'sakit'           => $sakit,
+                    'setengah_hari'   => $setengahHari,
                     'lembur_menit'    => $lemburMenit,    // simpan menit lembur untuk referensi
-                    'lembur_approved' => false,            // default belum approved
                     'gaji_pokok'      => $gajiPokok,
                     'gaji_lembur'     => $gajiLembur,      // 0 sampai di-approve
                     'tambahan'        => 0,
@@ -738,16 +740,18 @@ class PayrollController extends Controller
             $correction = $corrections[$tgl] ?? null;
 
             $rows[] = [
-                'tgl'        => $tgl,
-                'tgl_display'=> \Carbon\Carbon::parse($tgl)->translatedFormat('D, d M Y'),
-                'is_sunday'  => $isSunday,
-                'fp_in'      => $fpIn,
-                'fp_out'     => $fpOut,
-                'kor_in'     => $correction ? substr($correction->jam_in ?? '', 0, 5) : null,
-                'kor_out'    => $correction ? substr($correction->jam_out ?? '', 0, 5) : null,
-                'kor_status' => $correction ? $correction->status : null,
-                'kor_ket'    => $correction ? $correction->keterangan : null,
-                'has_kor'    => (bool) $correction,
+                'tgl'             => $tgl,
+                'tgl_display'     => \Carbon\Carbon::parse($tgl)->translatedFormat('D, d M Y'),
+                'is_sunday'       => $isSunday,
+                'fp_in'           => $fpIn,
+                'fp_out'          => $fpOut,
+                'kor_in'          => $correction ? substr($correction->jam_in ?? '', 0, 5) : null,
+                'kor_out'         => $correction ? substr($correction->jam_out ?? '', 0, 5) : null,
+                'kor_status'      => $correction ? $correction->status : null,
+                'kor_ket'         => $correction ? $correction->keterangan : null,
+                'has_kor'         => (bool) $correction,
+                'lembur_menit'    => $correction?->lembur_menit ?? 0,
+                'lembur_approved' => $correction?->lembur_approved ?? false,
             ];
         }
 
@@ -791,15 +795,21 @@ class PayrollController extends Controller
                     continue;
                 }
 
+                $correctionData = [
+                    'jam_in'     => $jamIn  ?: null,
+                    'jam_out'    => $jamOut ?: null,
+                    'status'     => $status,
+                    'keterangan' => $ket,
+                    'edited_by'  => $userId,
+                ];
+
+                if (isset($row['lembur_approved'])) {
+                    $correctionData['lembur_approved'] = $row['lembur_approved'] ?? false;
+                }
+
                 AttendanceCorrection::updateOrCreate(
                     ['pin' => $pin, 'tanggal' => $tgl],
-                    [
-                        'jam_in'     => $jamIn  ?: null,
-                        'jam_out'    => $jamOut ?: null,
-                        'status'     => $status,
-                        'keterangan' => $ket,
-                        'edited_by'  => $userId,
-                    ]
+                    $correctionData
                 );
             }
 
@@ -829,6 +839,7 @@ class PayrollController extends Controller
                 ->keyBy(fn($c) => \Carbon\Carbon::parse($c->tanggal)->format('Y-m-d'));
 
             $hadir = $alpha = $izin = $sakit = $lemburMenit = 0;
+            $setengahHari = 0;
 
             foreach ($periode as $tgl) {
                 if (date('N', strtotime($tgl)) == 7) continue;
@@ -837,25 +848,17 @@ class PayrollController extends Controller
 
                 if ($correction) {
                     $status = $correction->status;
-                    $jamOut = $correction->jam_out ? substr($correction->jam_out, 0, 5) : null;
                 } else {
                     $dayKey  = $pin . '_' . $tgl;
                     $dayLogs = $logs[$dayKey] ?? collect();
                     $inTimes  = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string)$l->datetime));
-                    $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string)$l->datetime));
                     $inTs  = $inTimes->isNotEmpty()  ? $inTimes->min()  : null;
-                    $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
-                    $jamOut = $outTs ? date('H:i', $outTs) : null;
                     $note   = $absenceNotes[$tgl] ?? null;
                     $status = $inTs ? 'H' : ($note ? $note->code : 'A');
                 }
 
-                if ($jamOut) {
-                    $outTs     = strtotime($tgl . ' ' . $jamOut);
-                    $threshold = strtotime($tgl . ' 16:30:00');
-                    if ($outTs > $threshold) {
-                        $lemburMenit += floor(($outTs - $threshold) / 60);
-                    }
+                if ($correction && $correction->lembur_approved) {
+                    $lemburMenit += $correction->lembur_menit ?? 0;
                 }
 
                 switch ($status) {
@@ -863,11 +866,12 @@ class PayrollController extends Controller
                     case 'A': $alpha++; break;
                     case 'I': $izin++;  break;
                     case 'S': $sakit++; break;
+                    case 'ST': $setengahHari++; break;
                 }
             }
 
             $nominal    = $detail->nominal_harian;
-            $gajiPokok  = $hadir * $nominal;
+            $gajiPokok  = ($hadir * $nominal) + ($setengahHari * $nominal * 0.5);
             $gajiLembur = floor(($nominal / 8) * 1.5 * ($lemburMenit / 60));
             $totalGaji  = $gajiPokok + $gajiLembur + $detail->tambahan - $detail->potongan;
 
@@ -876,6 +880,7 @@ class PayrollController extends Controller
                 'alpha'        => $alpha,
                 'izin'         => $izin,
                 'sakit'        => $sakit,
+                'setengah_hari'=> $setengahHari,
                 'lembur_menit' => $lemburMenit,
                 'gaji_pokok'   => $gajiPokok,
                 'gaji_lembur'  => $gajiLembur,
