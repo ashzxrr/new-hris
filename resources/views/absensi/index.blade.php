@@ -669,34 +669,71 @@
 
             const tlFilteredRows = getTLFilteredBaseForTab(baseRows);
 
-            const matched = tlFilteredRows.filter(row => {
+            // Basic filtering
+            let matched = tlFilteredRows.filter(row => {
                 const matchSearch = !q || row.dataset.search?.includes(q) || row.textContent.toLowerCase().includes(q);
                 const matchBagian = !bagian || (row.dataset.bagian || '').toLowerCase() === bagian;
                 const matchKategori = !kategori || (row.dataset.kategori || '').toLowerCase() === kategori;
                 return matchSearch && matchBagian && matchKategori;
             });
 
-            if (q) {
-                matched.sort((a, b) => {
-                    const aName = (a.dataset.nama || '').toLowerCase();
-                    const bName = (b.dataset.nama || '').toLowerCase();
-                    const aNameIndex = aName.indexOf(q);
-                    const bNameIndex = bName.indexOf(q);
-                    const aPrefix = aNameIndex === 0 ? 0 : (aNameIndex > -1 ? 1 : 2);
-                    const bPrefix = bNameIndex === 0 ? 0 : (bNameIndex > -1 ? 1 : 2);
+            // Comparator used for search relevance
+            const comparator = (a, b) => {
+                const aName = (a.dataset.nama || '').toLowerCase();
+                const bName = (b.dataset.nama || '').toLowerCase();
+                const aNameIndex = aName.indexOf(q);
+                const bNameIndex = bName.indexOf(q);
+                const aPrefix = aNameIndex === 0 ? 0 : (aNameIndex > -1 ? 1 : 2);
+                const bPrefix = bNameIndex === 0 ? 0 : (bNameIndex > -1 ? 1 : 2);
 
-                    if (aPrefix !== bPrefix) return aPrefix - bPrefix;
-                    if (aNameIndex !== bNameIndex) return aNameIndex - bNameIndex;
+                if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+                if (aNameIndex !== bNameIndex) return aNameIndex - bNameIndex;
 
-                    const aSearchIndex = (a.dataset.search || '').indexOf(q);
-                    const bSearchIndex = (b.dataset.search || '').indexOf(q);
-                    return aSearchIndex - bSearchIndex;
+                const aSearchIndex = (a.dataset.search || '').indexOf(q);
+                const bSearchIndex = (b.dataset.search || '').indexOf(q);
+                return aSearchIndex - bSearchIndex;
+            };
+
+            // If TL filters are active, preserve TL grouping while optionally sorting within each group
+            const checkedTLs = Array.from(document.querySelectorAll('.tl-filter-check:checked, .tl-check:checked')).map(c => c.value);
+            if (q && checkedTLs.length > 0) {
+                const grouped = {};
+                checkedTLs.forEach(tlId => grouped[tlId] = []);
+                matched.forEach(r => {
+                    const tlId = (r.dataset.tlId || '').toString();
+                    if (grouped.hasOwnProperty(tlId)) grouped[tlId].push(r);
                 });
+
+                const ordered = [];
+                checkedTLs.forEach(tlId => {
+                    const group = grouped[tlId] || [];
+                    group.sort(comparator);
+                    group.forEach(x => ordered.push(x));
+                });
+                matched = ordered;
+            } else if (q) {
+                matched.sort(comparator);
             }
 
-            baseRows.forEach(row => {
-                row.style.display = matched.includes(row) ? '' : 'none';
-            });
+            // Reorder DOM to reflect grouping and show/hide rows
+            const tbody = document.querySelector('tbody');
+            if (tbody) {
+                // Append matched rows in order (this moves elements and maintains grouping)
+                matched.forEach(row => {
+                    tbody.appendChild(row);
+                    row.style.display = '';
+                });
+
+                // Hide non-matching rows (only within the current tab set)
+                baseRows.forEach(row => {
+                    if (!matched.includes(row)) row.style.display = 'none';
+                });
+            } else {
+                // Fallback: just show/hide without reordering
+                baseRows.forEach(row => {
+                    row.style.display = matched.includes(row) ? '' : 'none';
+                });
+            }
 
             if (typeof updateSelectedCount === 'function') updateSelectedCount();
         }
