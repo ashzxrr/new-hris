@@ -54,9 +54,13 @@
     </div>
 
     {{-- Search --}}
-    <div class="mb-4">
+    <div class="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <label class="flex items-center gap-2 text-xs text-slate-500 cursor-pointer whitespace-nowrap">
+            <input type="checkbox" id="highlightLowWage" class="rounded border-[#E5E7EB] text-amber-500 focus:ring-amber-500/30">
+            Highlight upah < Rp 50.000
+        </label>
         <input type="text" id="searchReview" placeholder="Cari NIP atau Nama..."
-            class="w-full border border-[#E5E7EB] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
+            class="w-full md:w-[360px] border border-[#E5E7EB] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
     </div>
 
     {{-- Tabel --}}
@@ -67,7 +71,9 @@
                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">NIP</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Nama</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">Total Gram</th>
-                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">Total Upah</th>
+                    <th class="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide cursor-pointer hover:text-[#4F46E5]" id="sortUpahHeader" onclick="toggleSortUpah()">
+                        Total Upah <span id="sortUpahIcon">⇕</span>
+                    </th>
                     <th class="px-4 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wide">Status</th>
                     <th class="px-4 py-3 text-center text-xs font-semibold text-slate-400 uppercase tracking-wide">Aksi</th>
                 </tr>
@@ -76,7 +82,8 @@
                 @foreach($items as $item)
                 <tr class="review-row border-b border-[#E5E7EB]/50 {{ $item['is_flagged'] ? 'bg-amber-50' : 'hover:bg-[#F8FAFC]' }}"
                     data-nip="{{ strtolower($item['nip']) }}"
-                    data-nama="{{ strtolower($item['nama']) }}">
+                    data-nama="{{ strtolower($item['nama']) }}"
+                    data-upah="{{ $item['total_upah'] }}">
                     <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ $item['nip'] }}</td>
                     <td class="px-4 py-3 font-medium text-slate-800">
                         <button type="button"
@@ -279,9 +286,45 @@ function updateUpahSistem(harianId, newUpahSistem, importId) {
     .catch(e => console.error('Error:', e));
 }
 
+let sortAscending = null; // null = default order, true = ascending, false = descending
+
 function parseIdNumber(value) {
     return parseInt(value.toString().replace(/[^0-9-]/g, '')) || 0;
 }
+
+function toggleSortUpah() {
+    const tbody = document.getElementById('reviewBody');
+    const rows = Array.from(tbody.querySelectorAll('.review-row'));
+
+    if (sortAscending === null || sortAscending === false) {
+        sortAscending = true;
+    } else {
+        sortAscending = false;
+    }
+
+    rows.sort((a, b) => {
+        const upahA = parseInt(a.dataset.upah) || 0;
+        const upahB = parseInt(b.dataset.upah) || 0;
+        return sortAscending ? upahA - upahB : upahB - upahA;
+    });
+
+    rows.forEach(row => tbody.appendChild(row));
+    document.getElementById('sortUpahIcon').textContent = sortAscending ? '↑' : '↓';
+}
+
+function applyHighlightLowWage() {
+    const checked = document.getElementById('highlightLowWage').checked;
+    document.querySelectorAll('.review-row').forEach(row => {
+        const upah = parseInt(row.dataset.upah) || 0;
+        if (checked && upah < 50000) {
+            row.classList.add('bg-red-50', 'ring-1', 'ring-red-200');
+        } else {
+            row.classList.remove('bg-red-50', 'ring-1', 'ring-red-200');
+        }
+    });
+}
+
+document.getElementById('highlightLowWage').addEventListener('change', applyHighlightLowWage);
 
 function recalculateReviewModalTotals() {
     const tbody = document.getElementById('reviewModalBody');
