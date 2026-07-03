@@ -108,6 +108,7 @@
                                         ['id'=>74,  'nama'=>'Nur Alim Zainuri'],
                                         ['id'=>27,  'nama'=>"Anas Ja'far"],
                                         ['id'=>48,  'nama'=>'M.Jamaludin'],
+                                        ['id'=>134, 'nama'=>'M. Jamaluddin Saputra'],
                                         ['id'=>99,  'nama'=>'Nila Widya Sari'],
                                         ['id'=>113, 'nama'=>'Nurul Izzuddin'],
                                         ['id'=>75,  'nama'=>'Niko Yudho'],
