@@ -3,7 +3,14 @@
 <div>
     <div class="flex items-center justify-between mb-5">
         <div>
-            <h1 class="text-xl font-semibold text-slate-800">Rekap Borongan — {{ ucfirst($import->jenis) }}</h1>
+            @php
+            $jenisLabels = [
+                'cetak' => 'HCR',
+                'moulding' => 'Moulding/Cetak',
+                'cabut' => 'Cabut',
+            ];
+        @endphp
+        <h1 class="text-xl font-semibold text-slate-800">Rekap Borongan — {{ $jenisLabels[$import->jenis] ?? ucfirst($import->jenis) }}</h1>
             <p class="text-xs text-slate-400 mt-1">
                 Periode: {{ \Carbon\Carbon::parse($import->tanggal_dari)->format('d M') }} —
                 {{ \Carbon\Carbon::parse($import->tanggal_sampai)->format('d M Y') }}

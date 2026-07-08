@@ -55,7 +55,7 @@
                             @endif
                         </div>
                     </div>
-                    <div class="flex gap-2 pt-3">
+                    <div class="flex flex-wrap gap-2 pt-3">
                         <a href="{{ route('borongan.review', $cabutImport->id) }}"
                             class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
                             Review
@@ -64,14 +64,18 @@
                             class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
                             Rekap
                         </a>
+                        <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'cabut', 'revisi' => 1]) }}"
+                            class="flex-1 text-center border border-[#4F46E5] text-[#4F46E5] px-3 py-2 rounded-lg text-xs hover:bg-[#4F46E5]/5 transition">
+                            Upload Revisi
+                        </a>
                     </div>
                 </div>
             @endif
         </div>
 
-        {{-- Kartu HCR/Cetak --}}
+        {{-- Kartu HCR --}}
         <div class="bg-white rounded-2xl border border-[#E5E7EB] p-5">
-            <h3 class="font-semibold text-slate-800 mb-4">HCR / Cetak</h3>
+            <h3 class="font-semibold text-slate-800 mb-4">HCR</h3>
             
             @if($hcrImport === null)
                 <div class="text-center py-6">
@@ -99,7 +103,7 @@
                             @endif
                         </div>
                     </div>
-                    <div class="flex gap-2 pt-3">
+                    <div class="flex flex-wrap gap-2 pt-3">
                         <a href="{{ route('borongan.review', $hcrImport->id) }}"
                             class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
                             Review
@@ -108,14 +112,18 @@
                             class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
                             Rekap
                         </a>
+                        <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'cetak', 'revisi' => 1]) }}"
+                            class="flex-1 text-center border border-[#4F46E5] text-[#4F46E5] px-3 py-2 rounded-lg text-xs hover:bg-[#4F46E5]/5 transition">
+                            Upload Revisi
+                        </a>
                     </div>
                 </div>
             @endif
         </div>
 
-        {{-- Kartu Moulding --}}
+        {{-- Kartu Moulding/Cetak --}}
         <div class="bg-white rounded-2xl border border-[#E5E7EB] p-5">
-            <h3 class="font-semibold text-slate-800 mb-4">Moulding</h3>
+            <h3 class="font-semibold text-slate-800 mb-4">Moulding/Cetak</h3>
             
             @if($mouldingImport === null)
                 <div class="text-center py-6">
@@ -143,7 +151,7 @@
                             @endif
                         </div>
                     </div>
-                    <div class="flex gap-2 pt-3">
+                    <div class="flex flex-wrap gap-2 pt-3">
                         <a href="{{ route('borongan.review', $mouldingImport->id) }}"
                             class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
                             Review
@@ -151,6 +159,10 @@
                         <a href="{{ route('borongan.rekapIndex', $mouldingImport->id) }}"
                             class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
                             Rekap
+                        </a>
+                        <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'moulding', 'revisi' => 1]) }}"
+                            class="flex-1 text-center border border-[#4F46E5] text-[#4F46E5] px-3 py-2 rounded-lg text-xs hover:bg-[#4F46E5]/5 transition">
+                            Upload Revisi
                         </a>
                     </div>
                 </div>
@@ -208,16 +220,19 @@
 
         <p class="text-sm text-slate-500 mb-4">Grand Total akan tersedia setelah semua jenis di-approve</p>
 
-        {{-- Controls: search + job filter + visible total --}}
-        @php $jobOptions = isset($grandTotals) ? $grandTotals->pluck('job_label')->unique()->filter()->values() : collect(); @endphp
+        {{-- Controls: search + section filter + visible total --}}
+        @php
+            $sectionOptions = isset($grandTotals) ? $grandTotals->pluck('section')->unique()->filter()->values() : collect();
+            $sectionLabels = ['cabut' => 'Cabut', 'moulding' => 'Moulding', 'harian' => 'Harian'];
+        @endphp
         <div class="flex flex-wrap items-center gap-3 mb-4">
             <input id="searchGrandTotal" type="text" placeholder="Cari NIP atau Nama..."
                 class="border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none w-64" />
 
             <select id="filterJob" class="border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none">
-                <option value="">Semua Job</option>
-                @foreach($jobOptions as $job)
-                    <option value="{{ $job }}">{{ $job }}</option>
+                <option value="">Semua Section</option>
+                @foreach($sectionOptions as $sec)
+                    <option value="{{ $sec }}">{{ $sectionLabels[$sec] ?? $sec }}</option>
                 @endforeach
             </select>
 
@@ -225,13 +240,13 @@
         </div>
 
         @if(isset($grandTotals) && $grandTotals->isNotEmpty())
-            @php $groups = $grandTotals->groupBy('job_label'); @endphp
+            @php $groups = $grandTotals->groupBy('section'); @endphp
             <div class="space-y-6">
-                @foreach($groups as $job => $group)
+                @foreach($groups as $section => $group)
                     <div>
                         <div class="flex items-center justify-between mb-2">
-                            <div class="text-sm font-semibold text-slate-700">{{ $job ?: 'Unspecified' }}</div>
-                            <div class="text-sm text-slate-500">Total Job: <span class="job-visible-total font-medium" data-job="{{ $job }}">Rp {{ number_format($group->sum('total_akhir'),0,',','.') }}</span></div>
+                            <div class="text-sm font-semibold text-slate-700">REKAPITULASI BAGIAN {{ strtoupper($sectionLabels[$section] ?? $section) }}</div>
+                            <div class="text-sm text-slate-500">Total Section: <span class="job-visible-total font-medium" data-section="{{ $section }}">Rp {{ number_format($group->sum('total_akhir'),0,',','.') }}</span></div>
                         </div>
 
                         <div class="overflow-x-auto">
@@ -240,14 +255,18 @@
                                     <tr>
                                         <th class="px-3 py-2 text-left">NIP</th>
                                         <th class="px-3 py-2 text-left">Nama</th>
+                                        <th class="px-3 py-2 text-left">Job</th>
+                                        <th class="px-3 py-2 text-right">Total Lembur</th>
                                         <th class="px-3 py-2 text-right">Total Akhir</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($group as $g)
-                                    <tr class="border-b border-[#E5E7EB]/50 hover:bg-[#F8FAFC] grandtotal-row" data-job="{{ $g->job_label }}" data-nip="{{ $g->nip }}" data-nama="{{ strtolower($g->nama) }}" data-total="{{ $g->total_akhir }}">
+                                    <tr class="border-b border-[#E5E7EB]/50 hover:bg-[#F8FAFC] grandtotal-row" data-section="{{ $g->section }}" data-nip="{{ $g->nip }}" data-nama="{{ strtolower($g->nama) }}" data-total="{{ $g->total_akhir }}">
                                         <td class="px-3 py-2 font-mono text-xs">{{ $g->nip }}</td>
                                         <td class="px-3 py-2 font-medium text-slate-800">{{ $g->nama }}</td>
+                                        <td class="px-3 py-2 text-slate-600">{{ $g->job_label }}</td>
+                                        <td class="px-3 py-2 text-right text-slate-600">Rp {{ number_format($g->total_lembur, 0, ',', '.') }}</td>
                                         <td class="px-3 py-2 text-right font-bold">Rp {{ number_format($g->total_akhir, 0, ',', '.') }}</td>
                                     </tr>
                                     @endforeach
@@ -262,6 +281,36 @@
                 <p class="text-sm text-slate-400 mb-3">Belum ada Grand Total</p>
             </div>
         @endif
+    </div>
+
+    <div class="bg-white rounded-2xl border border-[#E5E7EB] p-6 mt-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-slate-800">Pengajuan & Pencairan</h3>
+            <div class="flex gap-3">
+                <form method="POST" action="{{ route('payroll.generatePengajuan', $payroll->id) }}" onsubmit="return confirm('Generate Pengajuan dari Grand Total saat ini? Data lama akan ditimpa.')" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="border border-[#4F46E5] text-[#4F46E5] px-4 py-2 rounded-lg text-sm hover:bg-[#4F46E5]/5">
+                        Generate Pengajuan
+                    </button>
+                </form>
+                @if($sudahAdaPengajuan)
+                    <a href="{{ route('payroll.exportPengajuan', $payroll->id) }}" class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA] inline-block">
+                        📥 Export Excel
+                    </a>
+                    <a href="{{ route('payroll.pengajuan', $payroll->id) }}" class="border border-[#4F46E5] text-[#4F46E5] px-4 py-2 rounded-lg text-sm hover:bg-[#4F46E5]/5 inline-block">
+                        📄 Lihat Pengajuan
+                    </a>
+                @else
+                    <span title="Generate Pengajuan dulu" class="inline-flex items-center justify-center bg-slate-200 text-slate-500 px-4 py-2 rounded-lg text-sm cursor-not-allowed">
+                        📥 Export Excel
+                    </span>
+                    <span title="Generate Pengajuan dulu" class="inline-flex items-center justify-center bg-slate-200 text-slate-500 px-4 py-2 rounded-lg text-sm cursor-not-allowed">
+                        📄 Lihat Pengajuan
+                    </span>
+                @endif
+            </div>
+        </div>
+        <p class="text-xs text-slate-400">Generate Pengajuan akan mengambil data dari Grand Total yang sudah di-generate, digabung dengan data rekening dari Data Bank.</p>
     </div>
 </div>
 @endsection
@@ -283,23 +332,23 @@
             document.querySelectorAll('.grandtotal-row').forEach(row => {
                 const nama = (row.dataset.nama || '').toLowerCase();
                 const nip = (row.dataset.nip || '').toLowerCase();
-                const job = (row.dataset.job || '');
+                const section = (row.dataset.section || '');
                 const total = parseInt(row.dataset.total) || 0;
 
                 const matchesQuery = !q || nama.includes(q) || nip.includes(q) || row.textContent.toLowerCase().includes(q);
-                const matchesJob = !jobFilter || jobFilter === job;
+                const matchesJob = !jobFilter || jobFilter === section;
                 const visible = matchesQuery && matchesJob;
 
                 row.style.display = visible ? '' : 'none';
 
                 if (visible) {
                     overall += total;
-                    groupSums[job] = (groupSums[job] || 0) + total;
+                    groupSums[section] = (groupSums[section] || 0) + total;
                 }
             });
 
             document.querySelectorAll('.job-visible-total').forEach(el => {
-                const j = el.dataset.job;
+                const j = el.dataset.section;
                 el.textContent = formatRp(groupSums[j] || 0);
             });
 

@@ -46,6 +46,11 @@ Route::middleware('auth:admin')->group(function () {
         Route::delete('/karyawan/{id}', [KaryawanController::class, 'destroy'])->name('karyawan.destroy');
     });
 
+    Route::middleware(['auth.admin', 'role:admin,payroll'])->group(function () {
+        Route::get('/karyawan/bank', [\App\Http\Controllers\KaryawanBankController::class, 'index'])->name('karyawan.bank.index');
+        Route::post('/karyawan/bank/{nip}', [\App\Http\Controllers\KaryawanBankController::class, 'update'])->name('karyawan.bank.update');
+    });
+
     Route::middleware(['auth.admin', 'role:admin,hrd,ga'])->group(function () {
         Route::get('/absensi', [AbsensiController::class, 'index'])->name('absensi.index');
         Route::post('/absensi/detail', [AbsensiController::class, 'detail'])->name('absensi.detail');
@@ -63,6 +68,9 @@ Route::middleware('auth:admin')->group(function () {
             Route::post('/preview',                  [PayrollController::class, 'preview'])->name('preview');
             Route::post('/',                         [PayrollController::class, 'store'])->name('store');
             Route::get('/{id}',                      [PayrollController::class, 'show'])->name('show');
+            Route::post('/{id}/generate-pengajuan',  [PayrollController::class, 'generatePengajuan'])->name('generatePengajuan');
+            Route::get('/{id}/pengajuan',            [PayrollController::class, 'showPengajuan'])->name('pengajuan');
+            Route::get('/{id}/export-pengajuan',     [PayrollController::class, 'exportPengajuan'])->name('exportPengajuan');
             Route::get('/{id}/harian',               [PayrollController::class, 'showHarian'])->name('harian.show');
             Route::get('/{id}/export-slip',          [PayrollController::class, 'exportSlipGaji'])->name('export.slip');
             Route::put('/detail/{id}',               [PayrollController::class, 'updateDetail'])->name('detail.update');
@@ -87,6 +95,7 @@ Route::middleware('auth:admin')->group(function () {
             Route::get('/{id}/detail/{nip}', [BoronganController::class, 'getDetail'])->name('getDetail');
             Route::put('/rekap/{rekapId}', [BoronganController::class, 'updateRekap'])->name('updateRekap');
             Route::delete('/{id}',      [BoronganController::class, 'destroy'])->name('destroy');
+            Route::post('/mutasi/{logId}/resolve', [BoronganController::class, 'resolveMutasi'])->name('borongan.mutasi.resolve');
         });
 
         Route::middleware(['role:admin'])->group(function () {

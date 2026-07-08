@@ -3,13 +3,35 @@
 @section('content')
 <div>
     <div class="flex items-center justify-between mb-5">
-        <div>
-            <h1 class="text-xl font-semibold text-slate-800">Review Import — {{ $import->filename }}</h1>
-            <p class="text-xs text-slate-400 mt-1">
-                {{ ucfirst($import->jenis) }} •
-                {{ \Carbon\Carbon::parse($import->tanggal_dari)->format('d M') }} —
-                {{ \Carbon\Carbon::parse($import->tanggal_sampai)->format('d M Y') }}
-            </p>
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+            <div>
+                @php
+            $jenisLabels = [
+                'cetak' => 'HCR',
+                'moulding' => 'Moulding/Cetak',
+                'cabut' => 'Cabut',
+            ];
+        @endphp
+        <h1 class="text-xl font-semibold text-slate-800">Review Import — {{ $import->filename }}</h1>
+                <p class="text-xs text-slate-400 mt-1">
+                    {{ $jenisLabels[$import->jenis] ?? ucfirst($import->jenis) }} •
+                    {{ \Carbon\Carbon::parse($import->tanggal_dari)->format('d M') }} —
+                    {{ \Carbon\Carbon::parse($import->tanggal_sampai)->format('d M Y') }}
+                </p>
+            </div>
+            @if($siblingImports->count() > 1)
+            <div class="flex items-center gap-2">
+                <label class="text-xs text-slate-400">Tanggal:</label>
+                <select onchange="window.location.href = this.value" class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
+                    @foreach($siblingImports as $sibling)
+                    <option value="{{ route('borongan.review', $sibling->id) }}" {{ $sibling->id === $import->id ? 'selected' : '' }}>
+                        {{ \Carbon\Carbon::parse($sibling->tanggal_dari)->translatedFormat('d F Y') }}
+                        @if($sibling->status === 'approved') ✅ @elseif($sibling->total_flagged > 0) ⚠️ @endif
+                    </option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
         </div>
         <div class="flex gap-3">
             <a href="{{ $payrollId ? route('payroll.show', $payrollId) : route('borongan.index') }}"
@@ -22,6 +44,12 @@
                     ↶ Undo Upload
                 </button>
             </form>
+
+            @if(!empty($pendingMutasi) && $pendingMutasi->isNotEmpty())
+                <button type="button" disabled title="Selesaikan konfirmasi mutasi dulu" class="bg-slate-200 text-slate-400 px-4 py-2 rounded-lg text-sm cursor-not-allowed">
+                    ✅ Approve Semua
+                </button>
+            @else
             <form method="POST" action="{{ route('borongan.approve', $import->id) }}"
                 onsubmit="return confirm('Approve semua data ini?')" style="display:inline;">
                 @csrf @method('PUT')
@@ -29,6 +57,7 @@
                     ✅ Approve Semua
                 </button>
             </form>
+            @endif
             @endif
         </div>
     </div>
@@ -63,6 +92,13 @@
             class="w-full md:w-[360px] border border-[#E5E7EB] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
     </div>
 
+    @if(!empty($pendingMutasi) && $pendingMutasi->isNotEmpty())
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+        <p class="text-sm font-medium text-amber-700">⚠️ Ada {{ $pendingMutasi->count() }} indikasi mutasi karyawan yang belum dikonfirmasi.</p>
+        <p class="text-xs text-amber-600 mt-1">Karyawan berikut terdeteksi muncul di lebih dari satu jenis borongan dalam periode ini. Konfirmasi setiap kasus sebelum bisa approve.</p>
+    </div>
+    @endif
+
     {{-- Tabel --}}
     <div class="bg-white rounded-2xl border border-[#E5E7EB] overflow-x-auto">
         <table class="w-full text-sm">
@@ -95,12 +131,22 @@
                     <td class="px-4 py-3 text-right text-slate-600">{{ number_format($item['total_gram']) }}</td>
                     <td class="px-4 py-3 text-right font-medium text-slate-800">Rp {{ number_format($item['total_upah'], 0, ',', '.') }}</td>
                     <td class="px-4 py-3 text-center">
+                        @php
+                            $mutasiForNip = $pendingMutasi->firstWhere('nip', $item['nip'] ?? null) ?? null;
+                        @endphp
                         @if($item['is_flagged'])
                             <span class="text-xs bg-[#F59E0B]/10 text-[#F59E0B] px-2 py-0.5 rounded-full font-medium">
                                 ⚠️ {{ $item['flag_count'] }} flagged
                             </span>
                         @else
                             <span class="text-xs bg-[#22C55E]/10 text-[#22C55E] px-2 py-0.5 rounded-full font-medium">OK</span>
+                        @endif
+
+                        @if($mutasiForNip)
+                            <button type="button" onclick="openMutasiModal({{ $mutasiForNip->id }}, '{{ $item['nip'] }}', '{{ addslashes($item['nama']) }}', '{{ $mutasiForNip->jenis_a }}', '{{ $mutasiForNip->jenis_b }}')"
+                                class="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-medium ml-1 hover:bg-purple-100">
+                                🔄 Mutasi
+                            </button>
                         @endif
                     </td>
                     <td class="px-4 py-3 text-center">
@@ -118,6 +164,23 @@
 </div>
 
 {{-- Modal Detail --}}
+<div id="mutasiModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
+        <div class="p-6">
+            <h3 class="font-semibold text-slate-800 mb-1">Konfirmasi Mutasi</h3>
+            <p class="text-sm text-slate-600 mb-4" id="mutasiModalDesc"></p>
+            <div class="flex gap-3">
+                <button onclick="resolveMutasi('rejected')" class="flex-1 border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-50">
+                    Ini Kesalahan
+                </button>
+                <button onclick="resolveMutasi('confirmed')" class="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700">
+                    Konfirmasi Mutasi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="reviewModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
         <div class="sticky top-0 bg-white rounded-t-2xl border-b border-[#E5E7EB] px-6 py-4 flex items-center justify-between">
@@ -384,6 +447,37 @@ document.getElementById('searchReview').addEventListener('input', function() {
         const match = (row.dataset.nip + row.dataset.nama).includes(q);
         row.style.display = match ? '' : 'none';
     });
+});
+
+let currentMutasiLogId = null;
+
+function openMutasiModal(logId, nip, nama, jenisA, jenisB) {
+    currentMutasiLogId = logId;
+    document.getElementById('mutasiModalDesc').textContent = 
+        `${nama} (${nip}) terdeteksi muncul di jenis "${jenisA.toUpperCase()}" DAN "${jenisB.toUpperCase()}" dalam periode ini. Apakah ini benar (mutasi/pindah jenis kerja), atau ini kesalahan input?`;
+    document.getElementById('mutasiModal').classList.remove('hidden');
+}
+
+function resolveMutasi(status) {
+    fetch(`{{ url('borongan/mutasi') }}/${currentMutasiLogId}/resolve`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+        },
+        body: JSON.stringify({ status: status })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        }
+    })
+    .catch(e => alert('Gagal: ' + e.message));
+}
+
+document.getElementById('mutasiModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.add('hidden');
 });
 </script>
 @endsection

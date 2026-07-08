@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-xl font-semibold text-slate-800">Import Borongan</h1>
-            <p class="text-xs text-slate-400 mt-1">Upload dan kelola data payroll borongan (Cabut, Cetak, Moulding)</p>
+            <p class="text-xs text-slate-400 mt-1">Upload dan kelola data payroll borongan (Cabut, HCR, Moulding/Cetak)</p>
         </div>
         <a href="{{ route('borongan.create') }}"
             class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA] transition">
@@ -33,6 +33,13 @@
         </a>
     </div>
     @else
+    @php
+        $jenisLabels = [
+            'cetak' => 'HCR',
+            'moulding' => 'Moulding/Cetak',
+            'cabut' => 'Cabut',
+        ];
+    @endphp
     <div class="bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden">
         <table class="w-full text-sm">
             <thead class="bg-[#F8FAFC] border-b border-[#E5E7EB]">
@@ -51,7 +58,7 @@
                 <tr class="border-b border-[#E5E7EB]/50 hover:bg-[#F8FAFC]">
                     <td class="px-4 py-3">
                         <span class="text-xs bg-[#4F46E5]/10 text-[#4F46E5] px-2 py-0.5 rounded-full uppercase font-medium">
-                            {{ $imp->jenis }}
+                            {{ $jenisLabels[$imp->jenis] ?? ucfirst($imp->jenis) }}
                         </span>
                     </td>
                     <td class="px-4 py-3 text-slate-600">{{ $imp->filename }}</td>

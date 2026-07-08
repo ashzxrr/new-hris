@@ -13,6 +13,8 @@ use App\Models\BoronganImport;
 use App\Models\BoronganRekap;
 use App\Models\BoronganHarian;
 use App\Models\PayrollGrandTotal;
+use App\Models\PayrollPengajuan;
+use App\Models\KaryawanBank;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -378,7 +380,7 @@ class PayrollController extends Controller
             ->first();
         
         $hcrImport = BoronganImport::where('payroll_id', $id)
-            ->where('jenis', 'cetak')
+            ->where('jenis', 'hcr')
             ->latest()
             ->first();
         
@@ -396,7 +398,260 @@ class PayrollController extends Controller
         $bisaGenerateGrandTotal = $cabutOk && $hcrOk && $mouldingOk && $payroll->status === 'final' && $adaData;
         
         $grandTotals = PayrollGrandTotal::where('payroll_id', $id)->orderBy('nama')->get();
-        return view('payroll.show', compact('payroll', 'cabutImport', 'hcrImport', 'mouldingImport', 'harianDetailCount', 'bisaGenerateGrandTotal', 'grandTotals'));
+        $sudahAdaPengajuan = PayrollPengajuan::where('payroll_id', $id)->exists();
+
+        return view('payroll.show', compact('payroll', 'cabutImport', 'hcrImport', 'mouldingImport', 'harianDetailCount', 'bisaGenerateGrandTotal', 'grandTotals', 'sudahAdaPengajuan'));
+    }
+
+    // ========================
+    // GENERATE PENGAJUAN — Generate payroll_pengajuan from grand totals
+    // ========================
+    public function generatePengajuan($id)
+    {
+        $payroll = Payroll::findOrFail($id);
+
+        $grandTotals = PayrollGrandTotal::where('payroll_id', $id)->get();
+
+        if ($grandTotals->isEmpty()) {
+            return back()->with('error', 'Grand Total belum di-generate untuk periode ini.');
+        }
+
+        // Hapus data lama agar generate ulang tidak duplikat
+        PayrollPengajuan::where('payroll_id', $id)->delete();
+
+        foreach ($grandTotals as $row) {
+            $bank = KaryawanBank::where('nip', $row->nip)->first();
+
+            $detail = json_decode($row->detail_harian, true);
+            $gajiReal = is_array($detail) ? array_sum($detail) : 0;
+
+            PayrollPengajuan::create([
+                'payroll_id' => $id,
+                'nip' => $row->nip,
+                'nama' => $row->nama,
+                'jenis' => $row->job_label ?? $row->jenis ?? 'harian',
+                'gaji_real' => $gajiReal,
+                'komplain' => $row->komplain ?? 0,
+                'insentif' => $row->insentif ?? 0,
+                'potongan_lain' => $row->potongan_lain ?? 0,
+                'potongan_bpjs' => $row->potongan_bpjs ?? 0,
+                'total_akhir' => $row->total_akhir ?? 0,
+                'no_rekening' => $bank->no_rekening ?? null,
+                'nama_bank' => $bank->nama_bank ?? null,
+                'email' => $bank->email ?? null,
+                'diajukan_at' => now(),
+                'diajukan_by' => auth()->id(),
+            ]);
+        }
+
+        $tanpaBank = PayrollPengajuan::where('payroll_id', $id)->whereNull('no_rekening')->count();
+
+        return redirect()->route('payroll.show', $id)->with('success', "Pengajuan berhasil di-generate. {$tanpaBank} karyawan belum punya data rekening.");
+    }
+
+    // ========================
+    // SHOW PENGAJUAN — Tampilkan pengajuan grouped by jenis
+    // ========================
+    public function showPengajuan($id)
+    {
+        $payroll = Payroll::findOrFail($id);
+        $pengajuan = PayrollPengajuan::where('payroll_id', $id)->get()->groupBy('jenis');
+
+        return view('payroll.pengajuan', compact('payroll', 'pengajuan'));
+    }
+
+    // ========================
+    // EXPORT PENGAJUAN — Export pengajuan grouped into sheets
+    // ========================
+    public function exportPengajuan($id)
+    {
+        $payroll = Payroll::findOrFail($id);
+
+        $pengajuan = PayrollPengajuan::where('payroll_id', $id)->get();
+
+        if ($pengajuan->isEmpty()) {
+            return back()->with('error', 'Belum ada data pengajuan untuk periode ini.');
+        }
+
+        $spreadsheet = new Spreadsheet();
+
+        // Remove default sheet
+        $defaultIndex = $spreadsheet->getIndex($spreadsheet->getActiveSheet());
+        $spreadsheet->removeSheetByIndex($defaultIndex);
+
+        // Grouping
+        $cabutRows = [];
+        $mouldingRows = [];
+        $harianRows = [];
+
+        foreach ($pengajuan as $row) {
+            $jenis = (string) ($row->jenis ?? '');
+            if (stripos($jenis, 'harian') !== false) {
+                $harianRows[] = $row;
+            } elseif (stripos($jenis, 'moulding') !== false) {
+                $mouldingRows[] = $row;
+            } else {
+                $cabutRows[] = $row;
+            }
+        }
+
+        $groups = [
+            'CABUT' => $cabutRows,
+            'MOULDING' => $mouldingRows,
+            'HARIAN' => $harianRows,
+        ];
+
+        $columns = ['A','B','C','D','E','F','G','H','I','J','K','L','M'];
+
+        foreach ($groups as $name => $rows) {
+            if (empty($rows)) continue;
+
+            $sheet = $spreadsheet->createSheet();
+            $sheet->setTitle(substr($name, 0, 31));
+
+            // Titles
+            $sheet->mergeCells('A1:M1');
+            $sheet->setCellValue('A1', 'PT WALET ABDILLAH JABLI');
+            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+            $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $sheet->mergeCells('A2:M2');
+            $sheet->setCellValue('A2', 'REKAP GAJI BORONGAN ' . strtoupper($name) . ' PERIODE ' . $payroll->periode);
+            $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
+            $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            $sheet->mergeCells('A3:M3');
+            $sheet->setCellValue('A3', 'Periode ' . \Carbon\Carbon::parse($payroll->tanggal_dari)->translatedFormat('d F Y') . ' s/d ' . \Carbon\Carbon::parse($payroll->tanggal_sampai)->translatedFormat('d F Y'));
+            $sheet->getStyle('A3')->getFont()->setItalic(true)->setSize(10);
+            $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            // Spacer row 4 left blank
+
+            // Header row (row 5)
+            $headers = [
+                'No', 'NIP', 'NAMA', 'Jenis', 'Gaji Real', 'Komplain', 'Insentif', 'Potongan Lain', 'Potongan BPJS', 'TF PAYROL', 'No Rekening', 'Bank', 'Email'
+            ];
+
+            $headerRange = 'A5:M5';
+            $sheet->fromArray($headers, null, 'A5');
+            $sheet->getStyle($headerRange)->getFont()->setBold(true);
+            $sheet->getStyle($headerRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9D9D9');
+            $sheet->getStyle($headerRange)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle($headerRange)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+            // Freeze header (A6)
+            $sheet->freezePane('A6');
+
+            // Data rows
+            $rowNum = 6;
+            $no = 1;
+            foreach ($rows as $r) {
+                $sheet->setCellValue('A' . $rowNum, $no);
+                $sheet->setCellValue('B' . $rowNum, $r->nip);
+                $sheet->setCellValue('C' . $rowNum, $r->nama);
+                $sheet->setCellValue('D' . $rowNum, $r->jenis);
+                $sheet->setCellValue('E' . $rowNum, $r->gaji_real ?? 0);
+                $sheet->setCellValue('F' . $rowNum, $r->komplain ?? 0);
+                $sheet->setCellValue('G' . $rowNum, $r->insentif ?? 0);
+                $sheet->setCellValue('H' . $rowNum, $r->potongan_lain ?? 0);
+                $sheet->setCellValue('I' . $rowNum, $r->potongan_bpjs ?? 0);
+                $sheet->setCellValue('J' . $rowNum, $r->total_akhir ?? 0);
+                $sheet->setCellValue('K' . $rowNum, $r->no_rekening ?? '');
+                $sheet->setCellValue('L' . $rowNum, $r->nama_bank ?? '');
+                $sheet->setCellValue('M' . $rowNum, $r->email ?? '');
+
+                // Number format for nominal columns E-J
+                $sheet->getStyle("E{$rowNum}:J{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
+
+                // Border for data row
+                $sheet->getStyle("A{$rowNum}:M{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+                $rowNum++;
+                $no++;
+            }
+
+            $lastDataRow = $rowNum - 1;
+
+            // Total row
+            $totalRow = $lastDataRow + 1;
+            $sheet->mergeCells("A{$totalRow}:D{$totalRow}");
+            $sheet->setCellValue('A' . $totalRow, 'TOTAL');
+            $sheet->getStyle('A' . $totalRow)->getFont()->setBold(true);
+
+            // Sum formulas for E-J
+            $colsToSum = ['E','F','G','H','I','J'];
+            foreach ($colsToSum as $col) {
+                $sheet->setCellValue($col . $totalRow, "=SUM({$col}6:{$col}{$lastDataRow})");
+                $sheet->getStyle($col . $totalRow)->getFont()->setBold(true);
+                $sheet->getStyle($col . $totalRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF2CC');
+                $sheet->getStyle($col . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+            }
+
+            // Border for total row
+            $sheet->getStyle("A{$totalRow}:M{$totalRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+            // Auto-size columns A-M
+            foreach ($columns as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+        }
+
+        // BELUM ADA REKENING sheet
+        $noBank = $pengajuan->filter(function($p) { return empty($p->no_rekening); })->values();
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('BELUM ADA REKENING');
+
+        $sheet->mergeCells('A1:M1');
+        $sheet->setCellValue('A1', 'PT WALET ABDILLAH JABLI');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->mergeCells('A2:M2');
+        $sheet->setCellValue('A2', 'BELUM ADA REKENING PERIODE ' . $payroll->periode);
+        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
+        $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $sheet->mergeCells('A3:M3');
+        $sheet->setCellValue('A3', 'Periode ' . \Carbon\Carbon::parse($payroll->tanggal_dari)->translatedFormat('d F Y') . ' s/d ' . \Carbon\Carbon::parse($payroll->tanggal_sampai)->translatedFormat('d F Y'));
+        $sheet->getStyle('A3')->getFont()->setItalic(true)->setSize(10);
+        $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Header A5:D5
+        $sheet->fromArray(['No','NIP','Nama','Jenis'], null, 'A5');
+        $sheet->getStyle('A5:D5')->getFont()->setBold(true);
+        $sheet->getStyle('A5:D5')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9D9D9');
+        $sheet->getStyle('A5:D5')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A5:D5')->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+        $sheet->freezePane('A6');
+
+        $rnum = 6; $no = 1;
+        foreach ($noBank as $p) {
+            $sheet->setCellValue('A' . $rnum, $no);
+            $sheet->setCellValue('B' . $rnum, $p->nip);
+            $sheet->setCellValue('C' . $rnum, $p->nama);
+            $sheet->setCellValue('D' . $rnum, $p->jenis);
+            $sheet->getStyle("A{$rnum}:D{$rnum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $rnum++; $no++;
+        }
+
+        foreach (['A','B','C','D'] as $c) {
+            $sheet->getColumnDimension($c)->setAutoSize(true);
+        }
+
+        // Set first sheet as active (if exists)
+        if ($spreadsheet->getSheetCount() > 0) {
+            $spreadsheet->setActiveSheetIndex(0);
+        }
+
+        // Save to temporary file
+        $fileNameSafe = preg_replace('/[\/\\\s]+/', '_', $payroll->periode);
+        $fileName = "Pengajuan_Gaji_{$fileNameSafe}.xlsx";
+        $tmpFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $fileName;
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($tmpFile);
+
+        return response()->download($tmpFile, $fileName)->deleteFileAfterSend(true);
     }
 
     // ========================
@@ -419,22 +674,20 @@ class PayrollController extends Controller
     {
         $payroll = Payroll::findOrFail($id);
 
-        $cabut = BoronganImport::where('payroll_id', $id)
+        $cabutImports = BoronganImport::where('payroll_id', $id)
             ->where('jenis', 'cabut')
-            ->latest()
-            ->first();
-        $hcr = BoronganImport::where('payroll_id', $id)
-            ->where('jenis', 'cetak')
-            ->latest()
-            ->first();
-        $moulding = BoronganImport::where('payroll_id', $id)
+            ->get();
+        $hcrImports = BoronganImport::where('payroll_id', $id)
+            ->where('jenis', 'hcr')
+            ->get();
+        $mouldingImports = BoronganImport::where('payroll_id', $id)
             ->where('jenis', 'moulding')
-            ->latest()
-            ->first();
+            ->get();
 
-        foreach (['cabut' => $cabut, 'cetak' => $hcr, 'moulding' => $moulding] as $type => $import) {
-            if ($import && $import->status !== 'approved') {
-                return back()->with('error', 'Semua jenis borongan harus di-approve dulu sebelum generate Grand Total.');
+        foreach (['cabut' => $cabutImports, 'hcr' => $hcrImports, 'moulding' => $mouldingImports] as $type => $imports) {
+            $belumApproved = $imports->where('status', '!=', 'approved')->count();
+            if ($belumApproved > 0) {
+                return back()->with('error', "Ada {$belumApproved} import jenis {$type} yang belum di-approve. Selesaikan dulu sebelum generate Grand Total.");
             }
         }
 
@@ -444,68 +697,107 @@ class PayrollController extends Controller
 
         PayrollGrandTotal::where('payroll_id', $id)->delete();
 
-        $boronganImportIds = collect([$cabut?->id, $hcr?->id, $moulding?->id])->filter()->all();
+        $cabutHcrImportIds = $cabutImports->pluck('id')
+            ->merge($hcrImports->pluck('id'))
+            ->filter()
+            ->values()
+            ->all();
+
+        $mouldingImportIds = $mouldingImports->pluck('id')
+            ->filter()
+            ->values()
+            ->all();
+
+        $boronganImportIds = array_merge($cabutHcrImportIds, $mouldingImportIds);
 
         $boronganNips = BoronganRekap::whereIn('borongan_import_id', $boronganImportIds)
             ->pluck('nip')
+            ->map(fn($n) => trim(strtoupper($n)))
+            ->filter()
             ->unique();
 
         $harianNips = PayrollDetail::where('payroll_id', $id)
             ->pluck('nip')
+            ->map(fn($n) => trim(strtoupper($n)))
+            ->filter()
             ->unique();
 
-        $allNips = $boronganNips->merge($harianNips)->unique();
+        $allNips = $boronganNips->merge($harianNips)->unique()->values();
 
         $dateFrom = new \DateTime($payroll->tanggal_dari);
         $dateTo = new \DateTime($payroll->tanggal_sampai);
 
         foreach ($allNips as $nip) {
             $detailHarianGram = [];
-            $jobCategories = [];
+            $totalLembur = 0;
+            $user = User::whereRaw('TRIM(UPPER(nip)) = ?', [$nip])->first();
 
-            // cek apakah ada rekap borongan untuk nip ini
+            $section = 'harian';
+            $jobLabel = $user?->bagian ?? 'Harian';
+
+            $adaCabutHcr = BoronganRekap::whereIn('borongan_import_id', $cabutHcrImportIds)
+                ->whereRaw('TRIM(UPPER(nip)) = ?', [$nip])
+                ->exists();
+
+            if ($adaCabutHcr) {
+                $section = 'cabut';
+                $rekapByJenis = BoronganRekap::whereIn('borongan_rekap.borongan_import_id', $cabutHcrImportIds)
+                    ->whereRaw('TRIM(UPPER(borongan_rekap.nip)) = ?', [$nip])
+                    ->join('borongan_imports', 'borongan_rekap.borongan_import_id', '=', 'borongan_imports.id')
+                    ->selectRaw('borongan_imports.jenis, SUM(borongan_rekap.total_gram) as total_gram_jenis')
+                    ->groupBy('borongan_imports.jenis')
+                    ->orderByDesc('total_gram_jenis')
+                    ->first();
+
+                if ($rekapByJenis?->jenis === 'hcr') {
+                    $jobLabel = 'Titil Hcr';
+                } else {
+                    $jobLabel = 'Cabut';
+                }
+            } else {
+                $adaMoulding = BoronganRekap::whereIn('borongan_import_id', $mouldingImportIds)
+                    ->whereRaw('TRIM(UPPER(nip)) = ?', [$nip])
+                    ->exists();
+
+                if ($adaMoulding) {
+                    $section = 'moulding';
+                    $jobLabel = 'Moulding';
+                }
+            }
+
             $rekapQuery = BoronganRekap::whereIn('borongan_import_id', $boronganImportIds)
-                ->where('nip', $nip);
+                ->whereRaw('TRIM(UPPER(nip)) = ?', [$nip]);
 
-            // jika ada borongan, pakai data borongan per-hari seperti sebelumnya
             if ($rekapQuery->exists()) {
                 $currentDate = clone $dateFrom;
                 while ($currentDate <= $dateTo) {
                     $tanggal = $currentDate->format('Y-m-d');
 
                     $dailyBorongan = BoronganHarian::whereIn('borongan_import_id', $boronganImportIds)
-                        ->where('nip', $nip)
+                        ->whereRaw('TRIM(UPPER(nip)) = ?', [$nip])
                         ->where('tanggal', $tanggal)
                         ->get();
 
-                    $dailyTotal = $dailyBorongan->sum('upah_sistem');
-                    if ($dailyBorongan->isNotEmpty()) {
-                        $jobCategories = array_merge($jobCategories, $dailyBorongan->pluck('kategori')->toArray());
-                    }
-
-                    $detailHarianGram[$tanggal] = $dailyTotal;
+                    $detailHarianGram[$tanggal] = $dailyBorongan->sum('upah_sistem');
                     $currentDate->modify('+1 day');
                 }
             } else {
-                // tidak punya borongan: hitung dari PayrollDetail + koreksi / attendance logs
-                $payrollDetail = PayrollDetail::where('payroll_id', $id)->where('nip', $nip)->first();
-                $user = User::where('nip', $nip)->first();
+                $payrollDetail = PayrollDetail::where('payroll_id', $id)
+                    ->whereRaw('TRIM(UPPER(nip)) = ?', [$nip])
+                    ->first();
                 $pin = $user?->pin;
 
-                // ambil koreksi untuk pin ini, keyed by tanggal Y-m-d
                 $corrections = AttendanceCorrection::where('pin', $pin)
                     ->whereBetween('tanggal', [$payroll->tanggal_dari, $payroll->tanggal_sampai])
                     ->get()
                     ->keyBy(fn($c) => \Carbon\Carbon::parse($c->tanggal)->format('Y-m-d'));
 
-                // ambil logs fingerprint, grouped by tanggal Y-m-d
                 $logs = AttendanceLog::where('pin', $pin)
                     ->whereBetween('tanggal', [$payroll->tanggal_dari, $payroll->tanggal_sampai])
                     ->orderBy('datetime')
                     ->get()
                     ->groupBy(fn($l) => substr((string)$l->tanggal, 0, 10));
 
-                // kumpulkan daftar hari hadir terlebih dahulu
                 $hariHadirList = [];
                 $currentDate = clone $dateFrom;
                 while ($currentDate <= $dateTo) {
@@ -517,14 +809,15 @@ class PayrollController extends Controller
                     if ($correction) {
                         $isHadir = ($correction->status === 'H');
                     } else {
-                        // fallback ke attendance log: hadir jika ada minimal 1 log pada tanggal ini
                         $dayLogs = $logs[$tanggal] ?? collect();
                         if ($dayLogs->isNotEmpty()) {
                             $isHadir = true;
                         }
                     }
 
-                    if ($isHadir) $hariHadirList[] = $tanggal;
+                    if ($isHadir) {
+                        $hariHadirList[] = $tanggal;
+                    }
 
                     $currentDate->modify('+1 day');
                 }
@@ -532,7 +825,6 @@ class PayrollController extends Controller
                 $hadirCount = count($hariHadirList);
                 $gajiPerHari = ($hadirCount > 0 && $payrollDetail) ? intdiv($payrollDetail->gaji_pokok, $hadirCount) : 0;
 
-                // hitung per-tanggal
                 $currentDate = clone $dateFrom;
                 while ($currentDate <= $dateTo) {
                     $tanggal = $currentDate->format('Y-m-d');
@@ -547,7 +839,8 @@ class PayrollController extends Controller
                             $lemburHariIni = (int) floor($upahPerJam * 1.5 * ($lemburMenit / 60));
                         }
 
-                        $detailHarianGram[$tanggal] = $gajiPerHari + $lemburHariIni;
+                        $detailHarianGram[$tanggal] = $gajiPerHari;
+                        $totalLembur += $lemburHariIni;
                     } else {
                         $detailHarianGram[$tanggal] = 0;
                     }
@@ -556,30 +849,21 @@ class PayrollController extends Controller
                 }
             }
 
-            $jobLabel = 'Harian';
-            if (!empty($jobCategories)) {
-                $jobLabel = collect($jobCategories)->countBy()->sortDesc()->keys()->first();
-            }
-
-            $rekapQuery = BoronganRekap::whereIn('borongan_import_id', $boronganImportIds)
-                ->where('nip', $nip);
-
             $insentif = $rekapQuery->sum('tambahan');
             $komplain = $rekapQuery->sum('komplain');
             $potonganLain = $rekapQuery->sum('potongan_lain');
             $potonganBpjs = $rekapQuery->sum('potongan_bpjs');
 
-            // TODO: Tambahkan kontribusi PayrollDetail ke insentif/komplain/potongan jika diperlukan di versi selanjutnya.
-            $totalAkhir = array_sum($detailHarianGram) + $insentif + $komplain - $potonganLain - $potonganBpjs;
-
-            $user = User::where('nip', $nip)->first();
+            $totalAkhir = array_sum($detailHarianGram) + $totalLembur + $insentif + $komplain - $potonganLain - $potonganBpjs;
 
             PayrollGrandTotal::create([
                 'payroll_id'   => $id,
                 'nip'          => $nip,
                 'nama'         => $user?->nama ?? $nip,
                 'job_label'    => $jobLabel,
+                'section'      => $section,
                 'detail_harian'=> json_encode($detailHarianGram),
+                'total_lembur' => $totalLembur,
                 'insentif'     => $insentif,
                 'komplain'     => $komplain,
                 'potongan_lain'=> $potonganLain,

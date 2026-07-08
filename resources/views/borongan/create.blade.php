@@ -3,7 +3,7 @@
 <div class="max-w-lg">
     <div class="mb-6">
         <h1 class="text-xl font-semibold text-slate-800">Upload File Borongan</h1>
-        <p class="text-xs text-slate-400 mt-1">Upload file Excel mentah dari admin cabut/cetak/moulding</p>
+        <p class="text-xs text-slate-400 mt-1">Upload file Excel mentah dari admin cabut/HCR/moulding</p>
     </div>
 
     @if($errors->any())
@@ -15,16 +15,16 @@
     @endif
 
     <div class="bg-white rounded-2xl border border-[#E5E7EB] p-6">
-        <form method="POST" action="{{ route('borongan.upload') }}" enctype="multipart/form-data">
+        <form id="uploadBoronganForm" method="POST" action="{{ route('borongan.upload') }}" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="payroll_id" value="{{ request('payroll_id') }}">
             <div class="mb-4">
                 <label class="text-xs font-medium text-slate-500 mb-1 block">Jenis Borongan</label>
                 <select name="jenis" required
                     class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
-                    <option value="cetak" {{ request('jenis') === 'cetak' ? 'selected' : '' }}>Cetak / HCR Indomie</option>
+                    <option value="hcr" {{ request('jenis') === 'hcr' ? 'selected' : '' }}>HCR</option>
                     <option value="cabut" {{ request('jenis') === 'cabut' ? 'selected' : '' }}>Cabut</option>
-                    <option value="moulding" {{ request('jenis') === 'moulding' ? 'selected' : '' }}>Moulding</option>
+                    <option value="moulding" {{ request('jenis') === 'moulding' ? 'selected' : '' }}>Moulding/Cetak</option>
                 </select>
             </div>
 
@@ -45,12 +45,7 @@
                 <p id="periodeInfo" class="text-xs text-slate-400 mt-1">Pilih periode untuk upload harian.</p>
             </div>
 
-            <div class="mb-4">
-                <label class="text-xs font-medium text-slate-500 mb-1 block">Tanggal</label>
-                <input type="date" name="tanggal" id="tanggal" required value="{{ date('Y-m-d') }}"
-                    class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
-                <p class="text-[10px] text-slate-400 mt-1">Upload data untuk tanggal ini. Pastikan tanggal berada dalam periode yang dipilih.</p>
-            </div>
+            
 
             <div class="mb-6">
                 <label class="text-xs font-medium text-slate-500 mb-1 block">File Excel</label>
@@ -59,6 +54,7 @@
                 <div id="fileInputSingle">
                     <input type="file" name="file" accept=".xlsx,.xls"
                         class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
+                    <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
                 </div>
                 
                 <!-- Dual file inputs for moulding -->
@@ -67,11 +63,13 @@
                         <label class="text-xs text-slate-400 mb-1 block">File Kategori (Novi)</label>
                         <input type="file" name="file_kategori" accept=".xlsx,.xls"
                             class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
+                        <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
                     </div>
                     <div>
                         <label class="text-xs text-slate-400 mb-1 block">File Cross-check (Raihan)</label>
                         <input type="file" name="file_crosscheck" accept=".xlsx,.xls"
                             class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
+                        <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
                     </div>
                 </div>
             </div>
@@ -96,6 +94,36 @@
     </div>
 </div>
 
+<div id="duplikatModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto">
+        <div class="p-6">
+            <h3 class="font-semibold text-slate-800 mb-1">⚠️ Tanggal Sudah Ada Data</h3>
+            <p class="text-sm text-slate-600 mb-4">Beberapa tanggal di file ini sudah punya data sebelumnya:</p>
+            <div id="duplikatList" class="space-y-2 mb-4 text-sm"></div>
+            <p class="text-xs text-slate-400 mb-4">Pilih "Lanjutkan sebagai Revisi" untuk MENGHAPUS data lama dan menggantinya dengan file baru ini, atau "Batalkan" untuk membatalkan upload.</p>
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('duplikatModal').classList.add('hidden')" class="flex-1 border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">
+                    Batalkan
+                </button>
+                <button id="btnLanjutkanRevisi" class="flex-1 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">
+                    Lanjutkan sebagai Revisi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="uploadLoadingOverlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center gap-4 max-w-sm mx-4">
+        <svg class="animate-spin h-10 w-10 text-[#4F46E5]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        <p id="uploadLoadingText" class="text-sm font-medium text-slate-700 text-center">Mengupload dan memproses file...</p>
+        <p class="text-xs text-slate-400 text-center">Mohon tunggu, jangan tutup atau refresh halaman ini.</p>
+    </div>
+</div>
+
 <script>
 function setPeriode(half) {
     const now = new Date();
@@ -103,7 +131,6 @@ function setPeriode(half) {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const dariInput = document.getElementById('tanggal_dari');
     const sampaiInput = document.getElementById('tanggal_sampai');
-    const tanggalInput = document.getElementById('tanggal');
     let dari, sampai;
 
     if (half === '1') {
@@ -119,9 +146,7 @@ function setPeriode(half) {
     sampaiInput.value = sampai;
     document.getElementById('periodeInfo').innerText = `Periode terpilih: ${dari} s/d ${sampai}`;
 
-    if (!tanggalInput.value || tanggalInput.value < dari || tanggalInput.value > sampai) {
-        tanggalInput.value = dari;
-    }
+    // Note: tanggal input removed; tanggal is derived from sheet names inside uploaded file.
 }
 
 function initPeriode() {
@@ -155,26 +180,121 @@ function toggleFileInputs() {
     }
 }
 
-// Call on page load to set initial state
-toggleFileInputs();
+function initializeForm() {
+    console.log('initializeForm() called');
+    // Call on page load to set initial state
+    toggleFileInputs();
 
-// Call on jenis dropdown change
-document.querySelector('select[name="jenis"]').addEventListener('change', toggleFileInputs);
+    // Call on jenis dropdown change
+    const jenisSelect = document.querySelector('select[name="jenis"]');
+    jenisSelect?.addEventListener('change', toggleFileInputs);
+
+    const form = document.getElementById('uploadBoronganForm');
+    if (!form) return;
+    console.log('Form found:', form);
+
+    form.addEventListener('submit', function(e) {
+        console.log('Submit event fired, target:', e.target);
+        e.preventDefault();
+        console.log('preventDefault called, defaultPrevented:', e.defaultPrevented);
+        const jenis = document.querySelector('select[name="jenis"]').value;
+        const jenisLabel = { 'hcr': 'HCR', 'cabut': 'CABUT', 'moulding': 'MOULDING' };
+        const confirm_msg = `⚠️ PERHATIAN!\n\nYakin mau upload jenis: ${jenisLabel[jenis]}?\n\nData ini TERPISAH dari jenis lainnya dan tidak bisa dicampur.\n\nJika salah, gunakan Undo Upload di halaman review.`;
+        if (!confirm(confirm_msg)) return;
+        submitUploadForm(this, false);
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeForm);
+} else {
+    initializeForm();
+}
 
 // Confirm sebelum submit - pastikan user tidak salah pilih jenis
-document.querySelector('form').addEventListener('submit', function(e) {
-    const jenis = document.querySelector('select[name="jenis"]').value;
-    const jenisLabel = {
-        'cetak': 'CETAK / HCR Indomie',
-        'cabut': 'CABUT',
-        'moulding': 'MOULDING'
+function submitUploadForm(form, confirmRevisi) {
+    console.log('submitUploadForm called with confirmRevisi:', confirmRevisi, 'form action:', form.action);
+    const overlay = document.getElementById('uploadLoadingOverlay');
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
+    document.getElementById('uploadLoadingText').textContent = confirmRevisi
+        ? 'Menghapus data lama dan memproses revisi...'
+        : 'Mengupload dan memproses file...';
+
+    const formData = new FormData(form);
+    if (confirmRevisi) {
+        formData.set('confirm_revisi', 'true');
+    }
+
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(async response => {
+        console.log('Response received, status:', response.status, 'redirected:', response.redirected, 'url:', response.url);
+        if (response.status === 409) {
+            console.log('Entering 409 branch');
+            hideUploadLoading();
+            const data = await response.json();
+            showDuplikatModal(data.duplikat, form);
+            return;
+        }
+        if (response.redirected) {
+            window.location.href = response.url;
+            return;
+        }
+        if (!response.ok) {
+            const text = await response.text();
+            hideUploadLoading();
+            document.open();
+            document.write(text);
+            document.close();
+            return;
+        }
+        window.location.href = "{{ route('borongan.index') }}";
+    })
+    .catch(e => {
+        hideUploadLoading();
+        alert('Gagal upload: ' + e.message);
+    });
+}
+
+function hideUploadLoading() {
+    const overlay = document.getElementById('uploadLoadingOverlay');
+    overlay.classList.add('hidden');
+    overlay.classList.remove('flex');
+}
+
+function showDuplikatModal(duplikatList, form) {
+    const container = document.getElementById('duplikatList');
+    container.innerHTML = '';
+    duplikatList.forEach(d => {
+        const statusBadge = d.import_lama.status === 'approved'
+            ? '<span class="text-red-600 font-medium">APPROVED - tidak bisa direvisi otomatis</span>'
+            : `<span class="text-amber-600">${d.import_lama.status}</span>`;
+        container.innerHTML += `
+        <div class="border border-[#E5E7EB] rounded-lg p-3">
+            <div class="font-medium text-slate-700">${d.tanggal}</div>
+            <div class="text-xs text-slate-500">File lama: ${d.import_lama.filename}</div>
+            <div class="text-xs mt-1">Status: ${statusBadge}</div>
+        </div>`;
+    });
+    
+    const adaApproved = duplikatList.some(d => d.import_lama.status === 'approved');
+    const btnLanjut = document.getElementById('btnLanjutkanRevisi');
+    btnLanjut.disabled = adaApproved;
+    btnLanjut.className = adaApproved 
+        ? 'flex-1 bg-slate-200 text-slate-400 px-4 py-2 rounded-lg text-sm cursor-not-allowed'
+        : 'flex-1 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600';
+    btnLanjut.title = adaApproved ? 'Ada tanggal yang sudah approved, Undo manual dulu' : '';
+    btnLanjut.onclick = function() {
+        if (adaApproved) return;
+        document.getElementById('duplikatModal').classList.add('hidden');
+        submitUploadForm(form, true);
     };
     
-    const confirm_msg = `⚠️ PERHATIAN!\n\nYakin mau upload jenis: ${jenisLabel[jenis]}?\n\nData ini TERPISAH dari jenis lainnya dan tidak bisa dicampur.\n\nJika salah, gunakan Undo Upload di halaman review.`;
-    
-    if (!confirm(confirm_msg)) {
-        e.preventDefault();
-    }
-});
+    document.getElementById('duplikatModal').classList.remove('hidden');
+}
 </script>
 @endsection

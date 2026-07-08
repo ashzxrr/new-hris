@@ -52,6 +52,13 @@
                     </a>
                 @endif
 
+                @if (in_array($role, ['admin', 'payroll'], true))
+                    <a href="{{ route('karyawan.bank.index') }}" class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm {{ request()->routeIs('karyawan.bank.*') ? 'bg-white/10 text-white font-medium' : 'text-gray-400 hover:bg-white/10' }}">
+                        <span>🏦</span>
+                        <span>Data Bank</span>
+                    </a>
+                @endif
+
                 @if (in_array($role, ['admin', 'hrd', 'ga'], true))
                     <a href="{{ route('absensi.index') }}" class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm {{ request()->routeIs('absensi.*') ? 'bg-white/10 text-white font-medium' : 'text-gray-400 hover:bg-white/10' }}">
                         <span>🗓️</span>
