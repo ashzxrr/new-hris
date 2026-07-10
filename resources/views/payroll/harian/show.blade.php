@@ -67,8 +67,9 @@
         <table class="w-full text-xs">
             <thead class="bg-[#F8FAFC] border-b border-[#E5E7EB]">
                 <tr>
-                    <th class="px-3 py-2.5 text-left font-semibold text-slate-400 uppercase tracking-wide">Nama</th>
                     <th class="px-3 py-2.5 text-left font-semibold text-slate-400 uppercase tracking-wide">NIP</th>
+                    <th class="px-3 py-2.5 text-left font-semibold text-slate-400 uppercase tracking-wide">Nama</th>
+                    <th class="px-3 py-2.5 text-left font-semibold text-slate-400 uppercase tracking-wide">Bagian</th>
                     <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Hadir</th>
                     <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Alpha</th>
                     <th class="px-3 py-2.5 text-center font-semibold text-slate-400 uppercase tracking-wide">Izin</th>
@@ -85,8 +86,9 @@
             <tbody>
                 @foreach($details as $d)
                 <tr class="border-b border-[#E5E7EB]/50 hover:bg-[#F8FAFC]" id="row-{{ $d->id }}">
-                    <td class="px-3 py-2.5 font-medium text-slate-800">{{ $d->nama }}</td>
                     <td class="px-3 py-2.5 text-slate-400 font-mono">{{ $d->nip }}</td>
+                    <td class="px-3 py-2.5 font-medium text-slate-800">{{ $d->nama }}</td>
+                    <td class="px-3 py-2.5 text-slate-500">{{ $d->bagian ?? '-' }}</td>
                     <td class="px-3 py-2.5 text-center text-green-600 font-medium">{{ $d->hadir }}</td>
                     <td class="px-3 py-2.5 text-center text-red-500">{{ $d->alpha }}</td>
                     <td class="px-3 py-2.5 text-center text-amber-500">{{ $d->izin }}</td>

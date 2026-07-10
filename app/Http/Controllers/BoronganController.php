@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class BoronganController extends Controller
 {
@@ -34,7 +36,6 @@ class BoronganController extends Controller
             'tanggal_sampai'=> 'required|date|after_or_equal:tanggal_dari',
             'file'          => 'required_if:jenis,hcr,cabut|file|mimes:xlsx,xls',
             'file_kategori' => 'required_if:jenis,moulding|file|mimes:xlsx,xls',
-            'file_crosscheck' => 'required_if:jenis,moulding|file|mimes:xlsx,xls',
         ]);
 
         $tanggalDari  = $request->tanggal_dari;
@@ -145,7 +146,11 @@ class BoronganController extends Controller
             if (!empty($duplikatDitemukan) && $confirmRevisi) {
                 foreach ($duplikatDitemukan as $duplikat) {
                     if ($duplikat['import_lama']['status'] === 'approved') {
-                        return back()->with('error', "Tidak bisa revisi tanggal {$duplikat['tanggal']} karena data sudah di-approve. Undo Upload manual dulu.");
+                        $msgApproved = "Tidak bisa revisi tanggal {$duplikat['tanggal']} karena data sudah di-approve. Undo Upload manual dulu.";
+                        if ($request->expectsJson()) {
+                            return response()->json(['success' => false, 'message' => $msgApproved], 422);
+                        }
+                        return back()->with('error', $msgApproved);
                     }
                 }
 
@@ -524,19 +529,19 @@ class BoronganController extends Controller
             if (!empty($skippedSheets)) {
                 $msg .= ' Skipped: ' . implode('; ', $skippedSheets);
             }
+            if ($request->expectsJson()) {
+                return response()->json(['success' => true, 'message' => $msg]);
+            }
             return redirect()->route('borongan.index')->with('success', $msg);
         }
 
         // MOULDING: need to pair sheets from both uploaded files
         if ($request->jenis === 'moulding') {
             $file1 = $request->file('file_kategori');
-            $file2 = $request->file('file_crosscheck');
             $spreadsheet1 = IOFactory::load($file1->getRealPath());
-            $spreadsheet2 = IOFactory::load($file2->getRealPath());
 
             $names1 = $spreadsheet1->getSheetNames();
-            $names2 = $spreadsheet2->getSheetNames();
-            $common = array_intersect($names1, $names2);
+            $common = $names1;
 
             $rateMap = $rates->mapWithKeys(function ($rate) {
                 return [strtoupper(str_replace(' ', '_', $rate->kode_kategori)) => (int) $rate->rate_per_gram];
@@ -593,7 +598,11 @@ class BoronganController extends Controller
             if (!empty($duplikatDitemukan) && $confirmRevisi) {
                 foreach ($duplikatDitemukan as $duplikat) {
                     if ($duplikat['import_lama']['status'] === 'approved') {
-                        return back()->with('error', "Tidak bisa revisi tanggal {$duplikat['tanggal']} karena data sudah di-approve. Undo Upload manual dulu.");
+                        $msgApproved = "Tidak bisa revisi tanggal {$duplikat['tanggal']} karena data sudah di-approve. Undo Upload manual dulu.";
+                        if ($request->expectsJson()) {
+                            return response()->json(['success' => false, 'message' => $msgApproved], 422);
+                        }
+                        return back()->with('error', $msgApproved);
                     }
                 }
 
@@ -609,9 +618,7 @@ class BoronganController extends Controller
                 $sheetName = $sheetInfo['name'];
                 $tanggalFinal = $sheetInfo['tanggal'];
                 $sheet1 = $spreadsheet1->getSheetByName($sheetName);
-                $sheet2 = $spreadsheet2->getSheetByName($sheetName);
-                if (!$sheet1 || !$sheet2) {
-                    $skippedSheets[] = $sheetName . ' (sheet not found in one of files)';
+                if (!$sheet1) {
                     continue;
                 }
 
@@ -632,26 +639,32 @@ class BoronganController extends Controller
                     continue;
                 }
 
-                $validCategories = ['nat sbg', 'sbg', 'sbg waj', 'nat waj', 'vip waj', 'pt', 'gpu normal', 'gpu rendaman', 'mk dj'];
+                $validCategories = [
+                    'gpu rendaman', 'gpu normal', 'pt', 'nat', 'nat sbg', 'sbg',
+                    'mk dj', 'vip waj', 'sbg waj', 'nat waj', 'hcr', 'σ berat',
+                ];
                 $categoryColumns = [];
                 $totalGramColFile1 = null;
-                $rateRowNum = $headerRow3 - 1;
 
                 for ($c = 1; $c <= $highestColIndex1; $c++) {
-                    $headerVal = trim((string) $sheet1->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c) . $headerRow3)->getValue());
-                    $headerLower = trim(strtolower(preg_replace('/\s+/', ' ', $headerVal)));
-                    if (stripos($headerLower, 'hcr') !== false || stripos($headerLower, 'indomie') !== false) {
+                    $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
+                    $headerValRow3 = trim((string) $sheet1->getCell($col . $headerRow3)->getValue());
+                    $headerValRow1 = trim((string) $sheet1->getCell($col . '1')->getValue());
+
+                    $useHeader = $headerValRow3 !== '' ? $headerValRow3 : $headerValRow1;
+                    $headerLower = trim(strtolower(preg_replace('/\s+/', ' ', $useHeader)));
+
+                    if ($headerLower === 'σ berat') {
+                        $totalGramColFile1 = $c;
                         continue;
                     }
-                    $rateRowVal = (float) $sheet1->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c) . $rateRowNum)->getCalculatedValue();
-                    foreach ($validCategories as $cat) {
-                        if ($headerLower === strtolower($cat) && is_numeric($rateRowVal) && $rateRowVal > 0) {
-                            $categoryColumns[$headerLower] = $c;
-                            break;
-                        }
+
+                    if ($headerLower === 'hcr') {
+                        continue; // HCR tidak ikut dihitung sebagai kategori moulding
                     }
-                    if (trim(strtolower($headerVal)) === 'σ berat') {
-                        $totalGramColFile1 = $c;
+
+                    if (in_array($headerLower, $validCategories, true)) {
+                        $categoryColumns[$headerLower] = $c;
                     }
                 }
 
@@ -686,40 +699,11 @@ class BoronganController extends Controller
                     $file1Data[$nip] = ['nama' => $nama, 'categories_gram' => $categoriesGram, 'total_gram' => $totalGramRow];
                 }
 
-                $highestRow2 = $sheet2->getHighestRow();
-                $highestColIndex2 = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet2->getHighestColumn());
-                $empNoCol = null;
-                $receivedQtyCol = null;
-                $empNameCol = null;
-                for ($c = 1; $c <= $highestColIndex2; $c++) {
-                    $headerVal = trim(strtolower((string) $sheet2->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c) . '1')->getValue()));
-                    if (stripos($headerVal, 'emp no') !== false) {
-                        $empNoCol = $c;
-                    }
-                    if (stripos($headerVal, 'received qty') !== false) {
-                        $receivedQtyCol = $c;
-                    }
-                    if (stripos($headerVal, 'emp name') !== false) {
-                        $empNameCol = $c;
-                    }
-                }
-
                 $parsedDataSheet = [];
                 $totalBarisSheet = 0;
                 $totalFlaggedSheet = 0;
 
-                for ($row = 2; $row <= $highestRow2; $row++) {
-                    $nip = trim((string) $sheet2->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($empNoCol) . $row)->getValue());
-                    if (empty($nip) || strtolower($nip) === 'total') {
-                        continue;
-                    }
-                    $nama = trim((string) $sheet2->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($empNameCol) . $row)->getValue());
-                    $qty = (int) $sheet2->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($receivedQtyCol) . $row)->getCalculatedValue();
-                    if ($qty <= 0) {
-                        continue;
-                    }
-
-                    $file1Row = $file1Data[$nip] ?? null;
+                foreach ($file1Data as $nip => $file1Row) {
                     $user = $usersByNip[$nip] ?? null;
                     $isFlagged = false;
                     $flagReason = null;
@@ -734,27 +718,42 @@ class BoronganController extends Controller
 
                     $totalGram = $file1Row['total_gram'] ?? 0;
                     $upahSistem = 0;
-                    if ($file1Row && !empty($file1Row['categories_gram'])) {
+                    if (!empty($file1Row['categories_gram'])) {
                         foreach ($file1Row['categories_gram'] as $catName => $gram) {
                             $rateKey = strtoupper(str_replace(' ', '_', $catName));
-                            $upahSistem += ($rateMap[$rateKey] ?? 0) * $gram;
-                        }
-                    }
+                            $upahKategori = ($rateMap[$rateKey] ?? 0) * $gram;
 
-                    $parsedDataSheet[] = [
-                        'pin' => $user->pin ?? null,
-                        'nip' => $nip,
-                        'nama' => $file1Row['nama'] ?? $nama,
-                        'tanggal' => $tanggalFinal,
-                        'kategori' => $request->jenis,
-                        'berat_gram' => $totalGram,
-                        'upah_sistem' => $upahSistem,
-                        'upah_file' => 0,
-                        'selisih' => 0,
-                        'is_flagged' => $isFlagged,
-                        'flag_reason' => $flagReason,
-                    ];
-                    $totalBarisSheet++;
+                            $parsedDataSheet[] = [
+                                'pin' => $user->pin ?? null,
+                                'nip' => $nip,
+                                'nama' => $file1Row['nama'] ?? $nip,
+                                'tanggal' => $tanggalFinal,
+                                'kategori' => ucwords(str_replace('_', ' ', $catName)),
+                                'berat_gram' => $gram,
+                                'upah_sistem' => $upahKategori,
+                                'upah_file' => 0,
+                                'selisih' => 0,
+                                'is_flagged' => $isFlagged,
+                                'flag_reason' => $flagReason,
+                            ];
+                            $totalBarisSheet++;
+                        }
+                    } else {
+                        $parsedDataSheet[] = [
+                            'pin' => $user->pin ?? null,
+                            'nip' => $nip,
+                            'nama' => $file1Row['nama'] ?? $nip,
+                            'tanggal' => $tanggalFinal,
+                            'kategori' => 'moulding',
+                            'berat_gram' => $totalGram,
+                            'upah_sistem' => $upahSistem,
+                            'upah_file' => 0,
+                            'selisih' => 0,
+                            'is_flagged' => $isFlagged,
+                            'flag_reason' => $flagReason,
+                        ];
+                        $totalBarisSheet++;
+                    }
                     if ($isFlagged) {
                         $totalFlaggedSheet++;
                     }
@@ -772,6 +771,9 @@ class BoronganController extends Controller
             if (!empty($skippedSheets)) {
                 $msg .= ' Skipped: ' . implode('; ', $skippedSheets);
             }
+            if ($request->expectsJson()) {
+                return response()->json(['success' => true, 'message' => $msg]);
+            }
             return redirect()->route('borongan.index')->with('success', $msg);
         }
     }
@@ -783,6 +785,55 @@ class BoronganController extends Controller
             BoronganRekap::where('borongan_import_id', $import->id)->delete();
             $import->delete();
         });
+    }
+
+    public function exportReview($id)
+    {
+        $import = BoronganImport::findOrFail($id);
+
+        $rows = BoronganHarian::where('borongan_import_id', $id)->get();
+
+        $allKategori = $rows->pluck('kategori')->unique()->sort()->values();
+        $grouped = $rows->groupBy('nip');
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Review');
+
+        $headers = array_merge(['NIP', 'Nama'], $allKategori->toArray(), ['Total Gram', 'Upah Sistem']);
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:' . \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(count($headers)) . '1')
+            ->getFont()->setBold(true);
+
+        $r = 2;
+        foreach ($grouped as $nip => $items) {
+            $nama = $items->first()->nama;
+            $totalGram = $items->sum('berat_gram');
+            $totalUpah = $items->sum('upah_sistem');
+
+            $rowData = [$nip, $nama];
+            foreach ($allKategori as $kat) {
+                $gramKategori = $items->where('kategori', $kat)->sum('berat_gram');
+                $rowData[] = $gramKategori > 0 ? $gramKategori : '';
+            }
+            $rowData[] = $totalGram;
+            $rowData[] = $totalUpah;
+
+            $sheet->fromArray($rowData, null, 'A' . $r);
+            $r++;
+        }
+
+        foreach (range('A', $sheet->getHighestColumn()) as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'Review_' . str_replace(' ', '_', $import->jenis) . '_' . $import->tanggal_dari . '.xlsx';
+
+        $writer = new Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), 'export');
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
     }
 
     public function review($id)
@@ -839,6 +890,7 @@ class BoronganController extends Controller
                     'gram'       => $j->berat_gram,
                     'upah_file'  => $j->upah_file,
                     'upah_sistem'=> $j->upah_sistem,
+                            'tambahan_training' => $j->tambahan_training ?? 0,
                     'potongan'   => strtoupper($j->kategori) === 'ST'
                         ? intval($j->upah_file * 0.5)
                         : max(0, intval($j->upah_file - $j->upah_sistem)),
@@ -902,6 +954,81 @@ class BoronganController extends Controller
             'total_upah_rekap' => $rekap->total_upah ?? null,
             'total_akhir_rekap' => $rekap->total_akhir ?? null,
         ]);
+    }
+
+    public function bulkApplyTraining(Request $request, $id)
+    {
+        $request->validate([
+            'nips' => 'required|array|min:1',
+            'nips.*' => 'string',
+            'target_upah' => 'required|integer|min:0',
+        ]);
+
+        $target = intval($request->target_upah);
+        $updated = 0;
+        $skipped = [];
+
+        foreach ($request->nips as $nip) {
+            $rows = BoronganHarian::where('borongan_import_id', $id)->where('nip', $nip)->get();
+
+            if ($rows->count() !== 1) {
+                $skipped[] = $nip;
+                continue;
+            }
+
+            $harian = $rows->first();
+            $selisih = max($target - $harian->upah_sistem, 0);
+            $harian->update(['tambahan_training' => $selisih]);
+
+            $rekap = BoronganRekap::where('borongan_import_id', $id)->where('nip', $nip)->first();
+            if ($rekap) {
+                $rekap->total_akhir = $rekap->total_upah + $selisih + $rekap->tambahan - $rekap->potongan_bpjs - $rekap->potongan_lain;
+                $rekap->save();
+            }
+
+            $updated++;
+        }
+
+        return response()->json(['success' => true, 'updated' => $updated, 'skipped' => $skipped]);
+    }
+
+    public function bulkUpdateUpahSistem(Request $request, $id)
+    {
+        $request->validate([
+            'nips' => 'required|array|min:1',
+            'nips.*' => 'string',
+            'upah_sistem' => 'required|integer|min:0',
+        ]);
+
+        $upahSistem = intval($request->upah_sistem);
+        $updated = 0;
+        $skipped = [];
+
+        foreach ($request->nips as $nip) {
+            $rows = BoronganHarian::where('borongan_import_id', $id)->where('nip', $nip)->get();
+
+            if ($rows->count() !== 1) {
+                $skipped[] = $nip; // multi-kategori, jangan sentuh
+                continue;
+            }
+
+            $harian = $rows->first();
+            $harian->update([
+                'upah_sistem' => $upahSistem,
+                'selisih' => intval($harian->upah_file - $upahSistem),
+            ]);
+
+            $rekap = BoronganRekap::where('borongan_import_id', $id)->where('nip', $nip)->first();
+            if ($rekap) {
+                $rekap->total_upah = $upahSistem;
+                $rekap->total_akhir = $upahSistem + $rekap->tambahan - $rekap->potongan_bpjs - $rekap->potongan_lain;
+                $rekap->save();
+            }
+
+            $updated++;
+        }
+
+        return response()->json(['success' => true, 'updated' => $updated, 'skipped' => $skipped]);
     }
 
     public function approve($id)
@@ -999,7 +1126,7 @@ class BoronganController extends Controller
             ->pluck('id');
 
         $rekaps = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
-            ->selectRaw('nip, nama, SUM(total_gram) as total_gram, SUM(total_upah) as total_upah, SUM(potongan_bpjs) as potongan_bpjs, SUM(potongan_lain) as potongan_lain, SUM(tambahan) as tambahan, SUM(komplain) as komplain, SUM(total_akhir) as total_akhir')
+            ->selectRaw('MIN(id) as rekap_id, nip, nama, SUM(total_gram) as total_gram, SUM(total_upah) as total_upah, SUM(potongan_bpjs) as potongan_bpjs, SUM(potongan_lain) as potongan_lain, SUM(tambahan) as tambahan, SUM(komplain) as komplain, SUM(total_akhir) as total_akhir')
             ->groupBy('nip', 'nama')
             ->orderBy('nama')
             ->get();

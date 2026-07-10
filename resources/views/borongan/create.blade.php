@@ -62,19 +62,13 @@
                     <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
                 </div>
                 
-                <!-- Dual file inputs for moulding -->
-                <div id="fileInputMoulding" class="hidden space-y-3">
+                <!-- Single file input for moulding -->
+                <div id="fileInputMoulding" class="hidden">
                     <div>
-                        <label class="text-xs text-slate-400 mb-1 block">File Kategori (Novi)</label>
-                        <input type="file" name="file_kategori" accept=".xlsx,.xls"
+                        <label class="text-xs text-slate-500 mb-1 block">File Excel</label>
+                        <input type="file" name="file_kategori" accept=".xlsx,.xls" required
                             class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
-                        <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400 mb-1 block">File Cross-check (Raihan)</label>
-                        <input type="file" name="file_crosscheck" accept=".xlsx,.xls"
-                            class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
-                        <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
+                        <p class="text-[11px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
                     </div>
                 </div>
             </div>
@@ -202,20 +196,17 @@ function toggleFileInputs() {
     const fileInputMoulding = document.getElementById('fileInputMoulding');
     const singleFileInput = fileInputSingle.querySelector('input[name="file"]');
     const mouldingKategoriInput = fileInputMoulding.querySelector('input[name="file_kategori"]');
-    const mouldingCrosscheckInput = fileInputMoulding.querySelector('input[name="file_crosscheck"]');
     
     if (jenis === 'moulding') {
         fileInputSingle.classList.add('hidden');
         fileInputMoulding.classList.remove('hidden');
         singleFileInput.removeAttribute('required');
         mouldingKategoriInput.setAttribute('required', 'required');
-        mouldingCrosscheckInput.setAttribute('required', 'required');
     } else {
         fileInputSingle.classList.remove('hidden');
         fileInputMoulding.classList.add('hidden');
         singleFileInput.setAttribute('required', 'required');
         mouldingKategoriInput.removeAttribute('required');
-        mouldingCrosscheckInput.removeAttribute('required');
     }
 }
 

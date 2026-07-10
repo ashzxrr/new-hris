@@ -15,6 +15,7 @@ use App\Models\BoronganHarian;
 use App\Models\PayrollGrandTotal;
 use App\Models\PayrollPengajuan;
 use App\Models\KaryawanBank;
+use App\Services\FingerprintService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,13 @@ use PhpOffice\PhpSpreadsheet\Style\Font;
 
 class PayrollController extends Controller
 {
+    private FingerprintService $fp;
+
+    public function __construct(FingerprintService $fp)
+    {
+        $this->fp = $fp;
+    }
+
     // ========================
     // INDEX — List Payroll
     // ========================
@@ -654,6 +662,127 @@ class PayrollController extends Controller
         return response()->download($tmpFile, $fileName)->deleteFileAfterSend(true);
     }
 
+    public function tarikAbsensi($id)
+    {
+        $payroll = Payroll::findOrFail($id);
+        $dari = $payroll->tanggal_dari;
+        $sampai = $payroll->tanggal_sampai;
+
+        $karyawan = User::where('is_active', 1)
+            ->where('kategori_gaji', 'harian')
+            ->whereNotNull('salary_config_id')
+            ->orderBy('nama')
+            ->get();
+
+        $salaryConfigs = SalaryConfig::whereIn('nip', $karyawan->pluck('nip'))
+            ->where('berlaku_dari', '<=', $dari)
+            ->orderByDesc('berlaku_dari')
+            ->get()
+            ->groupBy('nip')
+            ->map(fn($g) => $g->first());
+
+        $logs = AttendanceLog::whereIn('pin', $karyawan->pluck('pin'))
+            ->whereBetween('tanggal', [$dari, $sampai])
+            ->orderBy('datetime')
+            ->get()
+            ->groupBy(fn($l) => $l->pin . '_' . substr((string)$l->tanggal, 0, 10));
+
+        $absenceNotes = AbsenceNote::whereIn('pin', $karyawan->pluck('pin'))
+            ->whereBetween('date', [$dari, $sampai])
+            ->get()
+            ->groupBy('pin')
+            ->map(fn($n) => $n->keyBy(fn($i) => $i->date->format('Y-m-d')));
+
+        $corrections = AttendanceCorrection::whereIn('pin', $karyawan->pluck('pin'))
+            ->whereBetween('tanggal', [$dari, $sampai])
+            ->get()
+            ->groupBy('pin')
+            ->map(fn($n) => $n->keyBy('tanggal'));
+
+        $periode = [];
+        $cur = new \DateTime($dari);
+        $end = new \DateTime($sampai);
+        while ($cur <= $end) {
+            $periode[] = $cur->format('Y-m-d');
+            $cur->modify('+1 day');
+        }
+
+        $updated = 0;
+
+        foreach ($karyawan as $k) {
+            $pin = (string) intval($k->pin);
+            $nip = $k->nip;
+            $config = $salaryConfigs[$nip] ?? null;
+            $nominal = $config ? $config->nominal : 0;
+
+            $hadir = $alpha = $izin = $sakit = $lemburMenit = $setengahHari = 0;
+
+            foreach ($periode as $tgl) {
+                if (date('N', strtotime($tgl)) == 7) continue;
+
+                $correction = $corrections[$pin][$tgl] ?? null;
+                if ($correction) {
+                    $status = $correction->status;
+                    $jamOut = $correction->jam_out;
+                } else {
+                    $dayKey = $pin . '_' . $tgl;
+                    $dayLogs = $logs[$dayKey] ?? collect();
+
+                    $inTimes = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string)$l->datetime));
+                    $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string)$l->datetime));
+
+                    $inTs = $inTimes->isNotEmpty() ? $inTimes->min() : null;
+                    $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
+                    $jamOut = $outTs ? date('H:i', $outTs) : null;
+
+                    $note = $absenceNotes[$pin][$tgl] ?? null;
+                    $status = $inTs ? 'H' : ($note ? $note->code : 'A');
+                }
+
+                if ($jamOut) {
+                    $outTs = strtotime($tgl . ' ' . $jamOut);
+                    $threshold = strtotime($tgl . ' 16:30:00');
+                    if ($outTs > $threshold) {
+                        $lemburMenit += floor(($outTs - $threshold) / 60);
+                    }
+                }
+
+                switch ($status) {
+                    case 'H': $hadir++; break;
+                    case 'A': $alpha++; break;
+                    case 'I': $izin++; break;
+                    case 'S': $sakit++; break;
+                    case 'ST': $setengahHari++; break;
+                }
+            }
+
+            $gajiPokok = ($hadir + $setengahHari) * $nominal;
+            $potonganSt = $setengahHari * ($nominal / 2);
+            $totalGaji = $gajiPokok - $potonganSt;
+
+            PayrollDetail::updateOrCreate(
+                ['payroll_id' => $payroll->id, 'pin' => $pin],
+                [
+                    'nip' => $nip,
+                    'nama' => $k->nama,
+                    'nominal_harian' => $nominal,
+                    'hadir' => $hadir,
+                    'alpha' => $alpha,
+                    'izin' => $izin,
+                    'sakit' => $sakit,
+                    'setengah_hari' => $setengahHari,
+                    'lembur_menit' => $lemburMenit,
+                    'gaji_pokok' => $gajiPokok,
+                    'total_gaji' => $totalGaji,
+                ]
+            );
+
+            $updated++;
+        }
+
+        return response()->json(['success' => true, 'updated' => $updated]);
+    }
+
     // ========================
     // SHOW HARIAN — Detail payroll (tabel detail harian)
     // ========================
@@ -661,10 +790,13 @@ class PayrollController extends Controller
     {
         $payroll = Payroll::findOrFail($id);
         $details = PayrollDetail::where('payroll_id', $id)->orderBy('nama')->get();
+
+        $bagianMap = User::whereIn('nip', $details->pluck('nip'))->pluck('bagian', 'nip');
         
         foreach ($details as $d) {
             $upahPerJam = $d->nominal_harian / 8;
             $d->potensi_lembur = floor($upahPerJam * 1.5 * ($d->lembur_menit / 60));
+            $d->bagian = $bagianMap[$d->nip] ?? '-';
         }
         
         return view('payroll.harian.show', compact('payroll', 'details'));

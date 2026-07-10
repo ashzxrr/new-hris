@@ -72,6 +72,7 @@ Route::middleware('auth:admin')->group(function () {
             Route::get('/{id}/pengajuan',            [PayrollController::class, 'showPengajuan'])->name('pengajuan');
             Route::get('/{id}/export-pengajuan',     [PayrollController::class, 'exportPengajuan'])->name('exportPengajuan');
             Route::get('/{id}/harian',               [PayrollController::class, 'showHarian'])->name('harian.show');
+            Route::post('/{id}/tarik-absensi',       [PayrollController::class, 'tarikAbsensi'])->name('tarikAbsensi');
             Route::get('/{id}/export-slip',          [PayrollController::class, 'exportSlipGaji'])->name('export.slip');
             Route::put('/detail/{id}',               [PayrollController::class, 'updateDetail'])->name('detail.update');
             Route::put('/detail/{id}/toggle-lembur', [PayrollController::class, 'toggleLembur'])->name('detail.toggle.lembur');
@@ -87,8 +88,11 @@ Route::middleware('auth:admin')->group(function () {
             Route::get('/create',       [BoronganController::class, 'create'])->name('create');
             Route::post('/upload',      [BoronganController::class, 'upload'])->name('upload');
             Route::get('/{id}/review',  [BoronganController::class, 'review'])->name('review');
+            Route::get('/{id}/export-review', [BoronganController::class, 'exportReview'])->name('exportReview');
             Route::get('/{id}/review-detail/{nip}', [BoronganController::class, 'getReviewDetail'])->name('review.detail');
             Route::post('/{id}/update-upah-sistem', [BoronganController::class, 'updateUpahSistem'])->name('update.upah.sistem');
+            Route::post('/{id}/bulk-upah-sistem', [BoronganController::class, 'bulkUpdateUpahSistem'])->name('bulkUpahSistem');
+            Route::post('/{id}/bulk-training', [BoronganController::class, 'bulkApplyTraining'])->name('bulkTraining');
             Route::put('/{id}/approve', [BoronganController::class, 'approve'])->name('approve');
             Route::delete('/{id}/undo', [BoronganController::class, 'undo'])->name('undo');
             Route::get('/{id}/rekap',   [BoronganController::class, 'rekapIndex'])->name('rekapIndex');

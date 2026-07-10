@@ -37,6 +37,14 @@
             <a href="{{ $payrollId ? route('payroll.show', $payrollId) : route('borongan.index') }}"
                 class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">← Kembali</a>
             @if($import->status !== 'approved')
+            <button type="button" onclick="openRevisiModal()"
+                class="border border-amber-300 text-amber-600 px-3 py-2 rounded-lg text-sm hover:bg-amber-50">
+                ✏️ Revisi
+            </button>
+            <a href="{{ route('borongan.exportReview', $import->id) }}"
+                class="border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-sm hover:bg-[#F8FAFC]">
+                📥 Export Excel
+            </a>
             <form method="POST" action="{{ route('borongan.undo', $import->id) }}"
                 onsubmit="return confirm('Undo upload ini? Semua data akan dihapus.')" style="display:inline;">
                 @csrf @method('DELETE')
@@ -92,6 +100,23 @@
             class="w-full md:w-[360px] border border-[#E5E7EB] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
     </div>
 
+    {{-- Bulk action bar (hidden until selection) --}}
+    <div id="bulkActionBar" class="hidden flex items-center gap-2 mb-3">
+        <span class="text-xs text-slate-500"><span id="selectedCount">0</span> dipilih</span>
+        <input type="number" id="bulkUpahInput" placeholder="Nominal upah, mis. 65000"
+            class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm w-48">
+        <button type="button" onclick="applyBulkUpah()"
+            class="bg-[#4F46E5] text-white px-3 py-1.5 rounded-lg text-xs hover:bg-[#4338CA]">
+            Terapkan
+        </button>
+        <input type="number" id="bulkTrainingInput" placeholder="Target upah training, mis. 65000"
+            class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm w-56">
+        <button type="button" onclick="applyBulkTraining()"
+            class="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-amber-600">
+            Set Tambahan Training
+        </button>
+    </div>
+
     @if(!empty($pendingMutasi) && $pendingMutasi->isNotEmpty())
     <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
         <p class="text-sm font-medium text-amber-700">⚠️ Ada {{ $pendingMutasi->count() }} indikasi mutasi karyawan yang belum dikonfirmasi.</p>
@@ -104,6 +129,7 @@
         <table class="w-full text-sm">
             <thead class="bg-[#F8FAFC] border-b border-[#E5E7EB]">
                 <tr>
+                    <th class="px-3 py-2.5 w-8"><input type="checkbox" id="checkAll"></th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">NIP</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">Nama</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase tracking-wide">Total Gram</th>
@@ -116,10 +142,11 @@
             </thead>
             <tbody id="reviewBody">
                 @foreach($items as $item)
-                <tr class="review-row border-b border-[#E5E7EB]/50 {{ $item['is_flagged'] ? 'bg-amber-50' : 'hover:bg-[#F8FAFC]' }}"
+                <tr class="review-row rowClickable cursor-pointer border-b border-[#E5E7EB]/50 {{ $item['is_flagged'] ? 'bg-amber-50' : 'hover:bg-[#F8FAFC]' }}"
                     data-nip="{{ strtolower($item['nip']) }}"
                     data-nama="{{ strtolower($item['nama']) }}"
                     data-upah="{{ $item['total_upah'] }}">
+                    <td class="px-4 py-3"><input type="checkbox" class="rowCheck" value="{{ $item['nip'] }}"></td>
                     <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ $item['nip'] }}</td>
                     <td class="px-4 py-3 font-medium text-slate-800">
                         <button type="button"
@@ -205,6 +232,7 @@
                             <th class="px-3 py-2 text-right text-slate-400">Upah File</th>
                             <th class="px-3 py-2 text-right text-slate-400">Upah Sistem</th>
                             <th class="px-3 py-2 text-right text-slate-400">Potongan</th>
+                            <th class="px-3 py-2 text-center text-slate-400" id="trainingHeader" style="display:none">Tambahan Training</th>
                             <th class="px-3 py-2 text-center text-slate-400">Status</th>
                         </tr>
                     </thead>
@@ -212,6 +240,54 @@
                 </table>
             </div>
         </div>
+    </div>
+</div>
+
+<div id="revisiModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div class="flex items-start justify-between px-5 py-4 border-b border-[#E5E7EB]">
+            <div>
+                <h3 class="font-semibold text-slate-800">Revisi Import — {{ \Carbon\Carbon::parse($import->tanggal_dari)->format('d M Y') }}</h3>
+                <p class="text-xs text-slate-400 mt-1">Upload ulang file untuk tanggal ini saja. Data lama akan diganti.</p>
+            </div>
+            <button type="button" onclick="closeRevisiModal()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+        </div>
+
+        <form id="revisiForm" class="p-5 space-y-3" enctype="multipart/form-data">
+            @csrf
+            <input type="hidden" name="jenis" value="{{ $import->jenis }}">
+            <input type="hidden" name="payroll_id" value="{{ $import->payroll_id }}">
+            <input type="hidden" name="tanggal_dari" value="{{ $import->tanggal_dari }}">
+            <input type="hidden" name="tanggal_sampai" value="{{ $import->tanggal_dari }}">
+            <input type="hidden" name="confirm_revisi" value="1">
+
+            @if($import->jenis === 'moulding')
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">File Excel</label>
+                    <input type="file" name="file_kategori" accept=".xlsx,.xls" required
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm">
+                </div>
+            @else
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">File Excel</label>
+                    <input type="file" name="file" accept=".xlsx,.xls" required
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm">
+                </div>
+            @endif
+
+            <p class="text-[10px] text-slate-400">Pastikan sheet bernama "{{ (int) \Carbon\Carbon::parse($import->tanggal_dari)->format('d') }}" ada di file.</p>
+
+            <div id="revisiResult" class="hidden rounded-lg border p-3 text-sm"></div>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeRevisiModal()"
+                    class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">Batal</button>
+                <button type="submit"
+                    class="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 font-medium">
+                    Upload & Parse Ulang
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -236,11 +312,18 @@ function openReviewModal(importId, nip, nama) {
 
         data.detail.forEach(d => {
             const tgl = formatTgl(d.tanggal);
+            const hasTraining = data.detail.some(x => x.jobs.some(j => (j.tambahan_training || 0) > 0));
+            if (hasTraining) {
+                const hdr = document.getElementById('trainingHeader');
+                if (hdr) hdr.style.display = '';
+            }
+
             d.jobs.forEach((job, i) => {
                 const flagCell = job.is_flagged
                     ? `<span class="text-xs text-amber-500" title="${job.flag_reason || ''}">⚠️</span>`
                     : `<span class="text-xs text-green-500">✅</span>`;
                 const selisihClass = Math.abs(job.selisih) > 1000 ? 'text-red-500' : 'text-slate-400';
+                const trainingCell = hasTraining ? `<td class="px-3 py-1.5 text-green-600">${(job.tambahan_training>0)? ('Rp ' + job.tambahan_training.toLocaleString('id-ID')) : '-'}</td>` : '';
                 tbody.innerHTML += `
                 <tr class="job-row border-b border-[#E5E7EB]/50 ${job.is_flagged ? 'bg-amber-50' : ''}">
                     <td class="px-3 py-1.5 text-slate-600">${i === 0 ? tgl : ''}</td>
@@ -253,7 +336,8 @@ function openReviewModal(importId, nip, nama) {
                             onchange="updateUpahSistem(${job.id}, this.value, '{{ $import->id }}')"/>
                     </td>
                     <td class="px-3 py-1.5 text-right font-medium text-red-500">Rp <span class="potongan-${job.id}">${job.potongan.toLocaleString('id-ID')}</span></td>
-                    <td class="px-3 py-1.5 text-center">${flagCell}</td>
+                        ${trainingCell}
+                        <td class="px-3 py-1.5 text-center">${flagCell}</td>
                 </tr>`;
             });
             // Subtotal per tanggal
@@ -476,8 +560,131 @@ function resolveMutasi(status) {
     .catch(e => alert('Gagal: ' + e.message));
 }
 
+function applyBulkTraining() {
+    const nips = [...document.querySelectorAll('.rowCheck:checked')].map(cb => cb.value);
+    const target = document.getElementById('bulkTrainingInput').value;
+
+    if (!target || nips.length === 0) return;
+
+    fetch('{{ route('borongan.bulkTraining', $import->id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({ nips, target_upah: target })
+    })
+    .then(r => r.json())
+    .then(data => {
+        let msg = `${data.updated} karyawan diberi tambahan training.`;
+        if (data.skipped.length) msg += ` ${data.skipped.length} dilewati (multi-kategori).`;
+        alert(msg);
+        location.reload();
+    });
+}
+
+function openRevisiModal() {
+    document.getElementById('revisiModal').classList.remove('hidden');
+}
+
+function closeRevisiModal() {
+    document.getElementById('revisiModal').classList.add('hidden');
+}
+
+document.getElementById('revisiForm')?.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const resultBox = document.getElementById('revisiResult');
+    const btn = this.querySelector('button[type="submit"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Memproses...';
+    }
+
+    fetch('{{ route('borongan.upload') }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            'Accept': 'application/json'
+        },
+        body: new FormData(this)
+    })
+    .then(r => r.json().then(data => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+        if (!ok) throw new Error(data.message || 'Gagal memproses revisi.');
+        resultBox.classList.remove('hidden');
+        resultBox.className = 'rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700';
+        resultBox.textContent = 'Revisi berhasil, halaman akan dimuat ulang...';
+        setTimeout(() => location.reload(), 1200);
+    })
+    .catch(e => {
+        resultBox.classList.remove('hidden');
+        resultBox.className = 'rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600';
+        resultBox.textContent = e.message;
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Upload & Parse Ulang';
+        }
+    });
+});
+
 document.getElementById('mutasiModal').addEventListener('click', function(e) {
     if (e.target === this) this.classList.add('hidden');
 });
+
+// Bulk upah sistem UI
+const checkAll = document.getElementById('checkAll');
+const bulkBar = document.getElementById('bulkActionBar');
+const selectedCountEl = document.getElementById('selectedCount');
+
+function refreshBulkBar() {
+    const checked = document.querySelectorAll('.rowCheck:checked');
+    selectedCountEl.textContent = checked.length;
+    if (bulkBar) bulkBar.classList.toggle('hidden', checked.length === 0);
+}
+
+if (checkAll) {
+    checkAll.addEventListener('change', function () {
+        document.querySelectorAll('.rowCheck').forEach(cb => cb.checked = this.checked);
+        refreshBulkBar();
+    });
+}
+
+document.querySelectorAll('.rowCheck').forEach(cb => cb.addEventListener('change', refreshBulkBar));
+
+document.querySelectorAll('.rowClickable').forEach(row => {
+    row.addEventListener('click', function (e) {
+        if (e.target.closest('.rowCheck') || e.target.closest('button') || e.target.closest('a')) return;
+
+        const checkbox = this.querySelector('.rowCheck');
+        checkbox.checked = !checkbox.checked;
+        refreshBulkBar();
+    });
+});
+
+function applyBulkUpah() {
+    const nips = [...document.querySelectorAll('.rowCheck:checked')].map(cb => cb.value);
+    const nominal = document.getElementById('bulkUpahInput').value;
+
+    if (!nominal || nips.length === 0) return;
+
+    fetch('{{ route('borongan.bulkUpahSistem', $import->id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({ nips, upah_sistem: nominal })
+    })
+    .then(r => r.json())
+    .then(data => {
+        let msg = `${data.updated} karyawan diperbarui.`;
+        if (data.skipped && data.skipped.length) msg += ` ${data.skipped.length} dilewati (multi-kategori, edit manual via Detail).`;
+        alert(msg);
+        location.reload();
+    })
+    .catch(e => alert('Gagal: ' + e.message));
+}
 </script>
 @endsection

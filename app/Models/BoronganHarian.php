@@ -8,7 +8,7 @@ class BoronganHarian extends Model
     protected $fillable = [
         'borongan_import_id', 'pin', 'nip', 'nama', 'tanggal',
         'kategori', 'berat_gram', 'upah_sistem', 'upah_file',
-        'selisih', 'is_flagged', 'flag_reason', 'status'
+        'selisih', 'is_flagged', 'flag_reason', 'status', 'tambahan_training'
     ];
     protected $casts = [
         'tanggal'    => 'date',

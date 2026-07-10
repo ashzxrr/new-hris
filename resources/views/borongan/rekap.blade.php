@@ -71,32 +71,32 @@
                 <tr class="rekap-row border-b border-[#E5E7EB]/50 hover:bg-[#F8FAFC]"
                     data-nip="{{ strtolower($r->nip) }}"
                     data-nama="{{ strtolower($r->nama) }}"
-                    id="rekap-row-{{ $r->id }}">
+                    id="rekap-row-{{ $r->rekap_id }}">
                     <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ $r->nip }}</td>
                     <td class="px-4 py-3 font-medium text-slate-800">
                         <button type="button"
-                            onclick="openDetailModal('{{ $import->id }}', '{{ $r->nip }}', '{{ addslashes($r->nama) }}', {{ $r->id }})"
+                            onclick="openDetailModal('{{ $import->id }}', '{{ $r->nip }}', '{{ addslashes($r->nama) }}', {{ $r->rekap_id }})"
                             class="text-[#4F46E5] hover:underline text-left">
                             {{ $r->nama }}
                         </button>
                     </td>
                     <td class="px-4 py-3 text-right text-slate-600">{{ number_format($r->total_gram) }}</td>
                     <td class="px-4 py-3 text-right text-slate-700">Rp {{ number_format($r->total_upah, 0, ',', '.') }}</td>
-                    <td class="px-4 py-3 text-right text-red-500" id="bpjs-{{ $r->id }}">
+                    <td class="px-4 py-3 text-right text-red-500" id="bpjs-{{ $r->rekap_id }}">
                         {{ $r->potongan_bpjs > 0 ? 'Rp ' . number_format($r->potongan_bpjs, 0, ',', '.') : '-' }}
                     </td>
-                    <td class="px-4 py-3 text-right text-red-500" id="pot-{{ $r->id }}">
+                    <td class="px-4 py-3 text-right text-red-500" id="pot-{{ $r->rekap_id }}">
                         {{ $r->potongan_lain > 0 ? 'Rp ' . number_format($r->potongan_lain, 0, ',', '.') : '-' }}
                     </td>
-                    <td class="px-4 py-3 text-right text-green-600" id="tmb-{{ $r->id }}">
+                    <td class="px-4 py-3 text-right text-green-600" id="tmb-{{ $r->rekap_id }}">
                         {{ $r->tambahan > 0 ? 'Rp ' . number_format($r->tambahan, 0, ',', '.') : '-' }}
                     </td>
-                    <td class="px-4 py-3 text-right font-bold text-[#4F46E5]" id="total-{{ $r->id }}">
+                    <td class="px-4 py-3 text-right font-bold text-[#4F46E5]" id="total-{{ $r->rekap_id }}">
                         Rp {{ number_format($r->total_akhir, 0, ',', '.') }}
                     </td>
                     <td class="px-4 py-3 text-center">
                         <button type="button"
-                            onclick="openDetailModal('{{ $import->id }}', '{{ $r->nip }}', '{{ addslashes($r->nama) }}', {{ $r->id }})"
+                            onclick="openDetailModal('{{ $import->id }}', '{{ $r->nip }}', '{{ addslashes($r->nama) }}', {{ $r->rekap_id }})"
                             class="text-xs px-2 py-1 rounded-lg border border-[#4F46E5]/30 text-[#4F46E5] hover:bg-[#4F46E5]/5">
                             Detail
                         </button>
@@ -267,6 +267,13 @@ function updateTotalPreview() {
 function saveRekap() {
     if (!currentRekapId) return;
 
+    const saveBtn = document.querySelector('button[onclick="saveRekap()"]');
+    const originalText = saveBtn?.textContent || 'Simpan';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Menyimpan...';
+    }
+
     const payload = {
         potongan_bpjs: parseInt(document.getElementById('inputBpjs').value)    || 0,
         potongan_lain: parseInt(document.getElementById('inputPotLain').value)  || 0,
@@ -275,12 +282,13 @@ function saveRekap() {
     };
 
     fetch(`${boronganBaseUrl}/rekap/${currentRekapId}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: new URLSearchParams({ ...payload, _method: 'PUT' }).toString(),
     })
     .then(r => r.json())
     .then(data => {
@@ -301,7 +309,13 @@ function saveRekap() {
             alert('Gagal menyimpan.');
         }
     })
-    .catch(e => alert('Error: ' + e.message));
+    .catch(e => alert('Error: ' + e.message))
+    .finally(() => {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
+        }
+    });
 }
 
 function closeDetailModal() {
