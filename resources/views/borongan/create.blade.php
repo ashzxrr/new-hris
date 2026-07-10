@@ -99,7 +99,7 @@
             <h3 class="font-semibold text-slate-800 mb-1">⚠️ Tanggal Sudah Ada Data</h3>
             <p class="text-sm text-slate-600 mb-4">Beberapa tanggal di file ini sudah punya data sebelumnya:</p>
             <div id="duplikatList" class="space-y-2 mb-4 text-sm"></div>
-            <p class="text-xs text-slate-400 mb-4">Pilih "Lanjutkan sebagai Revisi" untuk MENGHAPUS data lama dan menggantinya dengan file baru ini, atau "Batalkan" untuk membatalkan upload.</p>
+            <p class="text-xs text-slate-400 mb-4">Tanggal berstatus APPROVED akan dilewati (tidak diubah). Tanggal lain akan direvisi dan diganti dengan data baru. Pilih "Lanjutkan" untuk proses, atau "Batalkan".</p>
             <div class="flex gap-3">
                 <button onclick="document.getElementById('duplikatModal').classList.add('hidden')" class="flex-1 border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">
                     Batalkan
@@ -301,7 +301,7 @@ function showDuplikatModal(duplikatList, form) {
     container.innerHTML = '';
     duplikatList.forEach(d => {
         const statusBadge = d.import_lama.status === 'approved'
-            ? '<span class="text-red-600 font-medium">APPROVED - tidak bisa direvisi otomatis</span>'
+            ? '<span class="text-red-600 font-medium">APPROVED - akan diskip dan tidak diubah</span>'
             : `<span class="text-amber-600">${d.import_lama.status}</span>`;
         container.innerHTML += `
         <div class="border border-[#E5E7EB] rounded-lg p-3">
@@ -313,13 +313,10 @@ function showDuplikatModal(duplikatList, form) {
     
     const adaApproved = duplikatList.some(d => d.import_lama.status === 'approved');
     const btnLanjut = document.getElementById('btnLanjutkanRevisi');
-    btnLanjut.disabled = adaApproved;
-    btnLanjut.className = adaApproved 
-        ? 'flex-1 bg-slate-200 text-slate-400 px-4 py-2 rounded-lg text-sm cursor-not-allowed'
-        : 'flex-1 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600';
-    btnLanjut.title = adaApproved ? 'Ada tanggal yang sudah approved, Undo manual dulu' : '';
+    btnLanjut.disabled = false; // tetap bisa lanjut, tanggal approved otomatis di-skip di backend
+    btnLanjut.className = 'flex-1 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600';
+    btnLanjut.title = '';
     btnLanjut.onclick = function() {
-        if (adaApproved) return;
         document.getElementById('duplikatModal').classList.add('hidden');
         submitUploadForm(form, true);
     };

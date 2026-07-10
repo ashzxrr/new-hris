@@ -7,7 +7,7 @@
     </div>
 
     <div class="bg-white rounded-2xl border border-[#E5E7EB] p-6">
-        <form method="POST" action="{{ route('payroll.preview') }}">
+        <form method="POST" action="{{ route('payroll.store') }}">
             @csrf
             <div class="mb-4">
                 <label class="text-xs font-medium text-slate-500 mb-1 block">Bulan</label>
@@ -37,7 +37,7 @@
                     class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">Batal</a>
                 <button type="submit"
                     class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
-                    Preview Payroll →
+                    💾 Buat Payroll
                 </button>
             </div>
         </form>

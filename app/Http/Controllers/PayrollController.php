@@ -222,156 +222,29 @@ class PayrollController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'tanggal_dari'   => 'required|date',
-            'tanggal_sampai' => 'required|date',
+            'tanggal_dari' => 'required|date',
+            'tanggal_sampai' => 'required|date|after_or_equal:tanggal_dari',
         ]);
 
-        $dari   = $request->tanggal_dari;
+        $dari = $request->tanggal_dari;
         $sampai = $request->tanggal_sampai;
 
-        // Cek apakah periode sudah ada
-        $existing = Payroll::where('tanggal_dari', $dari)
-            ->where('tanggal_sampai', $sampai)
-            ->first();
-        if ($existing) {
-            return redirect()->route('payroll.show', $existing->id)
-                ->with('error', 'Payroll periode ini sudah ada.');
+        $periode = \Carbon\Carbon::parse($dari)->format('Y-m') . '-' . (\Carbon\Carbon::parse($dari)->day <= 15 ? '1' : '2');
+
+        $exists = Payroll::where('tanggal_dari', $dari)->where('tanggal_sampai', $sampai)->first();
+        if ($exists) {
+            return redirect()->route('payroll.show', $exists->id)->with('info', 'Payroll untuk periode ini sudah ada.');
         }
 
-        // Tentukan periode label (misal: 2026-06-1 atau 2026-06-2)
-        $bulan = date('Y-m', strtotime($dari));
-        $half  = date('d', strtotime($dari)) <= 15 ? '1' : '2';
-        $periodeLabel = $bulan . '-' . $half;
+        $payroll = Payroll::create([
+            'periode' => $periode,
+            'tanggal_dari' => $dari,
+            'tanggal_sampai' => $sampai,
+            'status' => 'draft',
+            'created_by' => Auth::guard('admin')->id(),
+        ]);
 
-        DB::beginTransaction();
-        try {
-            $payroll = Payroll::create([
-                'periode'        => $periodeLabel,
-                'tanggal_dari'   => $dari,
-                'tanggal_sampai' => $sampai,
-                'status'         => 'draft',
-                'created_by'     => Auth::guard('admin')->id(),
-            ]);
-
-            // Re-run preview logic untuk simpan detail
-            $karyawan = User::where('is_active', 1)
-                ->where('kategori_gaji', 'harian')
-                ->whereNotNull('salary_config_id')
-                ->orderBy('nama')
-                ->get();
-
-            $salaryConfigs = SalaryConfig::whereIn('nip', $karyawan->pluck('nip'))
-                ->where('berlaku_dari', '<=', $dari)
-                ->orderByDesc('berlaku_dari')
-                ->get()
-                ->groupBy('nip')
-                ->map(fn($g) => $g->first());
-
-            $logs = AttendanceLog::whereIn('pin', $karyawan->pluck('pin'))
-                ->whereBetween('tanggal', [$dari, $sampai])
-                ->orderBy('datetime')
-                ->get()
-                ->groupBy(fn($l) => $l->pin . '_' . substr((string)$l->tanggal, 0, 10));
-
-            $absenceNotes = AbsenceNote::whereIn('pin', $karyawan->pluck('pin'))
-                ->whereBetween('date', [$dari, $sampai])
-                ->get()
-                ->groupBy('pin')
-                ->map(fn($n) => $n->keyBy(fn($i) => $i->date->format('Y-m-d')));
-
-            $corrections = AttendanceCorrection::whereIn('pin', $karyawan->pluck('pin'))
-                ->whereBetween('tanggal', [$dari, $sampai])
-                ->get()
-                ->groupBy('pin')
-                ->map(fn($n) => $n->keyBy('tanggal'));
-
-            $periode = [];
-            $cur = new \DateTime($dari);
-            $end = new \DateTime($sampai);
-            while ($cur <= $end) {
-                $periode[] = $cur->format('Y-m-d');
-                $cur->modify('+1 day');
-            }
-
-            foreach ($karyawan as $k) {
-                $pin     = (string) intval($k->pin);
-                $nip     = $k->nip;
-                $config  = $salaryConfigs[$nip] ?? null;
-                $nominal = $config ? $config->nominal : 0;
-
-                $hadir = $alpha = $izin = $sakit = $lemburMenit = 0;
-                $setengahHari = 0;
-
-                foreach ($periode as $tgl) {
-                    if (date('N', strtotime($tgl)) == 7) continue;
-
-                    $correction = $corrections[$pin][$tgl] ?? null;
-                    if ($correction) {
-                        $status = $correction->status;
-                        $jamOut = $correction->jam_out;
-                    } else {
-                        $dayKey  = $pin . '_' . $tgl;
-                        $dayLogs = $logs[$dayKey] ?? collect();
-                        $inTimes  = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string)$l->datetime));
-                        $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string)$l->datetime));
-                        $inTs  = $inTimes->isNotEmpty()  ? $inTimes->min()  : null;
-                        $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
-                        $jamOut = $outTs ? date('H:i', $outTs) : null;
-                        $note   = $absenceNotes[$pin][$tgl] ?? null;
-                        $status = $inTs ? 'H' : ($note ? $note->code : 'A');
-                    }
-
-                    if ($jamOut) {
-                        $outTs     = strtotime($tgl . ' ' . $jamOut);
-                        $threshold = strtotime($tgl . ' 16:30:00');
-                        if ($outTs > $threshold) {
-                            $lemburMenit += floor(($outTs - $threshold) / 60);
-                        }
-                    }
-
-                    switch ($status) {
-                        case 'H': $hadir++; break;
-                        case 'A': $alpha++; break;
-                        case 'I': $izin++;  break;
-                        case 'S': $sakit++; break;
-                        case 'ST': $setengahHari++; break;
-                    }
-                }
-
-                $gajiPokok   = ($hadir + $setengahHari) * $nominal;
-                $potonganSt  = $setengahHari * ($nominal / 2);
-                // Lembur belum di-approve saat generate awal, jadi gaji_lembur = 0
-                $gajiLembur  = 0;
-                $totalGaji   = $gajiPokok + $gajiLembur - $potonganSt;
-
-                PayrollDetail::create([
-                    'payroll_id'      => $payroll->id,
-                    'pin'             => $pin,
-                    'nip'             => $nip,
-                    'nama'            => $k->nama,
-                    'nominal_harian'  => $nominal,
-                    'hadir'           => $hadir,
-                    'alpha'           => $alpha,
-                    'izin'            => $izin,
-                    'sakit'           => $sakit,
-                    'setengah_hari'   => $setengahHari,
-                    'lembur_menit'    => $lemburMenit,
-                    'gaji_pokok'      => $gajiPokok,
-                    'gaji_lembur'     => $gajiLembur,
-                    'tambahan'        => 0,
-                    'potongan'        => 0,
-                    'total_gaji'      => $totalGaji,
-                ]);
-            }
-
-            DB::commit();
-            return redirect()->route('payroll.show', $payroll->id)
-                ->with('success', 'Payroll periode ' . $periodeLabel . ' berhasil dibuat.');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Gagal membuat payroll: ' . $e->getMessage());
-        }
+        return redirect()->route('payroll.show', $payroll->id)->with('success', 'Payroll berhasil dibuat. Klik "Tarik Data" di kartu Harian untuk mengambil data absensi.');
     }
 
     // ========================
@@ -665,8 +538,8 @@ class PayrollController extends Controller
     public function tarikAbsensi($id)
     {
         $payroll = Payroll::findOrFail($id);
-        $dari = $payroll->tanggal_dari;
-        $sampai = $payroll->tanggal_sampai;
+        $dari = $payroll->tanggal_dari->format('Y-m-d');
+        $sampai = $payroll->tanggal_sampai->format('Y-m-d');
 
         $karyawan = User::where('is_active', 1)
             ->where('kategori_gaji', 'harian')
@@ -736,7 +609,7 @@ class PayrollController extends Controller
                     $jamOut = $outTs ? date('H:i', $outTs) : null;
 
                     $note = $absenceNotes[$pin][$tgl] ?? null;
-                    $status = $inTs ? 'H' : ($note ? $note->code : 'A');
+                    $status = ($inTs || $outTs) ? 'H' : ($note ? $note->code : 'A');
                 }
 
                 if ($jamOut) {
@@ -1381,9 +1254,15 @@ class PayrollController extends Controller
 
         return response()->json([
             'detail' => [
-                'id'   => $detail->id,
-                'nama' => $detail->nama,
-                'nip'  => $detail->nip,
+                'id'            => $detail->id,
+                'nama'          => $detail->nama,
+                'nip'           => $detail->nip,
+                'nominal_harian'=> $detail->nominal_harian,
+                'gaji_pokok'    => $detail->gaji_pokok,
+                'gaji_lembur'   => $detail->gaji_lembur,
+                'tambahan'      => $detail->tambahan,
+                'potongan'      => $detail->potongan,
+                'total_gaji'    => $detail->total_gaji,
             ],
             'rows' => $rows,
         ]);
@@ -1478,9 +1357,11 @@ class PayrollController extends Controller
                     $dayKey  = $pin . '_' . $tgl;
                     $dayLogs = $logs[$dayKey] ?? collect();
                     $inTimes  = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string)$l->datetime));
+                    $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string)$l->datetime));
                     $inTs  = $inTimes->isNotEmpty()  ? $inTimes->min()  : null;
+                    $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
                     $note   = $absenceNotes[$tgl] ?? null;
-                    $status = $inTs ? 'H' : ($note ? $note->code : 'A');
+                    $status = ($inTs || $outTs) ? 'H' : ($note ? $note->code : 'A');
                 }
 
                 if ($correction && $correction->lembur_approved) {

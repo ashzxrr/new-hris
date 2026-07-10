@@ -144,21 +144,23 @@ class BoronganController extends Controller
             }
 
             if (!empty($duplikatDitemukan) && $confirmRevisi) {
-                foreach ($duplikatDitemukan as $duplikat) {
-                    if ($duplikat['import_lama']['status'] === 'approved') {
-                        $msgApproved = "Tidak bisa revisi tanggal {$duplikat['tanggal']} karena data sudah di-approve. Undo Upload manual dulu.";
-                        if ($request->expectsJson()) {
-                            return response()->json(['success' => false, 'message' => $msgApproved], 422);
-                        }
-                        return back()->with('error', $msgApproved);
-                    }
-                }
+                $approvedDates = [];
 
                 foreach ($duplikatDitemukan as $duplikat) {
+                    if ($duplikat['import_lama']['status'] === 'approved') {
+                        $approvedDates[] = $duplikat['tanggal'];
+                        $skippedSheets[] = $duplikat['sheet'] . " (tanggal {$duplikat['tanggal']} sudah approved, di-skip)";
+                        continue;
+                    }
+
                     $importLama = BoronganImport::find($duplikat['import_lama']['id']);
                     if ($importLama) {
                         $this->cleanupBoronganImport($importLama);
                     }
+                }
+
+                if (!empty($approvedDates)) {
+                    $validSheets = array_values(array_filter($validSheets, fn($s) => !in_array($s['tanggal'], $approvedDates)));
                 }
             }
 
@@ -438,7 +440,7 @@ class BoronganController extends Controller
 
                     $nipCol = $nipCol ?? 2;
                     $namaCol = $namaCol ?? 3;
-                    $dataStart = $headerRowFound ? $headerRowFound + 2 : 4;
+                    $dataStart = $headerRowFound ? $headerRowFound + 1 : 3;
 
                     if (!$totalUpahCol) {
                         for ($c = 1; $c <= $highestColIndex; $c++) {
@@ -596,21 +598,23 @@ class BoronganController extends Controller
             }
 
             if (!empty($duplikatDitemukan) && $confirmRevisi) {
-                foreach ($duplikatDitemukan as $duplikat) {
-                    if ($duplikat['import_lama']['status'] === 'approved') {
-                        $msgApproved = "Tidak bisa revisi tanggal {$duplikat['tanggal']} karena data sudah di-approve. Undo Upload manual dulu.";
-                        if ($request->expectsJson()) {
-                            return response()->json(['success' => false, 'message' => $msgApproved], 422);
-                        }
-                        return back()->with('error', $msgApproved);
-                    }
-                }
+                $approvedDates = [];
 
                 foreach ($duplikatDitemukan as $duplikat) {
+                    if ($duplikat['import_lama']['status'] === 'approved') {
+                        $approvedDates[] = $duplikat['tanggal'];
+                        $skippedSheets[] = $duplikat['sheet'] . " (tanggal {$duplikat['tanggal']} sudah approved, di-skip)";
+                        continue;
+                    }
+
                     $importLama = BoronganImport::find($duplikat['import_lama']['id']);
                     if ($importLama) {
                         $this->cleanupBoronganImport($importLama);
                     }
+                }
+
+                if (!empty($approvedDates)) {
+                    $validSheets = array_values(array_filter($validSheets, fn($s) => !in_array($s['tanggal'], $approvedDates)));
                 }
             }
 

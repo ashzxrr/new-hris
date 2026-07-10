@@ -176,7 +176,7 @@
             @if($harianDetailCount === 0)
                 <div class="text-center py-6">
                     <p class="text-sm text-slate-400 mb-3">Belum ditarik</p>
-                    <button type="button" onclick="openTarikAbsensiModal()"
+                    <button type="button" onclick="tarikAbsensiDirect(this)"
                         class="inline-block bg-[#4F46E5] text-white px-3 py-2 rounded-lg text-xs hover:bg-[#4338CA] transition">
                         Tarik Data
                     </button>
@@ -189,7 +189,7 @@
                         <p class="text-xs text-slate-400">karyawan</p>
                     </div>
                     <div class="flex flex-col gap-2">
-                        <button type="button" onclick="openTarikAbsensiModal()"
+                        <button type="button" onclick="tarikAbsensiDirect(this)"
                             class="w-full text-center border border-[#4F46E5] text-[#4F46E5] px-3 py-2 rounded-lg text-xs hover:bg-indigo-50 transition font-medium">
                             Tarik Data
                         </button>
@@ -203,33 +203,7 @@
         </div>
     </div>
 
-    <div id="tarikAbsensiModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div class="flex items-start justify-between px-5 py-4 border-b border-[#E5E7EB]">
-                <div>
-                    <h3 class="font-semibold text-slate-800">Tarik Data Absensi</h3>
-                    <p class="text-xs text-slate-400 mt-1">Pilih tanggal untuk mengambil data dari fingerprint.</p>
-                </div>
-                <button type="button" onclick="closeTarikAbsensiModal()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
-            </div>
-
-            <form id="tarikAbsensiForm" class="p-5 space-y-4">
-                @csrf
-                <div id="tarikAbsensiResult" class="hidden rounded-lg border border-[#E5E7EB] p-3 text-sm"></div>
-
-                <div class="flex justify-end gap-2">
-                    <button type="button" onclick="closeTarikAbsensiModal()"
-                        class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50">
-                        Batal
-                    </button>
-                    <button type="submit"
-                        class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA] font-medium">
-                        Tarik Data
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+    {{-- Tarik Data modal removed; Tarik Data now triggers directly on button click --}}
 
     {{-- Grand Total Section --}}
     <div class="bg-white rounded-2xl border border-[#E5E7EB] p-6">
@@ -350,43 +324,11 @@
 @endsection
 
 <script>
-    function openTarikAbsensiModal() {
-        const modal = document.getElementById('tarikAbsensiModal');
-        const resultBox = document.getElementById('tarikAbsensiResult');
-
-        if (resultBox) {
-            resultBox.classList.add('hidden');
-            resultBox.innerHTML = '';
-        }
-
-        if (modal) {
-            modal.classList.remove('hidden');
-        }
-    }
-
-    function closeTarikAbsensiModal() {
-        const modal = document.getElementById('tarikAbsensiModal');
-        if (modal) {
-            modal.classList.add('hidden');
-        }
-    }
-
-    document.getElementById('tarikAbsensiModal')?.addEventListener('click', function (e) {
-        if (e.target === this) {
-            closeTarikAbsensiModal();
-        }
-    });
-
-    document.getElementById('tarikAbsensiForm')?.addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        const resultBox = document.getElementById('tarikAbsensiResult');
-        const submitButton = this.querySelector('button[type="submit"]');
-
-        if (submitButton) {
-            submitButton.disabled = true;
-            submitButton.textContent = 'Memproses...';
-        }
+    function tarikAbsensiDirect(btn) {
+        if (!btn) return;
+        const origText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Memproses...';
 
         fetch('{{ route('payroll.tarikAbsensi', $payroll->id) }}', {
             method: 'POST',
@@ -394,34 +336,23 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json'
-            }
+            },
+            body: JSON.stringify({})
         })
         .then(r => r.json())
         .then(data => {
             if (!data.success) {
                 throw new Error(data.message || 'Gagal menarik data absensi.');
             }
-
-            if (resultBox) {
-                resultBox.classList.remove('hidden');
-                resultBox.className = 'rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700';
-                resultBox.innerHTML = `Sync selesai. <strong>${data.updated}</strong> karyawan diperbarui.`;
-            }
+            // refresh page to show updated counts
+            location.reload();
         })
         .catch(e => {
-            if (resultBox) {
-                resultBox.classList.remove('hidden');
-                resultBox.className = 'rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600';
-                resultBox.textContent = e.message;
-            }
-        })
-        .finally(() => {
-            if (submitButton) {
-                submitButton.disabled = false;
-                submitButton.textContent = 'Tarik Data';
-            }
+            alert(e.message);
+            btn.disabled = false;
+            btn.textContent = origText;
         });
-    });
+    }
 
     (function(){
         function formatRp(n){

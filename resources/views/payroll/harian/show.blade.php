@@ -239,6 +239,7 @@ const payrollIsDraft = {{ $payroll->status === 'draft' ? 'true' : 'false' }};
 let currentDetailId  = null;
 let currentDetailNominal = 0;
 let detailRows = [];
+let serverDetail = null;
 
 function openDetailModal(detailId, nama, nip, tambahan, potongan, keterangan) {
     currentDetailId = detailId;
@@ -260,11 +261,15 @@ function openDetailModal(detailId, nama, nip, tambahan, potongan, keterangan) {
     .then(r => r.json())
     .then(data => {
         detailRows = data.rows;
+        serverDetail = data.detail;
         renderDetailTable(data.rows);
         document.getElementById('detailLoading').classList.add('hidden');
         document.getElementById('detailContent').classList.remove('hidden');
         document.getElementById('detailFooter').classList.remove('hidden');
         updateTotalLabel();
+        // update when tambahan/potongan inputs change
+        document.getElementById('detail_tambahan').addEventListener('input', updateTotalLabel);
+        document.getElementById('detail_potongan').addEventListener('input', updateTotalLabel);
     })
     .catch(e => {
         alert('Gagal memuat data: ' + e.message);
@@ -359,9 +364,23 @@ function updateDetailRow(i, field, value) {
 }
 
 function updateTotalLabel() {
-    // Just display static from loaded – will refresh on save
     const totalEl = document.getElementById('detailTotalLabel');
-    // Can't calculate easily without nominal on frontend, just leave as refreshed after save
+    if (!serverDetail) {
+        totalEl.textContent = 'Rp 0';
+        return;
+    }
+
+    const origTambahan = parseInt(serverDetail.tambahan || 0) || 0;
+    const origPotongan = parseInt(serverDetail.potongan || 0) || 0;
+    const loadedTotal = parseInt(serverDetail.total_gaji || 0) || 0;
+
+    const tambahan = parseInt(document.getElementById('detail_tambahan').value) || 0;
+    const potongan = parseInt(document.getElementById('detail_potongan').value) || 0;
+
+    // Recalculate total by adjusting the loaded total with changed tambahan/potongan
+    const newTotal = loadedTotal - origTambahan + tambahan - (potongan - origPotongan);
+
+    totalEl.textContent = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(newTotal);
 }
 
 function submitDetail() {
