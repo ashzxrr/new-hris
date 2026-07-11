@@ -23,6 +23,10 @@
                 class="border border-[#22C55E] text-[#22C55E] px-4 py-2 rounded-lg text-sm hover:bg-green-50 transition">
                 📄 Export Slip Gaji
             </a>
+            <a href="{{ route('payroll.exportHarian', $payroll->id) }}"
+                class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50">
+                📥 Export Excel
+            </a>
             @if($payroll->status === 'draft')
             <form method="POST" action="{{ route('payroll.finalize', $payroll->id) }}">
                 @csrf @method('PUT')

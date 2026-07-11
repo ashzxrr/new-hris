@@ -72,6 +72,7 @@ Route::middleware('auth:admin')->group(function () {
             Route::get('/{id}/pengajuan',            [PayrollController::class, 'showPengajuan'])->name('pengajuan');
             Route::get('/{id}/export-pengajuan',     [PayrollController::class, 'exportPengajuan'])->name('exportPengajuan');
             Route::get('/{id}/harian',               [PayrollController::class, 'showHarian'])->name('harian.show');
+            Route::get('/{id}/export-harian',        [PayrollController::class, 'exportHarian'])->name('exportHarian');
             Route::post('/{id}/tarik-absensi',       [PayrollController::class, 'tarikAbsensi'])->name('tarikAbsensi');
             Route::get('/{id}/export-slip',          [PayrollController::class, 'exportSlipGaji'])->name('export.slip');
             Route::put('/detail/{id}',               [PayrollController::class, 'updateDetail'])->name('detail.update');

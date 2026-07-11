@@ -1172,6 +1172,56 @@ class PayrollController extends Controller
     }
 
     // ========================
+    // EXPORT HARIAN — Excel Payroll Harian
+    // ========================
+    public function exportHarian($id)
+    {
+        $payroll = Payroll::findOrFail($id);
+        $details = PayrollDetail::where('payroll_id', $id)->orderBy('nama')->get();
+
+        $bagianMap = User::whereIn('nip', $details->pluck('nip'))->pluck('bagian', 'nip');
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Payroll Harian');
+
+        $headers = ['NIP', 'Nama', 'Bagian', 'Hadir', 'Alpha', 'Izin', 'Sakit', 'ST', 'Gaji Pokok', 'Lembur', 'Tambahan', 'Potongan', 'Total'];
+        $sheet->fromArray($headers, null, 'A1');
+        $sheet->getStyle('A1:M1')->getFont()->setBold(true);
+
+        $r = 2;
+        foreach ($details as $d) {
+            $sheet->fromArray([
+                $d->nip,
+                $d->nama,
+                $bagianMap[$d->nip] ?? '-',
+                $d->hadir,
+                $d->alpha,
+                $d->izin,
+                $d->sakit,
+                $d->setengah_hari,
+                $d->gaji_pokok,
+                $d->gaji_lembur ?? 0,
+                $d->tambahan ?? 0,
+                $d->potongan ?? 0,
+                $d->total_gaji,
+            ], null, 'A' . $r);
+            $r++;
+        }
+
+        foreach (range('A', 'M') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $filename = 'Payroll_Harian_' . $payroll->periode . '.xlsx';
+        $writer = new Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), 'export');
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, $filename)->deleteFileAfterSend(true);
+    }
+
+    // ========================
     // GET KOREKSI DATA — untuk modal
     // ========================
     public function getKoreksiData(Request $request, $detailId)

@@ -192,18 +192,18 @@
 
 {{-- Modal Detail --}}
 <div id="mutasiModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4">
-        <div class="p-6">
-            <h3 class="font-semibold text-slate-800 mb-1">Konfirmasi Mutasi</h3>
-            <p class="text-sm text-slate-600 mb-4" id="mutasiModalDesc"></p>
-            <div class="flex gap-3">
-                <button onclick="resolveMutasi('rejected')" class="flex-1 border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-50">
-                    Ini Kesalahan
-                </button>
-                <button onclick="resolveMutasi('confirmed')" class="flex-1 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700">
-                    Konfirmasi Mutasi
-                </button>
-            </div>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5">
+        <h3 class="font-semibold text-slate-800 mb-1">Konfirmasi Mutasi</h3>
+        <p class="text-sm text-slate-600 mb-4" id="mutasiModalDesc"></p>
+
+        <button onclick="resolveMutasi('confirmed')" class="w-full bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700 mb-2">
+            ✅ Konfirmasi Mutasi (data valid di kedua jenis)
+        </button>
+
+        <p class="text-xs text-slate-500 mt-3 mb-1">Atau tandai kesalahan input di salah satu jenis:</p>
+        <div class="flex gap-2">
+            <button id="mutasiWrongA" onclick="resolveMutasi('rejected', 'a')" class="flex-1 border border-red-300 text-red-600 px-3 py-2 rounded-lg text-xs hover:bg-red-50"></button>
+            <button id="mutasiWrongB" onclick="resolveMutasi('rejected', 'b')" class="flex-1 border border-red-300 text-red-600 px-3 py-2 rounded-lg text-xs hover:bg-red-50"></button>
         </div>
     </div>
 </div>
@@ -533,16 +533,7 @@ document.getElementById('searchReview').addEventListener('input', function() {
     });
 });
 
-let currentMutasiLogId = null;
-
-function openMutasiModal(logId, nip, nama, jenisA, jenisB) {
-    currentMutasiLogId = logId;
-    document.getElementById('mutasiModalDesc').textContent = 
-        `${nama} (${nip}) terdeteksi muncul di jenis "${jenisA.toUpperCase()}" DAN "${jenisB.toUpperCase()}" dalam periode ini. Apakah ini benar (mutasi/pindah jenis kerja), atau ini kesalahan input?`;
-    document.getElementById('mutasiModal').classList.remove('hidden');
-}
-
-function resolveMutasi(status) {
+function resolveMutasi_old(status) {
     fetch(`{{ url('borongan/mutasi') }}/${currentMutasiLogId}/resolve`, {
         method: 'POST',
         headers: {
@@ -683,6 +674,34 @@ function applyBulkUpah() {
         if (data.skipped && data.skipped.length) msg += ` ${data.skipped.length} dilewati (multi-kategori, edit manual via Detail).`;
         alert(msg);
         location.reload();
+    })
+    .catch(e => alert('Gagal: ' + e.message));
+}
+
+let currentMutasiLogId = null;
+
+function openMutasiModal(logId, nip, nama, jenisA, jenisB) {
+    currentMutasiLogId = logId;
+    document.getElementById('mutasiModalDesc').textContent = 
+        `${nama} (${nip}) terdeteksi muncul di jenis "${jenisA.toUpperCase()}" DAN "${jenisB.toUpperCase()}" dalam periode ini. Apakah ini benar (mutasi/pindah jenis kerja), atau ini kesalahan input?`;
+    document.getElementById('mutasiWrongA').textContent = `❌ Salah di ${jenisA.toUpperCase()}`;
+    document.getElementById('mutasiWrongB').textContent = `❌ Salah di ${jenisB.toUpperCase()}`;
+    document.getElementById('mutasiModal').classList.remove('hidden');
+}
+
+function resolveMutasi(status, wrongSide = null) {
+    fetch(`{{ url('borongan/mutasi') }}/${currentMutasiLogId}/resolve`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+        },
+        body: JSON.stringify({ status: status, wrong_side: wrongSide })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) window.location.reload();
+        else alert(data.message || 'Gagal menyimpan.');
     })
     .catch(e => alert('Gagal: ' + e.message));
 }

@@ -523,7 +523,7 @@ class BoronganController extends Controller
                 }
 
                 // Persist this sheet's import and rows
-                $persistSheet($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $file, $sheetNameTrim, $tanggalFinal);
+                $persistSheet($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $file, $sheetName, $tanggalFinal);
             }
 
             // After processing all sheets, redirect with summary
@@ -768,7 +768,7 @@ class BoronganController extends Controller
                     continue;
                 }
 
-                $persistSheet($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $file1, $sheetNameTrim, $tanggalFinal);
+                $persistSheet($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $file1, $sheetName, $tanggalFinal);
             }
 
             $msg = "Processed {$processedCount} sheet(s).";
@@ -1276,10 +1276,11 @@ class BoronganController extends Controller
         $byJenis = $imports->groupBy('jenis');
 
         $pairs = [
-            ['cabut', 'cetak'],
+            ['cabut', 'hcr'],
             ['cabut', 'moulding'],
-            ['cetak', 'moulding'],
+            ['hcr', 'moulding'],
         ];
+
 
         foreach ($pairs as [$jenisA, $jenisB]) {
             $listA = $byJenis[$jenisA] ?? collect();
@@ -1330,12 +1331,27 @@ class BoronganController extends Controller
 
     public function resolveMutasi(Request $request, $logId)
     {
-        $request->validate(['status' => 'required|in:confirmed,rejected']);
+        $request->validate([
+            'status' => 'required|in:confirmed,rejected',
+            'wrong_side' => 'required_if:status,rejected|in:a,b',
+        ]);
 
         $log = BoronganMutasiLog::findOrFail($logId);
+
+        if ($request->status === 'rejected') {
+            $wrongImportId = $request->wrong_side === 'a' ? $log->import_id_a : $log->import_id_b;
+
+            BoronganHarian::where('borongan_import_id', $wrongImportId)
+                ->where('nip', $log->nip)
+                ->delete();
+            BoronganRekap::where('borongan_import_id', $wrongImportId)
+                ->where('nip', $log->nip)
+                ->delete();
+        }
+
         $log->update([
             'status' => $request->status,
-            'resolved_by' => auth()->id(),
+            'resolved_by' => Auth::guard('admin')->id(),
             'resolved_at' => now(),
         ]);
 
