@@ -575,6 +575,7 @@ function applyBulkTraining() {
     });
 }
 
+
 function openRevisiModal() {
     document.getElementById('revisiModal').classList.remove('hidden');
 }
