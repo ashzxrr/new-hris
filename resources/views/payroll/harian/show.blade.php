@@ -28,6 +28,12 @@
                 📥 Export Excel
             </a>
             @if($payroll->status === 'draft')
+            <button type="button" onclick="syncAllDetails()"
+                class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA] transition">
+                🔄 Sync Semua
+            </button>
+            @endif
+            @if($payroll->status === 'draft')
             <form method="POST" action="{{ route('payroll.finalize', $payroll->id) }}">
                 @csrf @method('PUT')
                 <button type="submit"
@@ -239,6 +245,41 @@
 
 <script>
 const payrollIsDraft = {{ $payroll->status === 'draft' ? 'true' : 'false' }};
+
+function syncAllDetails() {
+    if (!confirm('Sinkronkan semua data karyawan dari absensi dan koreksi?')) return;
+
+    const button = event?.currentTarget || null;
+    if (button) {
+        button.disabled = true;
+        button.textContent = 'Memproses...';
+    }
+
+    fetch('{{ route('payroll.syncAll', $payroll->id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            throw new Error(data.message || 'Gagal sinkronisasi.');
+        }
+        alert(`${data.updated} data berhasil disinkronkan.`);
+        location.reload();
+    })
+    .catch(e => {
+        alert(e.message);
+        if (button) {
+            button.disabled = false;
+            button.textContent = '🔄 Sync Semua';
+        }
+    });
+}
 
 let currentDetailId  = null;
 let currentDetailNominal = 0;

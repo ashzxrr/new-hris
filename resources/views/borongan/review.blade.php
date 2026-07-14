@@ -96,8 +96,15 @@
             <input type="checkbox" id="highlightLowWage" class="rounded border-[#E5E7EB] text-amber-500 focus:ring-amber-500/30">
             Highlight upah < Rp 50.000
         </label>
-        <input type="text" id="searchReview" placeholder="Cari NIP atau Nama..."
-            class="w-full md:w-[360px] border border-[#E5E7EB] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
+        <div class="flex items-center gap-2 w-full md:w-auto">
+            <select id="filterStatus" class="border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm">
+                <option value="semua">Semua</option>
+                <option value="ada">Yang Ada Data</option>
+                <option value="kosong">Yang Kosong (Tidak Ada Data)</option>
+            </select>
+            <input type="text" id="searchReview" placeholder="Cari NIP atau Nama..."
+                class="w-full md:w-[360px] border border-[#E5E7EB] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
+        </div>
     </div>
 
     {{-- Bulk action bar (hidden until selection) --}}
@@ -114,6 +121,10 @@
         <button type="button" onclick="applyBulkTraining()"
             class="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-amber-600">
             Set Tambahan Training
+        </button>
+        <button type="button" onclick="hapusTerpilih()"
+            class="bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-red-600">
+            🗑️ Hapus Terpilih
         </button>
     </div>
 
@@ -145,7 +156,8 @@
                 <tr class="review-row rowClickable cursor-pointer border-b border-[#E5E7EB]/50 {{ $item['is_flagged'] ? 'bg-amber-50' : 'hover:bg-[#F8FAFC]' }}"
                     data-nip="{{ strtolower($item['nip']) }}"
                     data-nama="{{ strtolower($item['nama']) }}"
-                    data-upah="{{ $item['total_upah'] }}">
+                    data-upah="{{ $item['total_upah'] }}"
+                    data-status="{{ $item['is_kosong'] ? 'kosong' : 'ada' }}">
                     <td class="px-4 py-3"><input type="checkbox" class="rowCheck" value="{{ $item['nip'] }}"></td>
                     <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ $item['nip'] }}</td>
                     <td class="px-4 py-3 font-medium text-slate-800">
@@ -322,6 +334,13 @@ function openReviewModal(importId, nip, nama) {
                 const flagCell = job.is_flagged
                     ? `<span class="text-xs text-amber-500" title="${job.flag_reason || ''}">⚠️</span>`
                     : `<span class="text-xs text-green-500">✅</span>`;
+                const specialFlag = (job.flag_reason || '') === 'Tidak ada data pada tanggal ini';
+                const actionCell = specialFlag
+                    ? `<div class="flex flex-col items-center gap-1 mt-1">
+                        <button type="button" onclick="konfirmasiKosong(${job.id})" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200">✅ Konfirmasi Tidak Masuk</button>
+                        <button type="button" onclick="hapusDariDaftar(${job.id})" class="text-[10px] bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200">🗑️ Hapus dari Daftar</button>
+                    </div>`
+                    : '';
                 const selisihClass = Math.abs(job.selisih) > 1000 ? 'text-red-500' : 'text-slate-400';
                 const trainingCell = hasTraining ? `<td class="px-3 py-1.5 text-green-600">${(job.tambahan_training>0)? ('Rp ' + job.tambahan_training.toLocaleString('id-ID')) : '-'}</td>` : '';
                 tbody.innerHTML += `
@@ -337,7 +356,12 @@ function openReviewModal(importId, nip, nama) {
                     </td>
                     <td class="px-3 py-1.5 text-right font-medium text-red-500">Rp <span class="potongan-${job.id}">${job.potongan.toLocaleString('id-ID')}</span></td>
                         ${trainingCell}
-                        <td class="px-3 py-1.5 text-center">${flagCell}</td>
+                        <td class="px-3 py-1.5 text-center">
+                            <div class="flex flex-col items-center">
+                                ${flagCell}
+                                ${actionCell}
+                            </div>
+                        </td>
                 </tr>`;
             });
             // Subtotal per tanggal
@@ -473,6 +497,40 @@ function applyHighlightLowWage() {
 
 document.getElementById('highlightLowWage').addEventListener('change', applyHighlightLowWage);
 
+document.getElementById('filterStatus').addEventListener('change', function() {
+    const val = this.value;
+    document.querySelectorAll('.rowClickable').forEach(row => {
+        const status = row.dataset.status;
+        row.style.display = (val === 'semua' || status === val) ? '' : 'none';
+    });
+});
+
+function hapusTerpilih() {
+    const nips = [...document.querySelectorAll('.rowCheck:checked')].map(cb => cb.value);
+    if (nips.length === 0) return;
+    if (!confirm(`Hapus ${nips.length} karyawan terpilih dari daftar tanggal ini?`)) return;
+
+    fetch('{{ route('borongan.bulkHapusKosong', $import->id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({ nips })
+    })
+    .then(r => r.json())
+    .then(data => {
+        let msg = `${data.deleted} baris dihapus.`;
+        const skippedNames = Object.values(data.skipped || {});
+        if (skippedNames.length > 0) {
+            msg += `\n\n${skippedNames.length} dilewati (punya data asli, bukan baris kosong): ${skippedNames.join(', ')}`;
+        }
+        alert(msg);
+        location.reload();
+    });
+}
+
 function recalculateReviewModalTotals() {
     const tbody = document.getElementById('reviewModalBody');
     const rows = Array.from(tbody.querySelectorAll('tr'));
@@ -511,6 +569,32 @@ function recalculateReviewModalTotals() {
         totalEl.textContent = `Total Upah (NIP ini): Rp ${totalUpah.toLocaleString('id-ID')}`;
         totalEl.classList.remove('hidden');
     }
+}
+
+function konfirmasiKosong(harianId) {
+    fetch(`{{ url('borongan/harian') }}/${harianId}/konfirmasi-kosong`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            'Accept': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(() => location.reload());
+}
+
+function hapusDariDaftar(harianId) {
+    if (!confirm('Hapus karyawan ini dari daftar tanggal ini?')) return;
+
+    fetch(`{{ url('borongan/harian') }}/${harianId}/hapus-daftar`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            'Accept': 'application/json'
+        }
+    })
+    .then(r => r.json())
+    .then(() => location.reload());
 }
 
 function closeReviewModal() {

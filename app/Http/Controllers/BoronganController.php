@@ -53,7 +53,7 @@ class BoronganController extends Controller
         $duplikatDitemukan = [];
 
         // Helper to create import and persist parsed rows for a single sheet
-        $persistSheet = function ($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $fileForName, $sheetLabel, $tanggalFinal) use ($request, &$processedCount, &$hasilPerSheet) {
+        $persistSheet = function ($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $fileForName, $sheetLabel, $tanggalFinal) use ($request, &$processedCount, &$hasilPerSheet, $usersByNip) {
             DB::beginTransaction();
             try {
                 $import = BoronganImport::create([
@@ -72,6 +72,53 @@ class BoronganController extends Controller
                     $row['borongan_import_id'] = $import->id;
                     $row['status'] = 'pending';
                     BoronganHarian::create($row);
+                }
+
+                // Isi karyawan yang seharusnya ada di jenis ini tapi tidak muncul di file (gram=0)
+                $kategoriGajiMap = [
+                    'cabut'    => 'Borongan Cabut',
+                    'moulding' => 'borongan cetak',
+                    'hcr'      => 'Borongan Titil',
+                ];
+                $kategoriGajiTarget = $kategoriGajiMap[$request->jenis] ?? null;
+
+                $nipSudahAda = collect($parsedDataSheet)->pluck('nip')->map(fn($n) => trim(strtoupper($n)))->unique();
+
+                $nipHistoris = BoronganHarian::whereHas('import', function ($q) use ($request) {
+                        $q->where('jenis', $request->jenis);
+                    })
+                    ->pluck('nip')
+                    ->map(fn($n) => trim(strtoupper($n)))
+                    ->unique();
+
+                // Filter: hanya NIP yang beneran terdaftar di master karyawan (buang sampah dari data korup lama)
+                $validNipSet = User::pluck('nip')->map(fn($n) => trim(strtoupper($n)))->filter()->unique();
+                $nipHistoris = $nipHistoris->intersect($validNipSet);
+
+                $nipKategoriGaji = $kategoriGajiTarget
+                    ? User::where('kategori_gaji', $kategoriGajiTarget)->pluck('nip')->map(fn($n) => trim(strtoupper($n)))->unique()
+                    : collect();
+
+                $nipWajibAda = $nipHistoris->merge($nipKategoriGaji)->unique()->diff($nipSudahAda);
+
+                foreach ($nipWajibAda as $nipMissing) {
+                    $user = collect($usersByNip)->first(fn($u, $k) => trim(strtoupper($k)) === $nipMissing);
+
+                    BoronganHarian::create([
+                        'borongan_import_id' => $import->id,
+                        'pin'         => $user->pin ?? null,
+                        'nip'         => $nipMissing,
+                        'nama'        => $user->nama ?? '(NIP tidak ditemukan)',
+                        'tanggal'     => $tanggalFinal,
+                        'kategori'    => '-',
+                        'berat_gram'  => 0,
+                        'upah_sistem' => 0,
+                        'upah_file'   => 0,
+                        'selisih'     => 0,
+                        'is_flagged'  => true,
+                        'flag_reason' => 'Tidak ada data pada tanggal ini',
+                        'status'      => 'pending',
+                    ]);
                 }
 
                 DB::commit();
@@ -862,6 +909,7 @@ class BoronganController extends Controller
                     'total_upah'  => $rows->sum('upah_sistem'),
                     'is_flagged'  => $rows->contains('is_flagged', true),
                     'flag_count'  => $rows->where('is_flagged', true)->count(),
+                    'is_kosong'   => $rows->contains(fn($r) => $r->flag_reason === 'Tidak ada data pada tanggal ini'),
                 ];
             })
             ->sortBy('nama')
@@ -869,6 +917,27 @@ class BoronganController extends Controller
 
         $payrollId = $import->payroll_id;
         return view('borongan.review', compact('import', 'items', 'payrollId', 'pendingMutasi', 'siblingImports'));
+    }
+
+    public function bulkHapusKosong(Request $request, $id)
+    {
+        $request->validate(['nips' => 'required|array|min:1']);
+
+        $rows = BoronganHarian::where('borongan_import_id', $id)
+            ->whereIn('nip', $request->nips)
+            ->get();
+
+        $toDelete = $rows->where('flag_reason', 'Tidak ada data pada tanggal ini');
+        $skipped = $rows->where('flag_reason', '!=', 'Tidak ada data pada tanggal ini')
+            ->pluck('nama', 'nip')->toArray();
+
+        BoronganHarian::whereIn('id', $toDelete->pluck('id'))->delete();
+
+        return response()->json([
+            'success' => true,
+            'deleted' => $toDelete->count(),
+            'skipped' => $skipped,
+        ]);
     }
 
     public function getReviewDetail(Request $request, $id, $nip)
@@ -1035,9 +1104,38 @@ class BoronganController extends Controller
         return response()->json(['success' => true, 'updated' => $updated, 'skipped' => $skipped]);
     }
 
+    public function konfirmasiTidakMasuk($harianId)
+    {
+        $harian = BoronganHarian::findOrFail($harianId);
+        $harian->update(['is_flagged' => false, 'flag_reason' => null]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function hapusDariDaftar($harianId)
+    {
+        $harian = BoronganHarian::findOrFail($harianId);
+        $harian->delete();
+
+        return response()->json(['success' => true]);
+    }
+
     public function approve($id)
     {
         $import = BoronganImport::findOrFail($id);
+
+        $adaBelumDikonfirmasi = BoronganHarian::where('borongan_import_id', $id)
+            ->where('is_flagged', true)
+            ->where('flag_reason', 'Tidak ada data pada tanggal ini')
+            ->exists();
+
+        if ($adaBelumDikonfirmasi) {
+            $msg = 'Masih ada karyawan yang belum dikonfirmasi statusnya (tidak ada data pada tanggal ini). Buka Detail per karyawan untuk konfirmasi atau hapus dari daftar.';
+            if (request()->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return back()->with('error', $msg);
+        }
 
         $payrollId = $import->payroll_id;
         $pendingCount = BoronganMutasiLog::where('payroll_id', $payrollId)->where('status', 'pending')->count();

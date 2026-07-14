@@ -210,19 +210,14 @@
         <div class="flex items-center justify-between mb-4">
             <h2 class="font-semibold text-slate-800">Grand Total</h2>
             <div class="flex items-center gap-3">
-                @if($bisaGenerateGrandTotal)
-                    <form method="POST" action="{{ route('payroll.generateGrandTotal', $payroll->id) }}" onsubmit="return confirm('Generate Grand Total untuk periode ini? Data lama (jika ada) akan ditimpa.')">
-                        @csrf
-                        <button type="submit" class="inline-flex items-center gap-2 bg-[#6D28D9] text-white px-4 py-2 rounded-full text-sm hover:bg-[#5B21B6] shadow-md">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 011-1h4a1 1 0 110 2H5v12h10V4h-3a1 1 0 110-2h4a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3z" /></svg>
-                            Generate Grand Total
-                        </button>
-                    </form>
-                @else
-                    <button disabled class="bg-slate-200 text-slate-400 px-4 py-2 rounded-full text-sm cursor-not-allowed">
+                <form id="generateGrandTotalForm" method="POST" action="{{ route('payroll.generateGrandTotal', $payroll->id) }}" onsubmit="return confirmGenerateGrandTotal(event)">
+                    @csrf
+                    <input type="hidden" name="force" id="forceGrandTotal" value="0">
+                    <button type="submit" class="inline-flex items-center gap-2 bg-[#6D28D9] text-white px-4 py-2 rounded-full text-sm hover:bg-[#5B21B6] shadow-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 011-1h4a1 1 0 110 2H5v12h10V4h-3a1 1 0 110-2h4a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3z" /></svg>
                         Generate Grand Total
                     </button>
-                @endif
+                </form>
             </div>
         </div>
 
@@ -231,7 +226,7 @@
         {{-- Controls: search + section filter + visible total --}}
         @php
             $sectionOptions = isset($grandTotals) ? $grandTotals->pluck('section')->unique()->filter()->values() : collect();
-            $sectionLabels = ['cabut' => 'Cabut', 'moulding' => 'Moulding', 'harian' => 'Harian'];
+            $sectionLabels = ['cabut' => 'Cabut', 'hcr' => 'Titil Hcr', 'moulding' => 'Moulding', 'harian' => 'Harian'];
         @endphp
         <div class="flex flex-wrap items-center gap-3 mb-4">
             <input id="searchGrandTotal" type="text" placeholder="Cari NIP atau Nama..."
@@ -324,6 +319,22 @@
 @endsection
 
 <script>
+    function confirmGenerateGrandTotal(e) {
+        e.preventDefault();
+        const form = document.getElementById('generateGrandTotalForm');
+
+        @if(!$bisaGenerateGrandTotal)
+            const lanjut = confirm('⚠️ Belum semua jenis di-approve / periode belum final.\n\nGenerate Grand Total sekarang tetap bisa dilakukan, tapi datanya mungkin belum lengkap. Lanjutkan?');
+            if (!lanjut) return false;
+            document.getElementById('forceGrandTotal').value = '1';
+        @else
+            if (!confirm('Generate Grand Total untuk periode ini? Data lama (jika ada) akan ditimpa.')) return false;
+        @endif
+
+        form.submit();
+        return false;
+    }
+
     function tarikAbsensiDirect(btn) {
         if (!btn) return;
         const origText = btn.textContent;

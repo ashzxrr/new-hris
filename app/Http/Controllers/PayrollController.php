@@ -99,7 +99,7 @@ class PayrollController extends Controller
             ->whereBetween('tanggal', [$dari, $sampai])
             ->get()
             ->groupBy('pin')
-            ->map(fn($n) => $n->keyBy('tanggal'));
+            ->map(fn($n) => $n->keyBy(fn($c) => \Carbon\Carbon::parse($c->tanggal)->format('Y-m-d')));
 
         // Build periode
         $periode = [];
@@ -535,6 +535,41 @@ class PayrollController extends Controller
         return response()->download($tmpFile, $fileName)->deleteFileAfterSend(true);
     }
 
+    private function resolveAttendanceDay($correction, $dayLogs, $absenceNotes, $pin, $tgl)
+    {
+        $jamOut = null;
+        $status = null;
+
+        $lemburMenit = 0;
+
+        if ($correction) {
+            $jamIn = $correction->jam_in;
+            $jamOut = $correction->jam_out;
+            $status = $correction->status;
+            $lemburMenit = $correction->lembur_approved ? intval($correction->lembur_menit ?? 0) : 0;
+
+            $hasLemburData = ($lemburMenit > 0) || (!empty($correction->lembur_approved)) || (($correction->lembur_menit ?? 0) > 0);
+            $isBlankHCorrection = !$jamIn && !$jamOut && $status === 'H' && empty($correction->keterangan) && !$hasLemburData;
+            if ($isBlankHCorrection) {
+                $correction = null;
+                $lemburMenit = 0;
+            }
+        }
+
+        if (!$correction) {
+            $inTimes = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string) $l->datetime));
+            $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string) $l->datetime));
+            $inTs = $inTimes->isNotEmpty() ? $inTimes->min() : null;
+            $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
+            $jamOut = $outTs ? date('H:i', $outTs) : null;
+
+            $note = $absenceNotes[$tgl] ?? null;
+            $status = ($inTs || $outTs) ? 'H' : ($note ? $note->code : 'A');
+        }
+
+        return ['status' => $status, 'jam_out' => $jamOut, 'lembur_menit' => $lemburMenit];
+    }
+
     public function tarikAbsensi($id)
     {
         $payroll = Payroll::findOrFail($id);
@@ -570,7 +605,7 @@ class PayrollController extends Controller
             ->whereBetween('tanggal', [$dari, $sampai])
             ->get()
             ->groupBy('pin')
-            ->map(fn($n) => $n->keyBy('tanggal'));
+            ->map(fn($n) => $n->keyBy(fn($c) => \Carbon\Carbon::parse($c->tanggal)->format('Y-m-d')));
 
         $periode = [];
         $cur = new \DateTime($dari);
@@ -589,30 +624,26 @@ class PayrollController extends Controller
             $nominal = $config ? $config->nominal : 0;
 
             $hadir = $alpha = $izin = $sakit = $lemburMenit = $setengahHari = 0;
+            $existingDetail = PayrollDetail::where('payroll_id', $payroll->id)
+                ->where('pin', $pin)
+                ->first();
+            $tambahan = intval($existingDetail->tambahan ?? 0);
+            $potongan = intval($existingDetail->potongan ?? 0);
 
             foreach ($periode as $tgl) {
                 if (date('N', strtotime($tgl)) == 7) continue;
 
                 $correction = $corrections[$pin][$tgl] ?? null;
-                if ($correction) {
-                    $status = $correction->status;
-                    $jamOut = $correction->jam_out;
-                } else {
-                    $dayKey = $pin . '_' . $tgl;
-                    $dayLogs = $logs[$dayKey] ?? collect();
+                $dayKey = $pin . '_' . $tgl;
+                $dayLogs = $logs[$dayKey] ?? collect();
+                $resolved = $this->resolveAttendanceDay($correction, $dayLogs, $absenceNotes[$pin] ?? [], $pin, $tgl);
+                $status = $resolved['status'];
+                $jamOut = $resolved['jam_out'];
+                $resolvedLemburMenit = intval($resolved['lembur_menit'] ?? 0);
 
-                    $inTimes = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string)$l->datetime));
-                    $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string)$l->datetime));
-
-                    $inTs = $inTimes->isNotEmpty() ? $inTimes->min() : null;
-                    $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
-                    $jamOut = $outTs ? date('H:i', $outTs) : null;
-
-                    $note = $absenceNotes[$pin][$tgl] ?? null;
-                    $status = ($inTs || $outTs) ? 'H' : ($note ? $note->code : 'A');
-                }
-
-                if ($jamOut) {
+                if ($resolvedLemburMenit > 0) {
+                    $lemburMenit += $resolvedLemburMenit;
+                } elseif ($jamOut) {
                     $outTs = strtotime($tgl . ' ' . $jamOut);
                     $threshold = strtotime($tgl . ' 16:30:00');
                     if ($outTs > $threshold) {
@@ -631,7 +662,9 @@ class PayrollController extends Controller
 
             $gajiPokok = ($hadir + $setengahHari) * $nominal;
             $potonganSt = $setengahHari * ($nominal / 2);
-            $totalGaji = $gajiPokok - $potonganSt;
+            $totalJamLemburDibulatkan = $this->bulatkanLemburJam($lemburMenit);
+            $gajiLembur = floor(($nominal / 8) * 1.5 * $totalJamLemburDibulatkan);
+            $totalGaji = $gajiPokok + $gajiLembur + $tambahan - $potongan - $potonganSt;
 
             PayrollDetail::updateOrCreate(
                 ['payroll_id' => $payroll->id, 'pin' => $pin],
@@ -646,6 +679,9 @@ class PayrollController extends Controller
                     'setengah_hari' => $setengahHari,
                     'lembur_menit' => $lemburMenit,
                     'gaji_pokok' => $gajiPokok,
+                    'gaji_lembur' => $gajiLembur,
+                    'tambahan' => $tambahan,
+                    'potongan' => $potongan,
                     'total_gaji' => $totalGaji,
                 ]
             );
@@ -675,9 +711,10 @@ class PayrollController extends Controller
         return view('payroll.harian.show', compact('payroll', 'details'));
     }
 
-    public function generateGrandTotal($id)
+    public function generateGrandTotal(Request $request, $id)
     {
         $payroll = Payroll::findOrFail($id);
+        $force = $request->boolean('force');
 
         $cabutImports = BoronganImport::where('payroll_id', $id)
             ->where('jenis', 'cabut')
@@ -689,15 +726,23 @@ class PayrollController extends Controller
             ->where('jenis', 'moulding')
             ->get();
 
+        $warnings = [];
         foreach (['cabut' => $cabutImports, 'hcr' => $hcrImports, 'moulding' => $mouldingImports] as $type => $imports) {
             $belumApproved = $imports->where('status', '!=', 'approved')->count();
             if ($belumApproved > 0) {
-                return back()->with('error', "Ada {$belumApproved} import jenis {$type} yang belum di-approve. Selesaikan dulu sebelum generate Grand Total.");
+                $warnings[] = "{$belumApproved} import jenis {$type} belum di-approve";
             }
         }
-
         if ($payroll->status !== 'final') {
-            return back()->with('error', 'Periode harus difinalisasi dulu (lewat halaman Harian) sebelum generate Grand Total.');
+            $warnings[] = 'Periode belum difinalisasi (masih status ' . $payroll->status . ')';
+        }
+
+        if (!empty($warnings) && !$force) {
+            $msg = 'Perhatian: ' . implode('; ', $warnings) . '. Yakin tetap generate?';
+            if ($request->expectsJson()) {
+                return response()->json(['need_confirmation' => true, 'warnings' => $warnings, 'message' => $msg], 409);
+            }
+            return back()->with('warning_grand_total', $warnings);
         }
 
         PayrollGrandTotal::where('payroll_id', $id)->delete();
@@ -742,10 +787,10 @@ class PayrollController extends Controller
 
             $adaCabutHcr = BoronganRekap::whereIn('borongan_import_id', $cabutHcrImportIds)
                 ->whereRaw('TRIM(UPPER(nip)) = ?', [$nip])
+                ->where('total_upah', '>', 0)
                 ->exists();
 
             if ($adaCabutHcr) {
-                $section = 'cabut';
                 $rekapByJenis = BoronganRekap::whereIn('borongan_rekap.borongan_import_id', $cabutHcrImportIds)
                     ->whereRaw('TRIM(UPPER(borongan_rekap.nip)) = ?', [$nip])
                     ->join('borongan_imports', 'borongan_rekap.borongan_import_id', '=', 'borongan_imports.id')
@@ -755,13 +800,16 @@ class PayrollController extends Controller
                     ->first();
 
                 if ($rekapByJenis?->jenis === 'hcr') {
+                    $section = 'hcr';
                     $jobLabel = 'Titil Hcr';
                 } else {
+                    $section = 'cabut';
                     $jobLabel = 'Cabut';
                 }
             } else {
                 $adaMoulding = BoronganRekap::whereIn('borongan_import_id', $mouldingImportIds)
                     ->whereRaw('TRIM(UPPER(nip)) = ?', [$nip])
+                    ->where('total_upah', '>', 0)
                     ->exists();
 
                 if ($adaMoulding) {
@@ -885,6 +933,104 @@ class PayrollController extends Controller
     // ========================
     // UPDATE DETAIL — Edit tambahan/potongan
     // ========================
+    public function syncAllDetails($id)
+    {
+        $payroll = Payroll::findOrFail($id);
+
+        $details = PayrollDetail::where('payroll_id', $id)->get();
+        $updated = 0;
+
+        foreach ($details as $detail) {
+            $pin = $detail->pin;
+            $payrollDetail = PayrollDetail::find($detail->id);
+            if (!$payrollDetail) {
+                continue;
+            }
+
+            $dari = $payroll->tanggal_dari->format('Y-m-d');
+            $sampai = $payroll->tanggal_sampai->format('Y-m-d');
+            $periode = [];
+            $cur = new \DateTime($dari);
+            $end = new \DateTime($sampai);
+            while ($cur <= $end) {
+                $periode[] = $cur->format('Y-m-d');
+                $cur->modify('+1 day');
+            }
+
+            $logs = AttendanceLog::where('pin', $pin)
+                ->whereBetween('tanggal', [$dari, $sampai])
+                ->orderBy('datetime')
+                ->get()
+                ->groupBy(fn($l) => $l->pin . '_' . substr((string) $l->tanggal, 0, 10));
+
+            $absenceNotes = AbsenceNote::where('pin', $pin)
+                ->whereBetween('date', [$dari, $sampai])
+                ->get()
+                ->keyBy(fn($i) => $i->date->format('Y-m-d'));
+
+            $corrections = AttendanceCorrection::where('pin', $pin)
+                ->whereBetween('tanggal', [$dari, $sampai])
+                ->get()
+                ->keyBy(fn($c) => \Carbon\Carbon::parse($c->tanggal)->format('Y-m-d'));
+
+            $hadir = $alpha = $izin = $sakit = $lemburMenit = 0;
+            $setengahHari = 0;
+
+            foreach ($periode as $tgl) {
+                if (date('N', strtotime($tgl)) == 7) continue;
+
+                $correction = $corrections[$tgl] ?? null;
+                $dayKey = $pin . '_' . $tgl;
+                $dayLogs = $logs[$dayKey] ?? collect();
+                $resolved = $this->resolveAttendanceDay($correction, $dayLogs, $absenceNotes, $pin, $tgl);
+                $status = $resolved['status'];
+                $jamOut = $resolved['jam_out'];
+                $resolvedLemburMenit = intval($resolved['lembur_menit'] ?? 0);
+
+                if ($resolvedLemburMenit > 0) {
+                    $lemburMenit += $resolvedLemburMenit;
+                } elseif ($jamOut) {
+                    $outTs = strtotime($tgl . ' ' . $jamOut);
+                    $threshold = strtotime($tgl . ' 16:30:00');
+                    if ($outTs > $threshold) {
+                        $lemburMenit += floor(($outTs - $threshold) / 60);
+                    }
+                }
+
+                switch ($status) {
+                    case 'H': $hadir++; break;
+                    case 'A': $alpha++; break;
+                    case 'I': $izin++; break;
+                    case 'S': $sakit++; break;
+                    case 'ST': $setengahHari++; break;
+                }
+            }
+
+            $nominal = $payrollDetail->nominal_harian;
+            $gajiPokok = ($hadir + $setengahHari) * $nominal;
+            $potonganSt = $setengahHari * ($nominal / 2);
+            $totalJamLemburDibulatkan = $this->bulatkanLemburJam($lemburMenit);
+            $gajiLembur = floor(($nominal / 8) * 1.5 * $totalJamLemburDibulatkan);
+            $totalGaji = $gajiPokok + $gajiLembur + $payrollDetail->tambahan - $payrollDetail->potongan - $potonganSt;
+
+            $payrollDetail->update([
+                'hadir' => $hadir,
+                'alpha' => $alpha,
+                'izin' => $izin,
+                'sakit' => $sakit,
+                'setengah_hari' => $setengahHari,
+                'lembur_menit' => $lemburMenit,
+                'gaji_pokok' => $gajiPokok,
+                'gaji_lembur' => $gajiLembur,
+                'total_gaji' => $totalGaji,
+            ]);
+
+            $updated++;
+        }
+
+        return response()->json(['success' => true, 'updated' => $updated]);
+    }
+
     public function updateDetail(Request $request, $id)
     {
         $detail = PayrollDetail::findOrFail($id);

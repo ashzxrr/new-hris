@@ -74,6 +74,7 @@ Route::middleware('auth:admin')->group(function () {
             Route::get('/{id}/harian',               [PayrollController::class, 'showHarian'])->name('harian.show');
             Route::get('/{id}/export-harian',        [PayrollController::class, 'exportHarian'])->name('exportHarian');
             Route::post('/{id}/tarik-absensi',       [PayrollController::class, 'tarikAbsensi'])->name('tarikAbsensi');
+            Route::post('/{id}/sync-all',            [PayrollController::class, 'syncAllDetails'])->name('syncAll');
             Route::get('/{id}/export-slip',          [PayrollController::class, 'exportSlipGaji'])->name('export.slip');
             Route::put('/detail/{id}',               [PayrollController::class, 'updateDetail'])->name('detail.update');
             Route::put('/detail/{id}/toggle-lembur', [PayrollController::class, 'toggleLembur'])->name('detail.toggle.lembur');
@@ -94,6 +95,9 @@ Route::middleware('auth:admin')->group(function () {
             Route::post('/{id}/update-upah-sistem', [BoronganController::class, 'updateUpahSistem'])->name('update.upah.sistem');
             Route::post('/{id}/bulk-upah-sistem', [BoronganController::class, 'bulkUpdateUpahSistem'])->name('bulkUpahSistem');
             Route::post('/{id}/bulk-training', [BoronganController::class, 'bulkApplyTraining'])->name('bulkTraining');
+            Route::post('/{id}/bulk-hapus-kosong', [BoronganController::class, 'bulkHapusKosong'])->name('bulkHapusKosong');
+            Route::post('/harian/{harianId}/konfirmasi-kosong', [BoronganController::class, 'konfirmasiTidakMasuk'])->name('konfirmasiKosong');
+            Route::delete('/harian/{harianId}/hapus-daftar', [BoronganController::class, 'hapusDariDaftar'])->name('hapusDariDaftar');
             Route::put('/{id}/approve', [BoronganController::class, 'approve'])->name('approve');
             Route::delete('/{id}/undo', [BoronganController::class, 'undo'])->name('undo');
             Route::get('/{id}/rekap',   [BoronganController::class, 'rekapIndex'])->name('rekapIndex');
