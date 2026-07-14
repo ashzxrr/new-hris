@@ -242,9 +242,24 @@
             <div class="ml-auto text-sm text-slate-600">Total Terlihat: <span id="visibleGrandTotal" class="font-semibold">Rp {{ isset($grandTotals) ? number_format($grandTotals->sum('total_akhir'),0,',','.') : '0' }}</span></div>
         </div>
 
+        <style>
+            .nip-col { white-space: nowrap; width:1%; }
+            .name-col { min-width: 160px; }
+            .job-col { white-space: nowrap; max-width: 180px; }
+            .date-col { white-space: nowrap; width:40px; text-align:center; }
+            .money-col { white-space: nowrap; min-width:110px; text-align:right; }
+            .hide-dates .date-col { display: none; }
+        </style>
+
         @if(isset($grandTotals) && $grandTotals->isNotEmpty())
             @php $groups = $grandTotals->groupBy('section'); @endphp
-            <div class="space-y-6">
+            @php $groups = $grandTotals->groupBy('section'); @endphp
+
+            <div class="flex items-center justify-end mb-2 gap-2">
+                <button id="toggleDatesBtn" type="button" class="border border-[#E5E7EB] text-slate-600 px-3 py-1 rounded-lg text-xs">Sembunyikan Tanggal</button>
+            </div>
+
+            <div id="grandtotal-groups" class="space-y-6">
                 @foreach($groups as $section => $group)
                     <div>
                         <div class="flex items-center justify-between mb-2">
@@ -256,21 +271,32 @@
                             <table class="w-full text-sm">
                                 <thead class="text-xs text-slate-500 uppercase tracking-wide bg-[#F8FAFC] border-b">
                                     <tr>
-                                        <th class="px-3 py-2 text-left">NIP</th>
-                                        <th class="px-3 py-2 text-left">Nama</th>
-                                        <th class="px-3 py-2 text-left">Job</th>
-                                        <th class="px-3 py-2 text-right">Total Lembur</th>
-                                        <th class="px-3 py-2 text-right">Total Akhir</th>
+                                        <th class="nip-col px-3 py-2 text-left">NIP</th>
+                                        <th class="name-col px-3 py-2 text-left">Nama</th>
+                                        <th class="job-col px-3 py-2 text-left">Job</th>
+                                        @php $dates = $periodeTanggal ?? [];
+                                        @endphp
+                                        @foreach($dates as $tanggal)
+                                            <th class="date-col px-1 py-2 text-center text-xs" title="{{ \Carbon\Carbon::parse($tanggal)->format('d/m/Y') }}">{{ \Carbon\Carbon::parse($tanggal)->format('d') }}</th>
+                                        @endforeach
+                                        <th class="money-col px-3 py-2 text-right">Total Lembur</th>
+                                        <th class="money-col px-3 py-2 text-right">Total Akhir</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach($group as $g)
+                                    @php
+                                        $detail = is_array($g->detail_harian) ? $g->detail_harian : json_decode($g->detail_harian, true) ?? [];
+                                    @endphp
                                     <tr class="border-b border-[#E5E7EB]/50 hover:bg-[#F8FAFC] grandtotal-row" data-section="{{ $g->section }}" data-nip="{{ $g->nip }}" data-nama="{{ strtolower($g->nama) }}" data-total="{{ $g->total_akhir }}">
-                                        <td class="px-3 py-2 font-mono text-xs">{{ $g->nip }}</td>
-                                        <td class="px-3 py-2 font-medium text-slate-800">{{ $g->nama }}</td>
-                                        <td class="px-3 py-2 text-slate-600">{{ $g->job_label }}</td>
-                                        <td class="px-3 py-2 text-right text-slate-600">Rp {{ number_format($g->total_lembur, 0, ',', '.') }}</td>
-                                        <td class="px-3 py-2 text-right font-bold">Rp {{ number_format($g->total_akhir, 0, ',', '.') }}</td>
+                                        <td class="nip-col px-3 py-2 font-mono text-xs">{{ $g->nip }}</td>
+                                        <td class="name-col px-3 py-2 font-medium text-slate-800">{{ $g->nama }}</td>
+                                        <td class="job-col px-3 py-2 text-slate-600">{{ $g->job_label }}</td>
+                                        @foreach($dates as $tanggal)
+                                            <td class="date-col px-1 py-1 text-right text-xs text-slate-600">Rp {{ number_format($detail[$tanggal] ?? 0, 0, ',', '.') }}</td>
+                                        @endforeach
+                                        <td class="money-col px-3 py-2 text-right text-slate-600">Rp {{ number_format($g->total_lembur ?? 0, 0, ',', '.') }}</td>
+                                        <td class="money-col px-3 py-2 text-right font-bold">Rp {{ number_format($g->total_akhir ?? 0, 0, ',', '.') }}</td>
                                     </tr>
                                     @endforeach
                                 </tbody>
@@ -407,5 +433,19 @@
 
         document.getElementById('searchGrandTotal')?.addEventListener('input', applyGrandFilters);
         document.getElementById('filterJob')?.addEventListener('change', applyGrandFilters);
+
+        // Toggle hide/show per-date columns (explicitly set display to avoid CSS specificity issues)
+        const toggleBtn = document.getElementById('toggleDatesBtn');
+        const grandGroups = document.getElementById('grandtotal-groups');
+        if (toggleBtn && grandGroups) {
+            toggleBtn.addEventListener('click', function(){
+                const currentlyHidden = grandGroups.classList.toggle('hide-dates');
+                const dateCells = grandGroups.querySelectorAll('.date-col');
+                dateCells.forEach(td => {
+                    td.style.display = currentlyHidden ? 'none' : '';
+                });
+                toggleBtn.textContent = currentlyHidden ? 'Tampilkan Tanggal' : 'Sembunyikan Tanggal';
+            });
+        }
     })();
 </script>

@@ -18,6 +18,7 @@ class PayrollPengajuan extends Model
         'insentif',
         'potongan_lain',
         'potongan_bpjs',
+        'total_lembur',
         'total_akhir',
         'no_rekening',
         'nama_bank',
@@ -28,5 +29,6 @@ class PayrollPengajuan extends Model
 
     protected $casts = [
         'diajukan_at' => 'datetime',
+        'total_lembur' => 'integer',
     ];
 }

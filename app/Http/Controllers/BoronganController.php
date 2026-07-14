@@ -53,7 +53,7 @@ class BoronganController extends Controller
         $duplikatDitemukan = [];
 
         // Helper to create import and persist parsed rows for a single sheet
-        $persistSheet = function ($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $fileForName, $sheetLabel, $tanggalFinal) use ($request, &$processedCount, &$hasilPerSheet, $usersByNip) {
+        $persistSheet = function ($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $totalSkippedInvalidNip, $fileForName, $sheetLabel, $tanggalFinal) use ($request, &$processedCount, &$hasilPerSheet, $usersByNip) {
             DB::beginTransaction();
             try {
                 $import = BoronganImport::create([
@@ -129,6 +129,7 @@ class BoronganController extends Controller
                     'import_id' => $import->id,
                     'total_baris' => $totalBarisSheet,
                     'total_flagged' => $totalFlaggedSheet,
+                    'total_skipped_invalid_nip' => $totalSkippedInvalidNip,
                 ];
             } catch (\Exception $e) {
                 DB::rollBack();
@@ -228,6 +229,7 @@ class BoronganController extends Controller
                 $parsedDataSheet = [];
                 $totalBarisSheet = 0;
                 $totalFlaggedSheet = 0;
+                $totalSkippedInvalidNip = 0;
 
                 if ($request->jenis === 'cabut') {
                     // --- existing cabut parsing, adjusted to use $sheet and $tanggalFinal ---
@@ -348,7 +350,10 @@ class BoronganController extends Controller
 
                     for ($row = $dataStart; $row <= $dataEnd; $row++) {
                         $nip = trim((string) $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columns['nip'] ?? 1) . $row)->getValue());
-                        if (empty($nip)) continue;
+                        if ($nip === '' || !preg_match('/^[A-Z0-9\-]+$/i', $nip)) {
+                            $totalSkippedInvalidNip++;
+                            continue;
+                        }
                         if (strtolower($nip) === 'total') continue;
                         if (strtolower($nip) === 'nip') continue;
 
@@ -505,7 +510,10 @@ class BoronganController extends Controller
 
                     for ($row = $dataStart; $row <= $highestRow; $row++) {
                         $nip = trim((string) $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($nipCol) . $row)->getValue());
-                        if (empty($nip)) continue;
+                        if ($nip === '' || !preg_match('/^[A-Z0-9\-]+$/i', $nip)) {
+                            $totalSkippedInvalidNip++;
+                            continue;
+                        }
                         if (strtolower($nip) === 'total') continue;
 
                         $nama = trim((string) $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($namaCol) . $row)->getValue());
@@ -570,7 +578,7 @@ class BoronganController extends Controller
                 }
 
                 // Persist this sheet's import and rows
-                $persistSheet($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $file, $sheetName, $tanggalFinal);
+                $persistSheet($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $totalSkippedInvalidNip, $file, $sheetName, $tanggalFinal);
             }
 
             // After processing all sheets, redirect with summary
@@ -731,7 +739,7 @@ class BoronganController extends Controller
                 $file1Data = [];
                 for ($row = $dataStartRow; $row <= $highestRow1; $row++) {
                     $nip = trim((string) $sheet1->getCell('B' . $row)->getValue());
-                    if (empty($nip) || strtolower($nip) === 'total') {
+                    if ($nip === '' || !preg_match('/^[A-Z0-9\-]+$/i', $nip) || strtolower($nip) === 'total') {
                         continue;
                     }
                     $nama = trim((string) $sheet1->getCell('C' . $row)->getValue());
@@ -753,8 +761,13 @@ class BoronganController extends Controller
                 $parsedDataSheet = [];
                 $totalBarisSheet = 0;
                 $totalFlaggedSheet = 0;
+                $totalSkippedInvalidNip = 0;
 
                 foreach ($file1Data as $nip => $file1Row) {
+                    if ($nip === '' || !preg_match('/^[A-Z0-9\-]+$/i', $nip)) {
+                        $totalSkippedInvalidNip++;
+                        continue;
+                    }
                     $user = $usersByNip[$nip] ?? null;
                     $isFlagged = false;
                     $flagReason = null;
@@ -815,7 +828,7 @@ class BoronganController extends Controller
                     continue;
                 }
 
-                $persistSheet($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $file1, $sheetName, $tanggalFinal);
+                $persistSheet($parsedDataSheet, $totalBarisSheet, $totalFlaggedSheet, $totalSkippedInvalidNip, $file1, $sheetName, $tanggalFinal);
             }
 
             $msg = "Processed {$processedCount} sheet(s).";
@@ -924,12 +937,25 @@ class BoronganController extends Controller
         $request->validate(['nips' => 'required|array|min:1']);
 
         $rows = BoronganHarian::where('borongan_import_id', $id)
-            ->whereIn('nip', $request->nips)
+            ->where(function ($q) use ($request) {
+                $nips = $request->nips ?? [];
+                if (!empty($nips)) {
+                    $q->whereIn('nip', $nips);
+                }
+                $q->orWhereNull('nip');
+                $q->orWhereRaw("TRIM(COALESCE(nip, '')) = ''");
+            })
             ->get();
 
-        $toDelete = $rows->where('flag_reason', 'Tidak ada data pada tanggal ini');
-        $skipped = $rows->where('flag_reason', '!=', 'Tidak ada data pada tanggal ini')
-            ->pluck('nama', 'nip')->toArray();
+        $toDelete = $rows->filter(function ($r) {
+            return $r->flag_reason === 'Tidak ada data pada tanggal ini'
+                || trim((string) $r->nip) === '';
+        });
+
+        $skipped = $rows->reject(function ($r) {
+            return $r->flag_reason === 'Tidak ada data pada tanggal ini'
+                || trim((string) $r->nip) === '';
+        })->pluck('nama', 'nip')->toArray();
 
         BoronganHarian::whereIn('id', $toDelete->pluck('id'))->delete();
 

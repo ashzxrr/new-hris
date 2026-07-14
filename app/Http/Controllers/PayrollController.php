@@ -14,6 +14,7 @@ use App\Models\BoronganRekap;
 use App\Models\BoronganHarian;
 use App\Models\PayrollGrandTotal;
 use App\Models\PayrollPengajuan;
+use App\Models\BpjsMaster;
 use App\Models\KaryawanBank;
 use App\Services\FingerprintService;
 use Illuminate\Http\Request;
@@ -253,6 +254,14 @@ class PayrollController extends Controller
     public function show($id)
     {
         $payroll = Payroll::findOrFail($id);
+
+        $periodeTanggal = [];
+        $cur = new \DateTime($payroll->tanggal_dari);
+        $end = new \DateTime($payroll->tanggal_sampai);
+        while ($cur <= $end) {
+            $periodeTanggal[] = $cur->format('Y-m-d');
+            $cur->modify('+1 day');
+        }
         
         // Query status masing-masing jenis
         $cabutImport = BoronganImport::where('payroll_id', $id)
@@ -281,7 +290,181 @@ class PayrollController extends Controller
         $grandTotals = PayrollGrandTotal::where('payroll_id', $id)->orderBy('nama')->get();
         $sudahAdaPengajuan = PayrollPengajuan::where('payroll_id', $id)->exists();
 
-        return view('payroll.show', compact('payroll', 'cabutImport', 'hcrImport', 'mouldingImport', 'harianDetailCount', 'bisaGenerateGrandTotal', 'grandTotals', 'sudahAdaPengajuan'));
+        return view('payroll.show', compact('payroll', 'cabutImport', 'hcrImport', 'mouldingImport', 'harianDetailCount', 'bisaGenerateGrandTotal', 'grandTotals', 'sudahAdaPengajuan', 'periodeTanggal'));
+    }
+
+    // ========================
+    // EXPORT GRAND TOTAL — Excel export for Grand Total
+    // ========================
+    public function exportGrandTotal($id)
+    {
+        $payroll = Payroll::findOrFail($id);
+        $grandTotals = PayrollGrandTotal::where('payroll_id', $id)->orderBy('nama')->get();
+
+        $periodeTanggal = [];
+        $cur = new \DateTime($payroll->tanggal_dari);
+        $end = new \DateTime($payroll->tanggal_sampai);
+        while ($cur <= $end) {
+            $periodeTanggal[] = $cur->format('Y-m-d');
+            $cur->modify('+1 day');
+        }
+
+        $sections = [
+            'cabut' => 'REKAPITULASI BAGIAN CABUT',
+            'moulding' => 'REKAPITULASI BAGIAN MOULDING',
+            'harian' => 'REKAPITULASI BAGIAN HARIAN',
+        ];
+
+        $sectionGroups = $grandTotals->groupBy(fn($g) => in_array($g->section, ['cabut', 'hcr']) ? 'cabut' : $g->section);
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Grand Total');
+
+        $titleStyle = [
+            'font' => ['bold' => true],
+        ];
+
+        $headerStyle = [
+            'font' => ['bold' => true],
+            'fill' => [
+                'fillType' => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'F3F4F6'],
+            ],
+            'borders' => [
+                'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']],
+            ],
+        ];
+
+        $dataStyle = [
+            'borders' => [
+                'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'D1D5DB']],
+            ],
+        ];
+
+        $row = 1;
+        $freezeSet = false;
+        foreach ($sections as $sectionKey => $label) {
+            $sectionRows = $sectionGroups[$sectionKey] ?? collect();
+
+            $columnCount = 4 + count($periodeTanggal) + 5;
+            $lastColumn = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnCount);
+
+            $sheet->mergeCells("A{$row}:{$lastColumn}{$row}");
+            $sheet->setCellValue("A{$row}", $label);
+            $sheet->getStyle("A{$row}")->applyFromArray($titleStyle);
+            $row++;
+
+            $headers = ['NO', 'NIP', 'NAMA', 'JOB'];
+            foreach ($periodeTanggal as $tanggal) {
+                $headers[] = \Carbon\Carbon::parse($tanggal)->format('d/m');
+            }
+            $headers = array_merge($headers, ['KOMPLAIN', 'INSENTIF', 'POT. LAIN', 'POT. BPJS KES', 'TTL PAYROLL']);
+
+            foreach ($headers as $colIndex => $header) {
+                $column = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex + 1);
+                $sheet->setCellValue("{$column}{$row}", $header);
+                $sheet->getStyle("{$column}{$row}")->applyFromArray($headerStyle);
+                $sheet->getColumnDimension($column)->setAutoSize(true);
+            }
+
+            if (!$freezeSet) {
+                $sheet->freezePane('A' . ($row + 1));
+                $freezeSet = true;
+            }
+
+            $row++;
+
+            foreach ($sectionRows as $index => $g) {
+                $detail = json_decode($g->detail_harian, true) ?: [];
+                $sheet->setCellValue("A{$row}", $index + 1);
+                $sheet->setCellValue("B{$row}", $g->nip);
+                $sheet->setCellValue("C{$row}", $g->nama);
+                $sheet->setCellValue("D{$row}", $g->job_label);
+
+                $colIndex = 5;
+                foreach ($periodeTanggal as $tanggal) {
+                    $column = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
+                    $sheet->setCellValue("{$column}{$row}", $detail[$tanggal] ?? 0);
+                    $colIndex++;
+                }
+
+                $sheet->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex) . $row, $g->komplain ?? 0);
+                $colIndex++;
+                $sheet->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex) . $row, $g->insentif ?? 0);
+                $colIndex++;
+                $sheet->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex) . $row, $g->potongan_lain ?? 0);
+                $colIndex++;
+                $sheet->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex) . $row, $g->potongan_bpjs ?? 0);
+                $colIndex++;
+                $sheet->setCellValue(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex) . $row, $g->total_akhir ?? 0);
+
+                $sheet->getStyle("A{$row}:{$lastColumn}{$row}")->applyFromArray($dataStyle);
+                $row++;
+            }
+
+            $row++;
+        }
+
+        $bpjsMaster = BpjsMaster::all()->keyBy(fn($b) => trim(strtoupper($b->nip)));
+        $boronganImportIds = BoronganImport::where('payroll_id', $id)->pluck('id')->filter()->values()->all();
+        $boronganBpjs = BoronganRekap::whereIn('borongan_import_id', $boronganImportIds)
+            ->where('potongan_bpjs', '>', 0)
+            ->get()
+            ->groupBy(fn($r) => trim(strtoupper($r->nip)))
+            ->map(fn($group) => $group->sum('potongan_bpjs'));
+
+        $allBpjsNips = $bpjsMaster->keys()->merge($boronganBpjs->keys())->unique();
+        $users = User::all()->keyBy(fn($u) => trim(strtoupper($u->nip)));
+
+        $bpjsRows = [];
+        foreach ($allBpjsNips as $nipKey) {
+            $master = $bpjsMaster[$nipKey] ?? null;
+            $masterNominal = $master?->nominal ?? 0;
+            $rekapNominal = $boronganBpjs[$nipKey] ?? 0;
+            $totalNominal = $masterNominal + $rekapNominal;
+
+            $bpjsRows[] = [
+                'nip' => $master?->nip ?? $nipKey,
+                'nama' => $users[$nipKey]->nama ?? null,
+                'potongan_pbjskes' => $totalNominal,
+            ];
+        }
+
+        usort($bpjsRows, fn($a, $b) => strcmp($a['nip'], $b['nip']));
+
+        $sheet->mergeCells("A{$row}:D{$row}");
+        $sheet->setCellValue("A{$row}", 'POTONGAN BPJS KESEHATAN KARYAWAN HARIAN DAN BORONGAN');
+        $sheet->getStyle("A{$row}")->applyFromArray($titleStyle);
+        $row++;
+
+        $sheet->setCellValue("A{$row}", 'NO');
+        $sheet->setCellValue("B{$row}", 'NIP');
+        $sheet->setCellValue("C{$row}", 'NAMA');
+        $sheet->setCellValue("D{$row}", 'POT. BPJS KES');
+        $sheet->getStyle("A{$row}:D{$row}")->applyFromArray($headerStyle);
+        $row++;
+
+        foreach ($bpjsRows as $index => $bpjsRow) {
+            $sheet->setCellValue("A{$row}", $index + 1);
+            $sheet->setCellValue("B{$row}", $bpjsRow['nip']);
+            $sheet->setCellValue("C{$row}", $bpjsRow['nama']);
+            $sheet->setCellValue("D{$row}", $bpjsRow['potongan_pbjskes']);
+            $sheet->getStyle("A{$row}:D{$row}")->applyFromArray($dataStyle);
+            $row++;
+        }
+
+        foreach (range(1, 30) as $colIndex) {
+            $sheet->getColumnDimension(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex))->setAutoSize(true);
+        }
+
+        $filename = 'Grand_Total_' . preg_replace('/[^A-Za-z0-9_\-]/', '_', $payroll->periode) . '.xlsx';
+        $path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $filename;
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->save($path);
+
+        return response()->download($path, $filename)->deleteFileAfterSend(true);
     }
 
     // ========================
@@ -304,7 +487,7 @@ class PayrollController extends Controller
             $bank = KaryawanBank::where('nip', $row->nip)->first();
 
             $detail = json_decode($row->detail_harian, true);
-            $gajiReal = is_array($detail) ? array_sum($detail) : 0;
+            $gajiReal = (is_array($detail) ? array_sum($detail) : 0) + ($row->total_lembur ?? 0);
 
             PayrollPengajuan::create([
                 'payroll_id' => $id,
@@ -316,6 +499,7 @@ class PayrollController extends Controller
                 'insentif' => $row->insentif ?? 0,
                 'potongan_lain' => $row->potongan_lain ?? 0,
                 'potongan_bpjs' => $row->potongan_bpjs ?? 0,
+                'total_lembur' => $row->total_lembur ?? 0,
                 'total_akhir' => $row->total_akhir ?? 0,
                 'no_rekening' => $bank->no_rekening ?? null,
                 'nama_bank' => $bank->nama_bank ?? null,
@@ -336,7 +520,10 @@ class PayrollController extends Controller
     public function showPengajuan($id)
     {
         $payroll = Payroll::findOrFail($id);
-        $pengajuan = PayrollPengajuan::where('payroll_id', $id)->get()->groupBy('jenis');
+        $pengajuan = PayrollPengajuan::where('payroll_id', $id)
+            ->select(['payroll_pengajuan.*', 'total_lembur'])
+            ->get()
+            ->groupBy('jenis');
 
         return view('payroll.pengajuan', compact('payroll', 'pengajuan'));
     }
@@ -774,6 +961,9 @@ class PayrollController extends Controller
 
         $allNips = $boronganNips->merge($harianNips)->unique()->values();
 
+        $bpjsMasterByNip = BpjsMaster::all()
+            ->keyBy(fn($b) => trim(strtoupper($b->nip)));
+
         $dateFrom = new \DateTime($payroll->tanggal_dari);
         $dateTo = new \DateTime($payroll->tanggal_sampai);
 
@@ -904,7 +1094,9 @@ class PayrollController extends Controller
             $insentif = $rekapQuery->sum('tambahan');
             $komplain = $rekapQuery->sum('komplain');
             $potonganLain = $rekapQuery->sum('potongan_lain');
-            $potonganBpjs = $rekapQuery->sum('potongan_bpjs');
+            $potonganBpjsRekap = $rekapQuery->sum('potongan_bpjs');
+            $potonganBpjsMaster = $bpjsMasterByNip[$nip]->nominal ?? 0;
+            $potonganBpjs = $potonganBpjsRekap + $potonganBpjsMaster;
 
             $totalAkhir = array_sum($detailHarianGram) + $totalLembur + $insentif + $komplain - $potonganLain - $potonganBpjs;
 

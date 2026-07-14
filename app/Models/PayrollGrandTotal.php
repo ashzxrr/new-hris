@@ -13,11 +13,13 @@ class PayrollGrandTotal extends Model
         'nip',
         'nama',
         'job_label',
+        'section',
         'detail_harian',
         'insentif',
         'komplain',
         'potongan_lain',
         'potongan_bpjs',
+        'total_lembur',
         'total_akhir',
         'generated_at',
     ];
@@ -29,6 +31,8 @@ class PayrollGrandTotal extends Model
         'komplain' => 'integer',
         'potongan_lain' => 'integer',
         'potongan_bpjs' => 'integer',
+        'total_lembur' => 'integer',
         'total_akhir' => 'integer',
+        'section' => 'string',
     ];
 }
