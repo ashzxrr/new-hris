@@ -855,12 +855,11 @@ class PayrollController extends Controller
                 $currentDate = clone $dateFrom;
                 while ($currentDate <= $dateTo) {
                     $tanggal = $currentDate->format('Y-m-d');
-
                     $correction = $corrections[$tanggal] ?? null;
                     $isHadir = false;
 
                     if ($correction) {
-                        $isHadir = ($correction->status === 'H');
+                        $isHadir = in_array($correction->status, ['H', 'ST']) || $correction->lembur_approved;
                     } else {
                         $dayLogs = $logs[$tanggal] ?? collect();
                         if ($dayLogs->isNotEmpty()) {
