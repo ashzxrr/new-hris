@@ -305,6 +305,7 @@
 
 <script>
 const reviewBaseUrl = "{{ url('borongan') }}";
+const mutasiResolveBaseUrl = "{{ url('borongan/mutasi') }}";
 let currentReviewNip = null;
 let hasUpahChanged = false;
 
@@ -337,7 +338,7 @@ function openReviewModal(importId, nip, nama) {
                 const specialFlag = (job.flag_reason || '') === 'Tidak ada data pada tanggal ini';
                 const actionCell = specialFlag
                     ? `<div class="flex flex-col items-center gap-1 mt-1">
-                        <button type="button" onclick="konfirmasiKosong(${job.id})" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200">✅ Konfirmasi Tidak Masuk</button>
+                        <button type="button" onclick="konfirmasiKosong(${job.id})" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200">✅ Konfirmasi</button>
                         <button type="button" onclick="hapusDariDaftar(${job.id})" class="text-[10px] bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200">🗑️ Hapus dari Daftar</button>
                     </div>`
                     : '';
@@ -775,15 +776,35 @@ function openMutasiModal(logId, nip, nama, jenisA, jenisB) {
 }
 
 function resolveMutasi(status, wrongSide = null) {
-    fetch(`{{ url('borongan/mutasi') }}/${currentMutasiLogId}/resolve`, {
+    if (!currentMutasiLogId) {
+        return alert('ID mutasi tidak valid.');
+    }
+
+    const resolveUrl = `${mutasiResolveBaseUrl}/${encodeURIComponent(currentMutasiLogId)}/resolve`;
+
+    fetch(resolveUrl, {
         method: 'POST',
+        credentials: 'same-origin',
         headers: {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
         },
         body: JSON.stringify({ status: status, wrong_side: wrongSide })
     })
-    .then(r => r.json())
+    .then(response => response.text().then(text => {
+        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok) {
+            console.error('Mutasi resolve failed', { status: response.status, body: text });
+            throw new Error(text || `HTTP ${response.status}`);
+        }
+        if (!contentType.includes('application/json')) {
+            console.error('Unexpected mutasi response content-type', { contentType, body: text });
+            throw new Error(text || 'Unexpected response from server');
+        }
+        return JSON.parse(text);
+    }))
     .then(data => {
         if (data.success) window.location.reload();
         else alert(data.message || 'Gagal menyimpan.');

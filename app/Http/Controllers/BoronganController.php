@@ -1455,31 +1455,44 @@ class BoronganController extends Controller
 
     public function resolveMutasi(Request $request, $logId)
     {
-        $request->validate([
-            'status' => 'required|in:confirmed,rejected',
-            'wrong_side' => 'required_if:status,rejected|in:a,b',
-        ]);
+        try {
+            $request->validate([
+                'status' => 'required|in:confirmed,rejected',
+                'wrong_side' => 'nullable|required_if:status,rejected|in:a,b',
+            ]);
 
-        $log = BoronganMutasiLog::findOrFail($logId);
+            $log = BoronganMutasiLog::findOrFail($logId);
 
-        if ($request->status === 'rejected') {
-            $wrongImportId = $request->wrong_side === 'a' ? $log->import_id_a : $log->import_id_b;
+            if ($request->status === 'rejected') {
+                $wrongImportId = $request->wrong_side === 'a' ? $log->import_id_a : $log->import_id_b;
 
-            BoronganHarian::where('borongan_import_id', $wrongImportId)
-                ->where('nip', $log->nip)
-                ->delete();
-            BoronganRekap::where('borongan_import_id', $wrongImportId)
-                ->where('nip', $log->nip)
-                ->delete();
+                BoronganHarian::where('borongan_import_id', $wrongImportId)
+                    ->where('nip', $log->nip)
+                    ->delete();
+                BoronganRekap::where('borongan_import_id', $wrongImportId)
+                    ->where('nip', $log->nip)
+                    ->delete();
+            }
+
+            $log->update([
+                'status' => $request->status,
+                'resolved_by' => Auth::guard('admin')->id(),
+                'resolved_at' => now(),
+            ]);
+
+            return response()->json(['success' => true]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['success' => false, 'errors' => $e->errors(), 'message' => $e->getMessage()], 422);
+        } catch (\Illuminate\Database\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Mutasi log tidak ditemukan.'], 404);
+        } catch (\Throwable $e) {
+            \Log::error('Failed to resolve borongan mutasi', [
+                'log_id' => $logId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan saat menyelesaikan mutasi.'], 500);
         }
-
-        $log->update([
-            'status' => $request->status,
-            'resolved_by' => Auth::guard('admin')->id(),
-            'resolved_at' => now(),
-        ]);
-
-        return response()->json(['success' => true]);
     }
 
     private function normalizeBuluCategory(string $bulu): string

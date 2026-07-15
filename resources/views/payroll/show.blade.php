@@ -213,9 +213,10 @@
                 <form id="generateGrandTotalForm" method="POST" action="{{ route('payroll.generateGrandTotal', $payroll->id) }}" onsubmit="return confirmGenerateGrandTotal(event)">
                     @csrf
                     <input type="hidden" name="force" id="forceGrandTotal" value="0">
-                    <button type="submit" class="inline-flex items-center gap-2 bg-[#6D28D9] text-white px-4 py-2 rounded-full text-sm hover:bg-[#5B21B6] shadow-md">
+                    <button id="generateGrandTotalBtn" type="submit" class="inline-flex items-center gap-2 bg-[#6D28D9] text-white px-4 py-2 rounded-full text-sm hover:bg-[#5B21B6] shadow-md disabled:opacity-70 disabled:cursor-not-allowed">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 011-1h4a1 1 0 110 2H5v12h10V4h-3a1 1 0 110-2h4a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3z" /></svg>
-                        Generate Grand Total
+                        <span id="generateGrandTotalBtnLabel">Generate Grand Total</span>
+                        <span id="generateGrandTotalSpinner" class="hidden animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
                     </button>
                 </form>
             </div>
@@ -342,7 +343,6 @@
         <p class="text-xs text-slate-400">Generate Pengajuan akan mengambil data dari Grand Total yang sudah di-generate, digabung dengan data rekening dari Data Bank.</p>
     </div>
 </div>
-@endsection
 
 <script>
     function confirmGenerateGrandTotal(e) {
@@ -357,7 +357,38 @@
             if (!confirm('Generate Grand Total untuk periode ini? Data lama (jika ada) akan ditimpa.')) return false;
         @endif
 
-        form.submit();
+        try {
+            const btn = document.getElementById('generateGrandTotalBtn');
+            const label = document.getElementById('generateGrandTotalBtnLabel');
+            const spinner = document.getElementById('generateGrandTotalSpinner');
+
+            if (btn) {
+                btn.disabled = true;
+                if (label) {
+                    label.textContent = 'Generating...';
+                }
+                if (spinner) {
+                    spinner.classList.remove('hidden');
+                }
+            }
+
+            form.submit();
+        } catch (error) {
+            const btn = document.getElementById('generateGrandTotalBtn');
+            const label = document.getElementById('generateGrandTotalBtnLabel');
+            const spinner = document.getElementById('generateGrandTotalSpinner');
+
+            if (btn) {
+                btn.disabled = false;
+                if (label) {
+                    label.textContent = 'Generate Grand Total';
+                }
+                if (spinner) {
+                    spinner.classList.add('hidden');
+                }
+            }
+        }
+
         return false;
     }
 
@@ -449,3 +480,4 @@
         }
     })();
 </script>
+@endsection

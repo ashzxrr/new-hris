@@ -16,6 +16,7 @@ use App\Models\PayrollGrandTotal;
 use App\Models\PayrollPengajuan;
 use App\Models\BpjsMaster;
 use App\Models\KaryawanBank;
+use App\Models\OvertimeRequest;
 use App\Services\FingerprintService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -849,8 +850,12 @@ class PayrollController extends Controller
 
             $gajiPokok = ($hadir + $setengahHari) * $nominal;
             $potonganSt = $setengahHari * ($nominal / 2);
-            $totalJamLemburDibulatkan = $this->bulatkanLemburJam($lemburMenit);
-            $gajiLembur = floor(($nominal / 8) * 1.5 * $totalJamLemburDibulatkan);
+            // For payroll pay, use approved overtime minutes from OvertimeRequest
+            $approvedMinutes = (int) OvertimeRequest::where('pin', $pin)
+                ->whereBetween('tanggal', [$dari, $sampai])
+                ->sum('lembur_menit');
+            $totalJamLemburDibulatkan = $this->bulatkanLemburJam($approvedMinutes);
+            $gajiLembur = $approvedMinutes > 0 ? floor(($nominal / 8) * 1.5 * $totalJamLemburDibulatkan) : 0;
             $totalGaji = $gajiPokok + $gajiLembur + $tambahan - $potongan - $potonganSt;
 
             PayrollDetail::updateOrCreate(
@@ -1011,6 +1016,8 @@ class PayrollController extends Controller
             $rekapQuery = BoronganRekap::whereIn('borongan_import_id', $boronganImportIds)
                 ->whereRaw('TRIM(UPPER(nip)) = ?', [$nip]);
 
+            $gajiPokokTotal = 0;
+
             if ($rekapQuery->exists()) {
                 $currentDate = clone $dateFrom;
                 while ($currentDate <= $dateTo) {
@@ -1066,23 +1073,18 @@ class PayrollController extends Controller
 
                 $hadirCount = count($hariHadirList);
                 $gajiPerHari = ($hadirCount > 0 && $payrollDetail) ? intdiv($payrollDetail->gaji_pokok, $hadirCount) : 0;
+                $gajiPokokTotal = $payrollDetail->gaji_pokok ?? 0;
+                $totalLembur = $payrollDetail->gaji_lembur ?? 0;
+                $tambahanHarian = $payrollDetail->tambahan ?? 0;
+                $potonganHarian = $payrollDetail->potongan ?? 0;
+                $potonganStHarian = ($payrollDetail->setengah_hari ?? 0) * (($payrollDetail->nominal_harian ?? 0) / 2);
 
                 $currentDate = clone $dateFrom;
                 while ($currentDate <= $dateTo) {
                     $tanggal = $currentDate->format('Y-m-d');
 
                     if (in_array($tanggal, $hariHadirList)) {
-                        $correction = $corrections[$tanggal] ?? null;
-
-                        $lemburHariIni = 0;
-                        if ($correction?->lembur_approved) {
-                            $lemburMenit = $correction->lembur_menit ?? 0;
-                            $upahPerJam = $payrollDetail?->nominal_harian ? ($payrollDetail->nominal_harian / 8) : 0;
-                            $lemburHariIni = (int) floor($upahPerJam * 1.5 * ($lemburMenit / 60));
-                        }
-
                         $detailHarianGram[$tanggal] = $gajiPerHari;
-                        $totalLembur += $lemburHariIni;
                     } else {
                         $detailHarianGram[$tanggal] = 0;
                     }
@@ -1094,11 +1096,17 @@ class PayrollController extends Controller
             $insentif = $rekapQuery->sum('tambahan');
             $komplain = $rekapQuery->sum('komplain');
             $potonganLain = $rekapQuery->sum('potongan_lain');
+            if (!($rekapQuery->exists())) {
+                $insentif += $tambahanHarian ?? 0;
+                $potonganLain += ($potonganHarian ?? 0) + ($potonganStHarian ?? 0);
+            }
             $potonganBpjsRekap = $rekapQuery->sum('potongan_bpjs');
             $potonganBpjsMaster = $bpjsMasterByNip[$nip]->nominal ?? 0;
             $potonganBpjs = $potonganBpjsRekap + $potonganBpjsMaster;
 
-            $totalAkhir = array_sum($detailHarianGram) + $totalLembur + $insentif + $komplain - $potonganLain - $potonganBpjs;
+            $totalAkhir = $rekapQuery->exists()
+                ? array_sum($detailHarianGram) + $totalLembur + $insentif + $komplain - $potonganLain - $potonganBpjs
+                : $gajiPokokTotal + $totalLembur + $insentif + $komplain - $potonganLain - $potonganBpjs;
 
             PayrollGrandTotal::create([
                 'payroll_id'   => $id,
@@ -1683,6 +1691,8 @@ class PayrollController extends Controller
                 $hasLemburData = ($row['lembur_approved'] ?? false) || (($row['lembur_menit'] ?? 0) > 0);
                 if (!$jamIn && !$jamOut && $status === 'H' && !$ket && !$hasLemburData) {
                     AttendanceCorrection::where('pin', $pin)->where('tanggal', $tgl)->delete();
+                    // remove any overtime request for this day as well
+                    OvertimeRequest::where('pin', $pin)->where('tanggal', $tgl)->delete();
                     continue;
                 }
 
@@ -1703,6 +1713,29 @@ class PayrollController extends Controller
                     ['pin' => $pin, 'tanggal' => $tgl],
                     $correctionData
                 );
+
+                // Maintain overtime_requests as source of truth for approved lembur
+                $approved = $correctionData['lembur_approved'] ?? false;
+                $lm = intval($correctionData['lembur_menit'] ?? 0);
+                if ($approved && $lm > 0) {
+                    OvertimeRequest::updateOrCreate(
+                        ['pin' => $pin, 'tanggal' => $tgl],
+                        [
+                            'nip' => $detail->nip,
+                            'nama' => $detail->nama,
+                            'jam_out' => $jamOut ?: null,
+                            'lembur_menit' => $lm,
+                            'status' => 'approved',
+                            'keterangan' => $ket ?: null,
+                            'approved_by' => $userId,
+                            'approved_at' => now(),
+                            'created_by' => $userId,
+                        ]
+                    );
+                } else {
+                    // remove any existing overtime request if approval removed
+                    OvertimeRequest::where('pin', $pin)->where('tanggal', $tgl)->delete();
+                }
             }
 
             // RECALCULATE gaji untuk karyawan ini
@@ -1751,9 +1784,8 @@ class PayrollController extends Controller
                     $status = ($inTs || $outTs) ? 'H' : ($note ? $note->code : 'A');
                 }
 
-                if ($correction && $correction->lembur_approved) {
-                    $lemburMenit += $correction->lembur_menit ?? 0;
-                }
+                // lembur minutes for pay are taken from approved OvertimeRequest table (single source of truth)
+                // we'll compute total approved minutes after iterating days
 
                 switch ($status) {
                     case 'H': $hadir++; break;
@@ -1763,6 +1795,11 @@ class PayrollController extends Controller
                     case 'ST': $setengahHari++; break;
                 }
             }
+
+            // Sum approved overtime minutes from OvertimeRequest table for this period
+            $lemburMenit = (int) OvertimeRequest::where('pin', $pin)
+                ->whereBetween('tanggal', [$dari, $sampai])
+                ->sum('lembur_menit');
 
             $nominal    = $detail->nominal_harian;
             $gajiPokok  = ($hadir + $setengahHari) * $nominal;
@@ -1798,33 +1835,4 @@ class PayrollController extends Controller
         return round($menit / 30) * 0.5;
     }
 
-    // ========================
-    // TOGGLE LEMBUR APPROVAL
-    // ========================
-    public function toggleLembur($id)
-    {
-        $detail = PayrollDetail::findOrFail($id);
-
-        $newStatus = !$detail->lembur_approved;
-        $detail->lembur_approved = $newStatus;
-
-        // Recalculate total gaji
-        $nominal    = $detail->nominal_harian;
-        $gajiPokok  = $detail->hadir * $nominal;
-        $gajiLembur = $newStatus
-            ? floor(($nominal / 8) * 1.5 * ($detail->lembur_menit / 60))
-            : 0;
-        $totalGaji  = $gajiPokok + $gajiLembur + $detail->tambahan - $detail->potongan;
-
-        $detail->gaji_lembur = $gajiLembur;
-        $detail->total_gaji  = $totalGaji;
-        $detail->save();
-
-        return response()->json([
-            'success'         => true,
-            'lembur_approved' => $newStatus,
-            'gaji_lembur'     => $gajiLembur,
-            'total_gaji'      => $totalGaji,
-        ]);
-    }
 }

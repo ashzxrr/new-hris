@@ -78,7 +78,6 @@ Route::middleware('auth:admin')->group(function () {
             Route::post('/{id}/sync-all',            [PayrollController::class, 'syncAllDetails'])->name('syncAll');
             Route::get('/{id}/export-slip',          [PayrollController::class, 'exportSlipGaji'])->name('export.slip');
             Route::put('/detail/{id}',               [PayrollController::class, 'updateDetail'])->name('detail.update');
-            Route::put('/detail/{id}/toggle-lembur', [PayrollController::class, 'toggleLembur'])->name('detail.toggle.lembur');
             Route::get('/detail/{id}/koreksi',      [PayrollController::class, 'getKoreksiData'])->name('detail.koreksi.get');
             Route::post('/detail/{id}/koreksi',     [PayrollController::class, 'saveKoreksi'])->name('detail.koreksi.save');
             Route::put('/{id}/finalize',             [PayrollController::class, 'finalize'])->name('finalize');
@@ -105,7 +104,7 @@ Route::middleware('auth:admin')->group(function () {
             Route::get('/{id}/detail/{nip}', [BoronganController::class, 'getDetail'])->name('getDetail');
             Route::put('/rekap/{rekapId}', [BoronganController::class, 'updateRekap'])->name('updateRekap');
             Route::delete('/{id}',      [BoronganController::class, 'destroy'])->name('destroy');
-            Route::post('/mutasi/{logId}/resolve', [BoronganController::class, 'resolveMutasi'])->name('borongan.mutasi.resolve');
+            Route::post('/mutasi/{logId}/resolve', [BoronganController::class, 'resolveMutasi'])->name('mutasi.resolve');
         });
 
         Route::middleware(['role:admin'])->group(function () {
