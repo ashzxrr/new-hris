@@ -168,6 +168,37 @@ class PayrollTarikAbsensiTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('payroll_pengajuan', function ($table) {
+            $table->id();
+            $table->unsignedBigInteger('payroll_id');
+            $table->string('section')->nullable();
+            $table->string('nip')->nullable();
+            $table->string('nama')->nullable();
+            $table->string('jenis')->nullable();
+            $table->integer('gaji_real')->default(0);
+            $table->integer('komplain')->default(0);
+            $table->integer('insentif')->default(0);
+            $table->integer('potongan_lain')->default(0);
+            $table->integer('potongan_bpjs')->default(0);
+            $table->integer('total_lembur')->default(0);
+            $table->integer('total_akhir')->default(0);
+            $table->string('no_rekening')->nullable();
+            $table->string('nama_bank')->nullable();
+            $table->string('email')->nullable();
+            $table->timestamp('diajukan_at')->nullable();
+            $table->unsignedBigInteger('diajukan_by')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('karyawan_bank', function ($table) {
+            $table->id();
+            $table->string('nip')->nullable();
+            $table->string('nama_bank')->nullable();
+            $table->string('no_rekening')->nullable();
+            $table->string('email')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('bpjs_master', function ($table) {
             $table->id();
             $table->string('nip')->nullable();
@@ -181,6 +212,15 @@ class PayrollTarikAbsensiTest extends TestCase
             $table->date('tanggal');
             $table->string('status')->nullable();
             $table->boolean('lembur_approved')->default(false);
+            $table->timestamps();
+        });
+
+        Schema::create('absence_notes', function ($table) {
+            $table->id();
+            $table->string('pin')->nullable();
+            $table->date('date');
+            $table->string('code')->nullable();
+            $table->text('keterangan')->nullable();
             $table->timestamps();
         });
     }
@@ -292,6 +332,86 @@ class PayrollTarikAbsensiTest extends TestCase
         $this->assertNotSame(array_sum($detailHarian), $grandTotal->total_akhir);
     }
 
+    public function test_generate_grand_total_uses_section_specific_borongan_imports_for_same_nip(): void
+    {
+        $payroll = Payroll::create([
+            'periode' => '2026-07-5',
+            'tanggal_dari' => '2026-07-01',
+            'tanggal_sampai' => '2026-07-15',
+            'status' => 'final',
+            'created_by' => 1,
+        ]);
+
+        User::create([
+            'pin' => '900',
+            'nip' => '900',
+            'nama' => 'Same NIP User',
+            'bagian' => 'Cabut',
+            'kategori_gaji' => 'cabut',
+        ]);
+
+        $cabutImport = \App\Models\BoronganImport::create([
+            'payroll_id' => $payroll->id,
+            'jenis' => 'cabut',
+            'status' => 'approved',
+        ]);
+
+        $mouldingImport = \App\Models\BoronganImport::create([
+            'payroll_id' => $payroll->id,
+            'jenis' => 'moulding',
+            'status' => 'approved',
+        ]);
+
+        \App\Models\BoronganRekap::create([
+            'borongan_import_id' => $cabutImport->id,
+            'nip' => '900',
+            'total_upah' => 50000,
+            'total_gram' => 10,
+            'tambahan' => 0,
+            'komplain' => 0,
+            'potongan_lain' => 0,
+            'potongan_bpjs' => 0,
+        ]);
+
+        \App\Models\BoronganRekap::create([
+            'borongan_import_id' => $mouldingImport->id,
+            'nip' => '900',
+            'total_upah' => 20000,
+            'total_gram' => 5,
+            'tambahan' => 0,
+            'komplain' => 0,
+            'potongan_lain' => 0,
+            'potongan_bpjs' => 0,
+        ]);
+
+        \App\Models\BoronganHarian::create([
+            'borongan_import_id' => $cabutImport->id,
+            'nip' => '900',
+            'tanggal' => '2026-07-02',
+            'upah_sistem' => 50000,
+        ]);
+
+        \App\Models\BoronganHarian::create([
+            'borongan_import_id' => $mouldingImport->id,
+            'nip' => '900',
+            'tanggal' => '2026-07-02',
+            'upah_sistem' => 20000,
+        ]);
+
+        app(PayrollController::class)->generateGrandTotal(new Request(['force' => true]), $payroll->id);
+
+        $grandTotal = PayrollGrandTotal::where('payroll_id', $payroll->id)
+            ->where('nip', '900')
+            ->first();
+
+        $this->assertNotNull($grandTotal);
+        $this->assertSame('cabut', $grandTotal->section);
+
+        $detailHarian = json_decode($grandTotal->detail_harian, true);
+        $this->assertSame(['2026-07-02' => 50000], $detailHarian);
+        $this->assertSame(50000, (int) $grandTotal->total_akhir);
+    }
+
     public function test_sync_all_details_uses_approved_overtime_request_for_gaji_lembur(): void
     {
         $payroll = Payroll::create([
@@ -373,5 +493,118 @@ class PayrollTarikAbsensiTest extends TestCase
         $this->assertSame(90, (int) $detail->lembur_menit);
         $this->assertSame(28125, (int) $detail->gaji_lembur);
         $this->assertSame(128125, (int) $detail->total_gaji);
+    }
+
+    public function test_generate_pengajuan_uses_gaji_pokok_for_harian_and_detail_sum_for_borongan(): void
+    {
+        $payroll = Payroll::create([
+            'periode' => '2026-07-3',
+            'tanggal_dari' => '2026-07-01',
+            'tanggal_sampai' => '2026-07-15',
+            'status' => 'final',
+            'created_by' => 1,
+        ]);
+
+        // Harian employee with authoritative gaji_pokok and lembur
+        PayrollDetail::create([
+            'payroll_id' => $payroll->id,
+            'pin' => '400',
+            'nip' => '400',
+            'nama' => 'Harian Test',
+            'nominal_harian' => 100000,
+            'hadir' => 15,
+            'gaji_pokok' => 300000,
+            'gaji_lembur' => 42187,
+            'total_gaji' => 342187,
+        ]);
+
+        PayrollGrandTotal::create([
+            'payroll_id' => $payroll->id,
+            'nip' => '400',
+            'nama' => 'Harian Test',
+            'section' => 'harian',
+            'detail_harian' => json_encode([150000]),
+            'total_lembur' => 42187,
+            'total_akhir' => 342187,
+        ]);
+
+        // Borongan (moulding) employee where gaji_real comes from sum(detail_harian)
+        PayrollGrandTotal::create([
+            'payroll_id' => $payroll->id,
+            'nip' => '500',
+            'nama' => 'Borongan Test',
+            'section' => 'moulding',
+            'detail_harian' => json_encode([100000]),
+            'total_lembur' => 0,
+            'total_akhir' => 100000,
+        ]);
+
+        app(PayrollController::class)->generatePengajuan($payroll->id);
+
+        $harianPengajuan = \App\Models\PayrollPengajuan::where('payroll_id', $payroll->id)->where('nip', '400')->first();
+        $boronganPengajuan = \App\Models\PayrollPengajuan::where('payroll_id', $payroll->id)->where('nip', '500')->first();
+
+        $this->assertNotNull($harianPengajuan);
+        $this->assertSame(300000, (int) $harianPengajuan->gaji_real);
+        $this->assertSame(42187, (int) $harianPengajuan->total_lembur);
+
+        $this->assertNotNull($boronganPengajuan);
+        $this->assertSame(100000, (int) $boronganPengajuan->gaji_real);
+    }
+
+    public function test_export_grouping_uses_section_for_sheet_assignment(): void
+    {
+        $payroll = Payroll::create([
+            'periode' => '2026-07-4',
+            'tanggal_dari' => '2026-07-01',
+            'tanggal_sampai' => '2026-07-15',
+            'status' => 'final',
+            'created_by' => 1,
+        ]);
+
+        \App\Models\PayrollPengajuan::create([
+            'payroll_id' => $payroll->id,
+            'nip' => '700',
+            'nama' => 'Sanitasi User',
+            'jenis' => 'Sanitasi',
+            'section' => 'harian',
+            'gaji_real' => 300000,
+            'total_lembur' => 42187,
+            'total_akhir' => 342187,
+        ]);
+
+        \App\Models\PayrollPengajuan::create([
+            'payroll_id' => $payroll->id,
+            'nip' => '701',
+            'nama' => 'Operator User',
+            'jenis' => 'Operator',
+            'section' => 'cabut',
+            'gaji_real' => 100000,
+            'total_lembur' => 0,
+            'total_akhir' => 100000,
+        ]);
+
+        $pengajuan = \App\Models\PayrollPengajuan::where('payroll_id', $payroll->id)->get();
+
+        $cabutRows = [];
+        $mouldingRows = [];
+        $harianRows = [];
+        foreach ($pengajuan as $row) {
+            $section = strtolower((string) ($row->section ?? ''));
+            if (in_array($section, ['cabut', 'hcr'], true)) {
+                $cabutRows[] = $row;
+            } elseif ($section === 'moulding') {
+                $mouldingRows[] = $row;
+            } elseif ($section === 'harian') {
+                $harianRows[] = $row;
+            } else {
+                $cabutRows[] = $row;
+            }
+        }
+
+        $this->assertCount(1, $harianRows);
+        $this->assertSame('700', $harianRows[0]->nip);
+        $this->assertCount(1, $cabutRows);
+        $this->assertSame('701', $cabutRows[0]->nip);
     }
 }

@@ -21,6 +21,7 @@ use App\Services\FingerprintService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -487,19 +488,39 @@ class PayrollController extends Controller
         foreach ($grandTotals as $row) {
             $bank = KaryawanBank::where('nip', $row->nip)->first();
 
-            $detail = json_decode($row->detail_harian, true);
-            $gajiReal = (is_array($detail) ? array_sum($detail) : 0) + ($row->total_lembur ?? 0);
+            // Determine gaji_real according to business rule:
+            // - For harian section, use PayrollDetail.gaji_pokok (authoritative base pay)
+            // - For borongan (cabut/hcr/moulding), use array_sum(detail_harian)
+            $section = strtolower((string) ($row->section ?? $row->job_label ?? $row->jenis ?? ''));
+            $gajiReal = 0;
+
+            if (stripos($section, 'harian') !== false) {
+                $detailModel = PayrollDetail::where('payroll_id', $id)
+                    ->where('nip', $row->nip)
+                    ->first();
+                if ($detailModel) {
+                    $gajiReal = (int) $detailModel->gaji_pokok;
+                } else {
+                    // Fallback: do not include lembur here — keep base as 0 if missing detail
+                    $gajiReal = 0;
+                }
+            } else {
+                $detail = json_decode($row->detail_harian, true);
+                $gajiReal = is_array($detail) ? array_sum($detail) : 0;
+            }
 
             PayrollPengajuan::create([
                 'payroll_id' => $id,
                 'nip' => $row->nip,
                 'nama' => $row->nama,
+                'section' => $row->section ?? null,
                 'jenis' => $row->job_label ?? $row->jenis ?? 'harian',
                 'gaji_real' => $gajiReal,
                 'komplain' => $row->komplain ?? 0,
                 'insentif' => $row->insentif ?? 0,
                 'potongan_lain' => $row->potongan_lain ?? 0,
                 'potongan_bpjs' => $row->potongan_bpjs ?? 0,
+                // keep total_lembur separate (used only for harian export)
                 'total_lembur' => $row->total_lembur ?? 0,
                 'total_akhir' => $row->total_akhir ?? 0,
                 'no_rekening' => $bank->no_rekening ?? null,
@@ -548,21 +569,35 @@ class PayrollController extends Controller
         $defaultIndex = $spreadsheet->getIndex($spreadsheet->getActiveSheet());
         $spreadsheet->removeSheetByIndex($defaultIndex);
 
-        // Grouping
+        // Grouping — skip rows that lack a section and warn instead of guessing
         $cabutRows = [];
         $mouldingRows = [];
         $harianRows = [];
+        $invalidRows = [];
 
         foreach ($pengajuan as $row) {
-            $jenis = (string) ($row->jenis ?? '');
-            if (stripos($jenis, 'harian') !== false) {
-                $harianRows[] = $row;
-            } elseif (stripos($jenis, 'moulding') !== false) {
-                $mouldingRows[] = $row;
-            } else {
+            $section = strtolower((string) ($row->section ?? ''));
+            if ($section === '') {
+                Log::warning('ExportPengajuan: missing section', ['payroll_id' => $payroll->id, 'nip' => $row->nip, 'jenis' => $row->jenis]);
+                $invalidRows[] = $row;
+                continue;
+            }
+
+            if (in_array($section, ['cabut', 'hcr'], true)) {
                 $cabutRows[] = $row;
+            } elseif ($section === 'moulding') {
+                $mouldingRows[] = $row;
+            } elseif ($section === 'harian') {
+                $harianRows[] = $row;
+            } else {
+                // unknown section value — warn and skip
+                Log::warning('ExportPengajuan: unknown section value', ['payroll_id' => $payroll->id, 'nip' => $row->nip, 'section' => $section]);
+                $invalidRows[] = $row;
             }
         }
+
+        // valid pengajuan set used for subsequent sheets/calculations
+        $validPengajuan = collect($cabutRows)->merge($mouldingRows)->merge($harianRows);
 
         $groups = [
             'CABUT' => $cabutRows,
@@ -578,30 +613,37 @@ class PayrollController extends Controller
             $sheet = $spreadsheet->createSheet();
             $sheet->setTitle(substr($name, 0, 31));
 
+            $isHarian = strtoupper($name) === 'HARIAN';
+            $lastCol = $isHarian ? 'N' : 'M';
+
             // Titles
-            $sheet->mergeCells('A1:M1');
+            $sheet->mergeCells("A1:{$lastCol}1");
             $sheet->setCellValue('A1', 'PT WALET ABDILLAH JABLI');
             $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
             $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-            $sheet->mergeCells('A2:M2');
+            $sheet->mergeCells("A2:{$lastCol}2");
             $sheet->setCellValue('A2', 'REKAP GAJI BORONGAN ' . strtoupper($name) . ' PERIODE ' . $payroll->periode);
             $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
             $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-            $sheet->mergeCells('A3:M3');
+            $sheet->mergeCells("A3:{$lastCol}3");
             $sheet->setCellValue('A3', 'Periode ' . \Carbon\Carbon::parse($payroll->tanggal_dari)->translatedFormat('d F Y') . ' s/d ' . \Carbon\Carbon::parse($payroll->tanggal_sampai)->translatedFormat('d F Y'));
             $sheet->getStyle('A3')->getFont()->setItalic(true)->setSize(10);
             $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-            // Spacer row 4 left blank
+            // Header row (row 5) - dynamic per group
+            if ($isHarian) {
+                $headers = [
+                    'No', 'NIP', 'NAMA', 'Jenis', 'Gaji Real', 'Gaji Lembur', 'Komplain', 'Insentif', 'Potongan Lain', 'Potongan BPJS', 'TF PAYROL', 'No Rekening', 'Bank', 'Email'
+                ];
+            } else {
+                $headers = [
+                    'No', 'NIP', 'NAMA', 'Jenis', 'Gaji Real', 'Komplain', 'Insentif', 'Potongan Lain', 'Potongan BPJS', 'TF PAYROL', 'No Rekening', 'Bank', 'Email'
+                ];
+            }
 
-            // Header row (row 5)
-            $headers = [
-                'No', 'NIP', 'NAMA', 'Jenis', 'Gaji Real', 'Komplain', 'Insentif', 'Potongan Lain', 'Potongan BPJS', 'TF PAYROL', 'No Rekening', 'Bank', 'Email'
-            ];
-
-            $headerRange = 'A5:M5';
+            $headerRange = "A5:{$lastCol}5";
             $sheet->fromArray($headers, null, 'A5');
             $sheet->getStyle($headerRange)->getFont()->setBold(true);
             $sheet->getStyle($headerRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9D9D9');
@@ -619,21 +661,41 @@ class PayrollController extends Controller
                 $sheet->setCellValue('B' . $rowNum, $r->nip);
                 $sheet->setCellValue('C' . $rowNum, $r->nama);
                 $sheet->setCellValue('D' . $rowNum, $r->jenis);
-                $sheet->setCellValue('E' . $rowNum, $r->gaji_real ?? 0);
-                $sheet->setCellValue('F' . $rowNum, $r->komplain ?? 0);
-                $sheet->setCellValue('G' . $rowNum, $r->insentif ?? 0);
-                $sheet->setCellValue('H' . $rowNum, $r->potongan_lain ?? 0);
-                $sheet->setCellValue('I' . $rowNum, $r->potongan_bpjs ?? 0);
-                $sheet->setCellValue('J' . $rowNum, $r->total_akhir ?? 0);
-                $sheet->setCellValue('K' . $rowNum, $r->no_rekening ?? '');
-                $sheet->setCellValue('L' . $rowNum, $r->nama_bank ?? '');
-                $sheet->setCellValue('M' . $rowNum, $r->email ?? '');
 
-                // Number format for nominal columns E-J
-                $sheet->getStyle("E{$rowNum}:J{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
+                if ($isHarian) {
+                    $sheet->setCellValue('E' . $rowNum, $r->gaji_real ?? 0);
+                    $sheet->setCellValue('F' . $rowNum, $r->total_lembur ?? 0);
+                    $sheet->setCellValue('G' . $rowNum, $r->komplain ?? 0);
+                    $sheet->setCellValue('H' . $rowNum, $r->insentif ?? 0);
+                    $sheet->setCellValue('I' . $rowNum, $r->potongan_lain ?? 0);
+                    $sheet->setCellValue('J' . $rowNum, $r->potongan_bpjs ?? 0);
+                    $sheet->setCellValue('K' . $rowNum, $r->total_akhir ?? 0);
+                    $sheet->setCellValue('L' . $rowNum, $r->no_rekening ?? '');
+                    $sheet->setCellValue('M' . $rowNum, $r->nama_bank ?? '');
+                    $sheet->setCellValue('N' . $rowNum, $r->email ?? '');
 
-                // Border for data row
-                $sheet->getStyle("A{$rowNum}:M{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                    // Number format for nominal columns E-K
+                    $sheet->getStyle("E{$rowNum}:K{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
+
+                    // Border for data row
+                    $sheet->getStyle("A{$rowNum}:{$lastCol}{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                } else {
+                    $sheet->setCellValue('E' . $rowNum, $r->gaji_real ?? 0);
+                    $sheet->setCellValue('F' . $rowNum, $r->komplain ?? 0);
+                    $sheet->setCellValue('G' . $rowNum, $r->insentif ?? 0);
+                    $sheet->setCellValue('H' . $rowNum, $r->potongan_lain ?? 0);
+                    $sheet->setCellValue('I' . $rowNum, $r->potongan_bpjs ?? 0);
+                    $sheet->setCellValue('J' . $rowNum, $r->total_akhir ?? 0);
+                    $sheet->setCellValue('K' . $rowNum, $r->no_rekening ?? '');
+                    $sheet->setCellValue('L' . $rowNum, $r->nama_bank ?? '');
+                    $sheet->setCellValue('M' . $rowNum, $r->email ?? '');
+
+                    // Number format for nominal columns E-J
+                    $sheet->getStyle("E{$rowNum}:J{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
+
+                    // Border for data row
+                    $sheet->getStyle("A{$rowNum}:{$lastCol}{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                }
 
                 $rowNum++;
                 $no++;
@@ -647,8 +709,13 @@ class PayrollController extends Controller
             $sheet->setCellValue('A' . $totalRow, 'TOTAL');
             $sheet->getStyle('A' . $totalRow)->getFont()->setBold(true);
 
-            // Sum formulas for E-J
-            $colsToSum = ['E','F','G','H','I','J'];
+            if ($isHarian) {
+                // Sum formulas for E-K
+                $colsToSum = ['E','F','G','H','I','J','K'];
+            } else {
+                // Sum formulas for E-J
+                $colsToSum = ['E','F','G','H','I','J'];
+            }
             foreach ($colsToSum as $col) {
                 $sheet->setCellValue($col . $totalRow, "=SUM({$col}6:{$col}{$lastDataRow})");
                 $sheet->getStyle($col . $totalRow)->getFont()->setBold(true);
@@ -657,16 +724,17 @@ class PayrollController extends Controller
             }
 
             // Border for total row
-            $sheet->getStyle("A{$totalRow}:M{$totalRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $sheet->getStyle("A{$totalRow}:{$lastCol}{$totalRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
-            // Auto-size columns A-M
-            foreach ($columns as $col) {
+            // Auto-size columns A-lastCol
+            $columnsToAuto = range('A', $lastCol);
+            foreach ($columnsToAuto as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
         }
 
-        // BELUM ADA REKENING sheet
-        $noBank = $pengajuan->filter(function($p) { return empty($p->no_rekening); })->values();
+        // BELUM ADA REKENING sheet (only include valid pengajuan rows)
+        $noBank = $validPengajuan->filter(function($p) { return empty($p->no_rekening); })->values();
         $sheet = $spreadsheet->createSheet();
         $sheet->setTitle('BELUM ADA REKENING');
 
@@ -710,6 +778,212 @@ class PayrollController extends Controller
         // Set first sheet as active (if exists)
         if ($spreadsheet->getSheetCount() > 0) {
             $spreadsheet->setActiveSheetIndex(0);
+        }
+
+        // ========================
+        // RESUM Sheet — summary / recap
+        // ========================
+        // Build RESUM from valid pengajuan and BoronganRekap totals
+        $resumSheet = $spreadsheet->createSheet();
+        $resumSheet->setTitle('RESUM');
+
+        // Title
+        $resumSheet->mergeCells('A1:N1');
+        $resumSheet->setCellValue('A1', 'REKAPITULASI PENGAJUAN GAJI');
+        $resumSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $resumSheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $row = 3;
+
+        // SECTION 1 - REKAPITALISASI GAJI (two side-by-side tables)
+        $resumSheet->setCellValue('A' . $row, 'REKAPITALISASI GAJI');
+        $resumSheet->getStyle('A' . $row)->getFont()->setBold(true);
+        $row += 1;
+
+        // Group pengajuan by jenis (job_label)
+        $groupsByJenis = $validPengajuan->groupBy(fn($p) => trim((string) ($p->jenis ?? '')))->map(function($g) {
+            return $g->values();
+        });
+
+        // Prepare ordered list: put harian groups first, then borongan
+        $groupList = [];
+        foreach ($groupsByJenis as $jobLabel => $group) {
+            $section = strtolower((string) ($group->first()->section ?? ''));
+            $groupList[] = [
+                'label' => $jobLabel,
+                'group' => $group,
+                'section' => $section,
+            ];
+        }
+        usort($groupList, function($a, $b) {
+            if ($a['section'] === 'harian' && $b['section'] !== 'harian') return -1;
+            if ($b['section'] === 'harian' && $a['section'] !== 'harian') return 1;
+            return strcmp($a['label'], $b['label']);
+        });
+
+        $totalGroups = count($groupList);
+        $half = (int) ceil($totalGroups / 2);
+        $leftGroups = array_slice($groupList, 0, $half);
+        $rightGroups = array_slice($groupList, $half);
+
+        // table headers
+        $leftCol = 'A'; $rightCol = 'H';
+        $headers = ['REKAPITALISASI GAJI', 'QTY MP', 'STATUS', 'QTY', 'NOMINAL'];
+        $resumSheet->fromArray($headers, null, $leftCol . $row);
+        $resumSheet->fromArray($headers, null, $rightCol . $row);
+        $resumSheet->getStyle($leftCol . $row . ':' . chr(ord($leftCol) + count($headers) -1) . $row)->getFont()->setBold(true);
+        $resumSheet->getStyle($rightCol . $row . ':' . chr(ord($rightCol) + count($headers) -1) . $row)->getFont()->setBold(true);
+        $row++;
+
+        $leftRow = $row; $rightRow = $row;
+        foreach ($leftGroups as $g) {
+            $label = $g['label'];
+            $members = $g['group'];
+            $qtyMp = $members->count();
+            $status = $g['section'] === 'harian' ? 'Harian' : 'Borongan';
+            $qtyText = '-';
+            if ($status === 'Borongan') {
+                $nips = $members->pluck('nip')->filter()->unique()->values()->all();
+                $totalGram = BoronganRekap::join('borongan_imports', 'borongan_rekap.borongan_import_id', '=', 'borongan_imports.id')
+                    ->where('borongan_imports.payroll_id', $payroll->id)
+                    ->where('borongan_imports.jenis', $g['section'])
+                    ->whereIn('borongan_rekap.nip', $nips)
+                    ->sum('borongan_rekap.total_gram');
+                $qtyText = 'QTY ' . strtoupper($label) . ' ' . number_format($totalGram, 0, ',', '.');
+            }
+            $nominal = $members->sum('total_akhir');
+
+            $resumSheet->setCellValue($leftCol . $leftRow, $label);
+            $resumSheet->setCellValue(chr(ord($leftCol)+1) . $leftRow, $qtyMp);
+            $resumSheet->setCellValue(chr(ord($leftCol)+2) . $leftRow, $status);
+            $resumSheet->setCellValue(chr(ord($leftCol)+3) . $leftRow, $qtyText);
+            $resumSheet->setCellValue(chr(ord($leftCol)+4) . $leftRow, $nominal);
+
+            $leftRow++;
+        }
+
+        foreach ($rightGroups as $g) {
+            $label = $g['label'];
+            $members = $g['group'];
+            $qtyMp = $members->count();
+            $status = $g['section'] === 'harian' ? 'Harian' : 'Borongan';
+            $qtyText = '-';
+            if ($status === 'Borongan') {
+                $nips = $members->pluck('nip')->filter()->unique()->values()->all();
+                $totalGram = BoronganRekap::join('borongan_imports', 'borongan_rekap.borongan_import_id', '=', 'borongan_imports.id')
+                    ->where('borongan_imports.payroll_id', $payroll->id)
+                    ->where('borongan_imports.jenis', $g['section'])
+                    ->whereIn('borongan_rekap.nip', $nips)
+                    ->sum('borongan_rekap.total_gram');
+                $qtyText = 'QTY ' . strtoupper($label) . ' ' . number_format($totalGram, 0, ',', '.');
+            }
+            $nominal = $members->sum('total_akhir');
+
+            $resumSheet->setCellValue($rightCol . $rightRow, $label);
+            $resumSheet->setCellValue(chr(ord($rightCol)+1) . $rightRow, $qtyMp);
+            $resumSheet->setCellValue(chr(ord($rightCol)+2) . $rightRow, $status);
+            $resumSheet->setCellValue(chr(ord($rightCol)+3) . $rightRow, $qtyText);
+            $resumSheet->setCellValue(chr(ord($rightCol)+4) . $rightRow, $nominal);
+
+            $rightRow++;
+        }
+
+        $endRow = max($leftRow, $rightRow);
+        // TOTAL row below both tables
+        $totalRow = $endRow + 1;
+        $resumSheet->mergeCells($leftCol . $totalRow . ':' . chr(ord($leftCol)+2) . $totalRow);
+        $resumSheet->setCellValue($leftCol . $totalRow, 'TOTAL');
+        $resumSheet->setCellValue(chr(ord($leftCol)+4) . $totalRow, "=SUM(" . chr(ord($leftCol)+4) . ($row) . ":" . chr(ord($leftCol)+4) . ($endRow -1) . ") + SUM(" . chr(ord($rightCol)+4) . ($row) . ":" . chr(ord($rightCol)+4) . ($endRow -1) . ")");
+        $resumSheet->getStyle($leftCol . $totalRow . ':' . chr(ord($rightCol)+4) . $totalRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF2CC');
+
+        $currentRow = $totalRow + 2;
+
+        // SECTION 2 - TOTAL PENGAJUAN GAJI by bank
+        $resumSheet->setCellValue('A' . $currentRow, 'TOTAL PENGAJUAN GAJI');
+        $resumSheet->getStyle('A' . $currentRow)->getFont()->setBold(true);
+        $currentRow++;
+
+        $bankGroups = $pengajuan->groupBy(fn($p) => trim((string) ($p->nama_bank ?: 'TUNAI')));
+        $resumSheet->fromArray(['Bank', 'Total'], null, 'A' . $currentRow);
+        $resumSheet->getStyle('A' . $currentRow . ':B' . $currentRow)->getFont()->setBold(true);
+        $currentRow++;
+        $startBankRow = $currentRow;
+        foreach ($bankGroups as $bankName => $group) {
+            $resumSheet->setCellValue('A' . $currentRow, $bankName ?: 'TUNAI');
+            $resumSheet->setCellValue('B' . $currentRow, $group->sum('total_akhir'));
+            $currentRow++;
+        }
+        $resumSheet->setCellValue('A' . $currentRow, 'TOTAL');
+        $resumSheet->setCellValue('B' . $currentRow, "=SUM(B{$startBankRow}:B" . ($currentRow-1) . ")");
+        $resumSheet->getStyle('A' . $currentRow . ':B' . $currentRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF2CC');
+
+        $currentRow += 2;
+
+        // SECTION 3 - Rata-rata per hari
+        $dari = \Carbon\Carbon::parse($payroll->tanggal_dari);
+        $sampai = \Carbon\Carbon::parse($payroll->tanggal_sampai);
+        $masaAktifHariKerja = $dari->diffInDays($sampai) + 1; // inclusive calendar days — adjust if needs business days
+        $resumSheet->setCellValue('A' . $currentRow, 'Rata-rata per hari');
+        $resumSheet->getStyle('A' . $currentRow)->getFont()->setBold(true);
+        $currentRow++;
+        $sumCabut = $validPengajuan->where('section', 'cabut')->sum('total_akhir');
+        $sumHcr = $validPengajuan->where('section', 'hcr')->sum('total_akhir');
+        $sumMoulding = $validPengajuan->where('section', 'moulding')->sum('total_akhir');
+
+        $resumSheet->setCellValue('A' . $currentRow, 'Rata Cabut Per Hari');
+        $resumSheet->setCellValue('B' . $currentRow, $sumCabut / max(1, $masaAktifHariKerja));
+        $currentRow++;
+        $resumSheet->setCellValue('A' . $currentRow, 'Rata HCR Per Hari');
+        $resumSheet->setCellValue('B' . $currentRow, $sumHcr / max(1, $masaAktifHariKerja));
+        $currentRow++;
+        $resumSheet->setCellValue('A' . $currentRow, 'Rata Cetak & GPU Per Hari');
+        $resumSheet->setCellValue('B' . $currentRow, $sumMoulding / max(1, $masaAktifHariKerja));
+        $currentRow++;
+        $resumSheet->setCellValue('A' . $currentRow, "Noted: Masa Aktif {$masaAktifHariKerja} hari Kerja");
+        $currentRow += 2;
+
+        // SECTION 4 - TOTAL PENGAJUAN GAJI by section
+        $resumSheet->setCellValue('A' . $currentRow, 'TOTAL PENGAJUAN GAJI (by section)');
+        $resumSheet->getStyle('A' . $currentRow)->getFont()->setBold(true);
+        $currentRow++;
+        $resumSheet->setCellValue('A' . $currentRow, 'Harian');
+        $resumSheet->setCellValue('B' . $currentRow, $validPengajuan->where('section', 'harian')->sum('total_akhir'));
+        $currentRow++;
+        $resumSheet->setCellValue('A' . $currentRow, 'Borongan Titil HCR');
+        $resumSheet->setCellValue('B' . $currentRow, $validPengajuan->where('section', 'hcr')->sum('total_akhir'));
+        $currentRow++;
+        $resumSheet->setCellValue('A' . $currentRow, 'Borongan Cabut');
+        $resumSheet->setCellValue('B' . $currentRow, $validPengajuan->where('section', 'cabut')->sum('total_akhir'));
+        $currentRow++;
+        $resumSheet->setCellValue('A' . $currentRow, 'Borongan Cetak');
+        $resumSheet->setCellValue('B' . $currentRow, $validPengajuan->where('section', 'moulding')->sum('total_akhir'));
+        $currentRow++;
+        $resumSheet->setCellValue('A' . $currentRow, 'Total');
+        $resumSheet->setCellValue('B' . $currentRow, "=SUM(B" . ($currentRow-4) . ":B" . ($currentRow-1) . ")");
+        $resumSheet->getStyle('A' . $currentRow . ':B' . $currentRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF2CC');
+        $currentRow += 3;
+
+        // SECTION 5 - Signature block
+        $resumSheet->setCellValue('A' . $currentRow, 'Lamongan, ' . now()->translatedFormat('j F Y'));
+        $currentRow += 2;
+        $resumSheet->setCellValue('A' . $currentRow, 'Dibuat Oleh');
+        $resumSheet->setCellValue('D' . $currentRow, 'Di Periksa Oleh');
+        $resumSheet->setCellValue('G' . $currentRow, 'Di Ketahui Oleh');
+        $resumSheet->setCellValue('J' . $currentRow, 'Di Setujui Oleh');
+        $currentRow += 4;
+        $resumSheet->setCellValue('A' . $currentRow, 'Khusnul Fatimah');
+        $resumSheet->setCellValue('D' . $currentRow, 'Ratna Suminar');
+        $resumSheet->setCellValue('G' . $currentRow, 'Patrick Justin');
+        $resumSheet->setCellValue('J' . $currentRow, 'Djunita');
+        $currentRow++;
+        $resumSheet->setCellValue('A' . $currentRow, 'Adm Payroll');
+        $resumSheet->setCellValue('D' . $currentRow, 'Finance Accounting');
+        $resumSheet->setCellValue('G' . $currentRow, 'General Manager');
+        $resumSheet->setCellValue('J' . $currentRow, 'Direktur');
+
+        // Auto-size some columns
+        foreach (range('A', 'N') as $c) {
+            $resumSheet->getColumnDimension($c)->setAutoSize(true);
         }
 
         // Save to temporary file
@@ -1013,7 +1287,13 @@ class PayrollController extends Controller
                 }
             }
 
-            $rekapQuery = BoronganRekap::whereIn('borongan_import_id', $boronganImportIds)
+            $sectionImportIds = match ($section) {
+                'cabut', 'hcr' => $cabutHcrImportIds,
+                'moulding' => $mouldingImportIds,
+                default => [],
+            };
+
+            $rekapQuery = BoronganRekap::whereIn('borongan_import_id', $sectionImportIds)
                 ->whereRaw('TRIM(UPPER(nip)) = ?', [$nip]);
 
             $gajiPokokTotal = 0;
@@ -1023,7 +1303,7 @@ class PayrollController extends Controller
                 while ($currentDate <= $dateTo) {
                     $tanggal = $currentDate->format('Y-m-d');
 
-                    $dailyBorongan = BoronganHarian::whereIn('borongan_import_id', $boronganImportIds)
+                    $dailyBorongan = BoronganHarian::whereIn('borongan_import_id', $sectionImportIds)
                         ->whereRaw('TRIM(UPPER(nip)) = ?', [$nip])
                         ->where('tanggal', $tanggal)
                         ->get();
@@ -1204,6 +1484,11 @@ class PayrollController extends Controller
                     case 'ST': $setengahHari++; break;
                 }
             }
+
+            // For payroll pay, use approved overtime minutes from OvertimeRequest as single source of truth
+            $lemburMenit = (int) \App\Models\OvertimeRequest::where('pin', $pin)
+                ->whereBetween('tanggal', [$dari, $sampai])
+                ->sum('lembur_menit');
 
             $nominal = $payrollDetail->nominal_harian;
             $gajiPokok = ($hadir + $setengahHari) * $nominal;

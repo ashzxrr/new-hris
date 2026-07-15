@@ -698,9 +698,21 @@ class BoronganController extends Controller
                     continue;
                 }
 
-                $validCategories = [
-                    'gpu rendaman', 'gpu normal', 'pt', 'nat', 'nat sbg', 'sbg',
-                    'mk dj', 'vip waj', 'sbg waj', 'nat waj', 'hcr', 'σ berat',
+                $categoryAliases = [
+                    'gpu rendaman' => 'gpu rendaman',
+                    'gpu normal' => 'gpu normal',
+                    'gpu kerin' => 'gpu rendaman',
+                    'gpu kerin gpu rendaman' => 'gpu rendaman',
+                    'gpu kerin gpu normal' => 'gpu normal',
+                    'gpu kerin gpu normal gpu rendaman' => 'gpu rendaman',
+                    'pt' => 'pt',
+                    'nat' => 'nat',
+                    'nat sbg' => 'nat sbg',
+                    'sbg' => 'sbg',
+                    'mk dj' => 'mk dj',
+                    'vip waj' => 'vip waj',
+                    'sbg waj' => 'sbg waj',
+                    'nat waj' => 'nat waj',
                 ];
                 $categoryColumns = [];
                 $totalGramColFile1 = null;
@@ -712,18 +724,20 @@ class BoronganController extends Controller
 
                     $useHeader = $headerValRow3 !== '' ? $headerValRow3 : $headerValRow1;
                     $headerLower = trim(strtolower(preg_replace('/\s+/', ' ', $useHeader)));
+                    $headerKey = preg_replace('/[^a-z0-9\s]/', ' ', $headerLower);
+                    $headerKey = trim(preg_replace('/\s+/', ' ', $headerKey));
 
-                    if ($headerLower === 'σ berat') {
+                    if ($headerKey === 'σ berat' || $headerLower === 'σ berat') {
                         $totalGramColFile1 = $c;
                         continue;
                     }
 
-                    if ($headerLower === 'hcr') {
+                    if ($headerKey === 'hcr') {
                         continue; // HCR tidak ikut dihitung sebagai kategori moulding
                     }
 
-                    if (in_array($headerLower, $validCategories, true)) {
-                        $categoryColumns[$headerLower] = $c;
+                    if (isset($categoryAliases[$headerKey])) {
+                        $categoryColumns[$categoryAliases[$headerKey]] = $c;
                     }
                 }
 

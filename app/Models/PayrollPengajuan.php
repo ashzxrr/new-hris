@@ -12,6 +12,7 @@ class PayrollPengajuan extends Model
         'payroll_id',
         'nip',
         'nama',
+        'section',
         'jenis',
         'gaji_real',
         'komplain',
