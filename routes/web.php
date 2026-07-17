@@ -48,7 +48,9 @@ Route::middleware('auth:admin')->group(function () {
 
     Route::middleware(['auth.admin', 'role:admin,payroll'])->group(function () {
         Route::get('/karyawan/bank', [\App\Http\Controllers\KaryawanBankController::class, 'index'])->name('karyawan.bank.index');
+        Route::post('/karyawan/bank', [\App\Http\Controllers\KaryawanBankController::class, 'store'])->name('karyawan.bank.store');
         Route::post('/karyawan/bank/{nip}', [\App\Http\Controllers\KaryawanBankController::class, 'update'])->name('karyawan.bank.update');
+        Route::delete('/karyawan/bank/{nip}', [\App\Http\Controllers\KaryawanBankController::class, 'destroy'])->name('karyawan.bank.destroy');
     });
 
     Route::middleware(['auth.admin', 'role:admin,hrd,ga'])->group(function () {

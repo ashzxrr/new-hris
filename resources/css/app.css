@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'components/buttons.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -6,4 +7,186 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+}
+
+
+/* ============================================================
+   PT WAJ HRIS — Design Tokens
+   ============================================================ */
+:root {
+  /* --- Brand Colors --- */
+  --c-navy:      #2F4156;
+  --c-teal:      #567C8D;
+  --c-sky:       #C8D9E6;
+  --c-sky-light: #EAF1F6;
+  --c-beige:     #F5EFEB;
+  --c-white:     #FFFFFF;
+
+  /* --- Semantic --- */
+  --c-success:   #1B7A4A;
+  --c-success-bg:#E0F2EA;
+  --c-warn:      #9A6200;
+  --c-warn-bg:   #FFF3DC;
+  --c-danger:    #B91C1C;
+  --c-danger-bg: #FEE2E2;
+
+  /* --- Text --- */
+  --text-primary:   #2F4156;
+  --text-secondary: #567C8D;
+  --text-muted:     #8BAFC4;
+
+  /* --- Surfaces --- */
+  --surface-page:   #F5EFEB;
+  --surface-card:   #FFFFFF;
+  --surface-sidebar:#EAF1F6;
+
+  /* --- Border --- */
+  --border-default: #C8D9E6;
+  --border-strong:  #567C8D;
+
+  /* --- Radius --- */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-pill:999px;
+
+  /* --- Shadow --- */
+  --shadow-card: 0 1px 4px rgba(47,65,86,.06), 0 0 0 1px #C8D9E6;
+
+  /* --- Spacing --- */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* --- Sidebar --- */
+  --sidebar-width: 220px;
+  --topbar-height: 58px;
+}
+
+/* ============================================================
+   TABLE STYLES — PT WAJ HRIS Design System
+   ============================================================ */
+.hris-table {
+  @apply bg-white rounded-[11px] border border-[#C8D9E6] overflow-hidden shadow-[0_1px_4px_rgba(47,65,86,.06)];
+}
+
+.hris-table thead {
+  @apply bg-[#EAF1F6] border-b border-[#C8D9E6];
+}
+
+.hris-table thead th {
+  @apply px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide;
+}
+
+.hris-table tbody tr {
+  @apply border-b border-[#EAF1F6] last:border-0 hover:bg-[#F9FBFD] transition-colors;
+}
+
+.hris-table tbody td {
+  @apply px-4 py-3 text-[12.5px] text-[#2F4156];
+}
+
+/* Table Badges */
+.badge-success {
+  @apply inline-flex px-2 py-0.5 rounded-full bg-[#E0F2EA] text-[#1B7A4A] text-[10px] font-medium;
+}
+
+.badge-warning {
+  @apply inline-flex px-2 py-0.5 rounded-full bg-[#FFF3DC] text-[#9A6200] text-[10px] font-medium;
+}
+
+.badge-danger {
+  @apply inline-flex px-2 py-0.5 rounded-full bg-[#FEE2E2] text-[#B91C1C] text-[10px] font-medium;
+}
+
+.badge-info {
+  @apply inline-flex px-2 py-0.5 rounded-full bg-[#EAF1F6] text-[#2F4156] text-[10px] font-medium;
+}
+
+/* ============================================================
+   FORM STYLES — PT WAJ HRIS Design System
+   ============================================================ */
+label {
+  @apply block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="month"],
+input[type="file"],
+select,
+textarea {
+  @apply w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] 
+         rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 
+         focus:border-[#567C8D] placeholder-[#8BAFC4] transition;
+}
+
+textarea {
+  @apply resize-y;
+}
+
+.form-group {
+  @apply mb-4;
+}
+
+.form-error {
+  @apply mt-1 text-[11px] text-[#B91C1C];
+}
+
+.form-card {
+  @apply bg-white rounded-[11px] border border-[#C8D9E6] p-6 shadow-[0_1px_4px_rgba(47,65,86,.06)];
+}
+
+/* ============================================================
+   BUTTON STYLES — PT WAJ HRIS Design System
+   ============================================================ */
+.btn-primary {
+  @apply inline-flex items-center gap-1.5 px-4 py-2 bg-[#2F4156] text-white 
+         text-[12px] font-medium rounded-lg hover:bg-[#243347] transition-colors;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center gap-1.5 px-4 py-2 bg-white text-[#2F4156] 
+         text-[12px] font-medium rounded-lg border border-[#C8D9E6] 
+         hover:bg-[#EAF1F6] transition-colors;
+}
+
+.btn-teal {
+  @apply inline-flex items-center gap-1.5 px-4 py-2 bg-[#567C8D] text-white 
+         text-[12px] font-medium rounded-lg hover:bg-[#3F6070] transition-colors;
+}
+
+.btn-danger {
+  @apply inline-flex items-center gap-1.5 px-4 py-2 bg-[#B91C1C] text-white 
+         text-[12px] font-medium rounded-lg hover:bg-[#991B1B] transition-colors;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center gap-1 px-3 py-1.5 text-[#567C8D] text-[11px] 
+         rounded-md hover:bg-[#EAF1F6] transition-colors;
+}
+
+/* Pagination */
+.pagination {
+  @apply flex items-center gap-1;
+}
+
+.pagination button,
+.pagination a {
+  @apply px-3 py-1.5 rounded-lg text-[12px] transition-colors;
+}
+
+.pagination .active {
+  @apply bg-[#2F4156] text-white;
+}
+
+.pagination button:not(.active),
+.pagination a:not(.active) {
+  @apply text-[#567C8D] hover:bg-[#EAF1F6];
 }

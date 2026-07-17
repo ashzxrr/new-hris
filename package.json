@@ -1,0 +1,31 @@
+{
+  "name": "new-hris",
+  "version": "1.0.0",
+  "description": "HRIS PT WAJ",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ashzxrr/new-hris.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ashzxrr/new-hris/issues"
+  },
+  "homepage": "https://github.com/ashzxrr/new-hris#readme",
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.2",
+    "laravel-vite-plugin": "^3.1.3",
+    "tailwindcss": "^4.3.2",
+    "vite": "^8.1.4"
+  },
+  "type": "module"
+}

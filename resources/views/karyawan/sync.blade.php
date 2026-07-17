@@ -6,8 +6,11 @@
         <h1 class="text-xl font-semibold text-slate-800">Sinkron Karyawan dari Mesin</h1>
     </div>
     <div>
-        <a href="{{ route('karyawan.index') }}" class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
-            Kembali
+        <a href="{{ route('karyawan.index') }}" class="pbtn pbtn-secondary">
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </span>
+            <span>Kembali</span>
         </a>
     </div>
 </div>
@@ -31,7 +34,7 @@
                     <td class="px-4 py-3 text-sm font-mono text-slate-600">{{ $pin }}</td>
                     <td class="px-4 py-3 text-sm text-slate-800 uppercase">{{ $nama }}</td>
                     <td class="px-4 py-3">
-                        <button type="button" onclick="openModal('{{ $pin }}', '{{ addslashes($nama) }}')" class="inline-flex items-center rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-700 transition">
+                        <button type="button" onclick="openModal('{{ $pin }}', '{{ addslashes($nama) }}')" class="pbtn pbtn-primary pbtn-sm">
                             Simpan
                         </button>
                     </td>
@@ -62,29 +65,29 @@
 
             <div class="grid grid-cols-3 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">Nama Lengkap *</label>
-                    <input id="modal_nama" name="nama" type="text" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900" required />
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Nama Lengkap *</label>
+                    <input id="modal_nama" name="nama" type="text" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition" required />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">NIP</label>
-                    <input name="nip" type="text" placeholder="Masukkan NIP" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900" />
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">NIP</label>
+                    <input name="nip" type="text" placeholder="Masukkan NIP" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition" />
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">NIK</label>
-                    <input name="nik" type="text" placeholder="Masukkan NIK" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900" />
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">NIK</label>
+                    <input name="nik" type="text" placeholder="Masukkan NIK" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition" />
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">Jenis Kelamin</label>
-                    <select name="jk" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900">
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Jenis Kelamin</label>
+                    <select name="jk" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                         <option value="">- Pilih -</option>
                         <option value="L">Laki-laki</option>
                         <option value="P">Perempuan</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">Jabatan</label>
-                    <select name="job_title" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900">
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Jabatan</label>
+                    <select name="job_title" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                         <option value="">- Pilih -</option>
                         <option value="TL Cuci">TL Cuci</option>
                         <option value="TL Cabut">TL Cabut</option>
@@ -119,8 +122,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">Level Jabatan</label>
-                    <select name="job_level" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900">
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Level Jabatan</label>
+                    <select name="job_level" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                         <option value="">- Pilih -</option>
                         <option value="Operator">Operator</option>
                         <option value="Team Leader">Team Leader</option>
@@ -142,8 +145,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">Bagian</label>
-                    <select name="bagian" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900">
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Bagian</label>
+                    <select name="bagian" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                         <option value="">- Pilih -</option>
                         <option value="-">-</option>
                         <option value="Manager Produksi">Manager Produksi</option>
@@ -187,8 +190,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">Departemen</label>
-                    <select name="departemen" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900">
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Departemen</label>
+                    <select name="departemen" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                         <option value="">- Pilih -</option>
                         <option value="Produksi">Produksi</option>
                         <option value="Support">Support</option>
@@ -196,8 +199,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">TL (Team Leader)</label>
-                    <select name="tl_id" class="mt-2 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">TL (Team Leader)</label>
+                    <select name="tl_id" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                         <option value="">- Tidak Ada -</option>
                         
                         <optgroup label="CABUT">
@@ -240,8 +243,8 @@
                     </select>
                 </div>
                 <div class="col-span-3">
-                    <label class="block text-sm font-medium text-slate-700">Kategori Gaji</label>
-                    <select name="kategori_gaji" class="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900">
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Kategori Gaji</label>
+                    <select name="kategori_gaji" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                         <option value="">- Pilih -</option>
                         <option value="borongan cabut">borongan cabut</option>
                         <option value="borongan cetak">borongan cetak</option>
@@ -252,8 +255,8 @@
             </div>
 
             <div class="mt-6 flex items-center justify-end gap-3">
-                <button type="button" onclick="closeModal()" class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition">Batal</button>
-                <button type="submit" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 transition">Simpan Karyawan</button>
+                <button type="button" onclick="closeModal()" class="pbtn pbtn-secondary">Batal</button>
+                <button type="submit" class="pbtn pbtn-primary">Simpan Karyawan</button>
             </div>
         </form>
     </div>

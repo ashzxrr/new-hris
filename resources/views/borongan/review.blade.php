@@ -22,7 +22,7 @@
             @if($siblingImports->count() > 1)
             <div class="flex items-center gap-2">
                 <label class="text-xs text-slate-400">Tanggal:</label>
-                <select onchange="window.location.href = this.value" class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
+                <select onchange="window.location.href = this.value" class="px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                     @foreach($siblingImports as $sibling)
                     <option value="{{ route('borongan.review', $sibling->id) }}" {{ $sibling->id === $import->id ? 'selected' : '' }}>
                         {{ \Carbon\Carbon::parse($sibling->tanggal_dari)->translatedFormat('d F Y') }}
@@ -35,34 +35,53 @@
         </div>
         <div class="flex gap-3">
             <a href="{{ $payrollId ? route('payroll.show', $payrollId) : route('borongan.index') }}"
-                class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">← Kembali</a>
+                class="pbtn pbtn-secondary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                </span>
+                <span>Kembali</span></a>
             @if($import->status !== 'approved')
             <button type="button" onclick="openRevisiModal()"
-                class="border border-amber-300 text-amber-600 px-3 py-2 rounded-lg text-sm hover:bg-amber-50">
-                ✏️ Revisi
+                class="pbtn pbtn-warning">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </span>
+                <span>Revisi</span>
             </button>
             <a href="{{ route('borongan.exportReview', $import->id) }}"
-                class="border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-sm hover:bg-[#F8FAFC]">
-                📥 Export Excel
+                class="pbtn pbtn-secondary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                </span>
+                <span>Export Excel</span>
             </a>
             <form method="POST" action="{{ route('borongan.undo', $import->id) }}"
                 onsubmit="return confirm('Undo upload ini? Semua data akan dihapus.')" style="display:inline;">
                 @csrf @method('DELETE')
-                <button type="submit" class="border border-red-300 text-red-600 px-4 py-2 rounded-lg text-sm hover:bg-red-50">
-                    ↶ Undo Upload
+                <button type="submit" class="pbtn pbtn-danger">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+                    </span>
+                    <span>Undo Upload</span>
                 </button>
             </form>
 
             @if(!empty($pendingMutasi) && $pendingMutasi->isNotEmpty())
-                <button type="button" disabled title="Selesaikan konfirmasi mutasi dulu" class="bg-slate-200 text-slate-400 px-4 py-2 rounded-lg text-sm cursor-not-allowed">
-                    ✅ Approve Semua
+                <button type="button" disabled title="Selesaikan konfirmasi mutasi dulu" class="pbtn pbtn-secondary">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    </span>
+                    <span>Approve Semua</span>
                 </button>
             @else
             <form method="POST" action="{{ route('borongan.approve', $import->id) }}"
                 onsubmit="return confirm('Approve semua data ini?')" style="display:inline;">
                 @csrf @method('PUT')
-                <button type="submit" class="bg-[#22C55E] text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600">
-                    ✅ Approve Semua
+                <button type="submit" class="pbtn pbtn-success">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    </span>
+                    <span>Approve Semua</span>
                 </button>
             </form>
             @endif
@@ -97,7 +116,7 @@
             Highlight upah < Rp 50.000
         </label>
         <div class="flex items-center gap-2 w-full md:w-auto">
-            <select id="filterStatus" class="border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm">
+            <select id="filterStatus" class="px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                 <option value="semua">Semua</option>
                 <option value="ada">Yang Ada Data</option>
                 <option value="kosong">Yang Kosong (Tidak Ada Data)</option>
@@ -113,18 +132,21 @@
         <input type="number" id="bulkUpahInput" placeholder="Nominal upah, mis. 65000"
             class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm w-48">
         <button type="button" onclick="applyBulkUpah()"
-            class="bg-[#4F46E5] text-white px-3 py-1.5 rounded-lg text-xs hover:bg-[#4338CA]">
+            class="pbtn pbtn-primary pbtn-sm">
             Terapkan
         </button>
         <input type="number" id="bulkTrainingInput" placeholder="Target upah training, mis. 65000"
             class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm w-56">
         <button type="button" onclick="applyBulkTraining()"
-            class="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-amber-600">
+            class="pbtn pbtn-warning pbtn-sm">
             Set Tambahan Training
         </button>
         <button type="button" onclick="hapusTerpilih()"
-            class="bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-red-600">
-            🗑️ Hapus Terpilih
+            class="pbtn pbtn-danger pbtn-sm">
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M6 6l1 14h10l1-14"/></svg>
+            </span>
+            <span>Hapus Terpilih</span>
         </button>
     </div>
 
@@ -208,14 +230,14 @@
         <h3 class="font-semibold text-slate-800 mb-1">Konfirmasi Mutasi</h3>
         <p class="text-sm text-slate-600 mb-4" id="mutasiModalDesc"></p>
 
-        <button onclick="resolveMutasi('confirmed')" class="w-full bg-purple-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-purple-700 mb-2">
+        <button onclick="resolveMutasi('confirmed')" class="w-full pbtn pbtn-success mb-2">
             ✅ Konfirmasi Mutasi (data valid di kedua jenis)
         </button>
 
         <p class="text-xs text-slate-500 mt-3 mb-1">Atau tandai kesalahan input di salah satu jenis:</p>
         <div class="flex gap-2">
-            <button id="mutasiWrongA" onclick="resolveMutasi('rejected', 'a')" class="flex-1 border border-red-300 text-red-600 px-3 py-2 rounded-lg text-xs hover:bg-red-50"></button>
-            <button id="mutasiWrongB" onclick="resolveMutasi('rejected', 'b')" class="flex-1 border border-red-300 text-red-600 px-3 py-2 rounded-lg text-xs hover:bg-red-50"></button>
+            <button id="mutasiWrongA" onclick="resolveMutasi('rejected', 'a')" class="flex-1 pbtn pbtn-danger pbtn-sm"></button>
+            <button id="mutasiWrongB" onclick="resolveMutasi('rejected', 'b')" class="flex-1 pbtn pbtn-danger pbtn-sm"></button>
         </div>
     </div>
 </div>
@@ -338,8 +360,18 @@ function openReviewModal(importId, nip, nama) {
                 const specialFlag = (job.flag_reason || '') === 'Tidak ada data pada tanggal ini';
                 const actionCell = specialFlag
                     ? `<div class="flex flex-col items-center gap-1 mt-1">
-                        <button type="button" onclick="konfirmasiKosong(${job.id})" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200">✅ Konfirmasi</button>
-                        <button type="button" onclick="hapusDariDaftar(${job.id})" class="text-[10px] bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200">🗑️ Hapus dari Daftar</button>
+                        <button type="button" onclick="konfirmasiKosong(${job.id})" class="pbtn pbtn-success pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>
+                            </span>
+                            <span>Konfirmasi</span>
+                        </button>
+                        <button type="button" onclick="hapusDariDaftar(${job.id})" class="pbtn pbtn-danger pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </span>
+                            <span>Hapus</span>
+                        </button>
                     </div>`
                     : '';
                 const selisihClass = Math.abs(job.selisih) > 1000 ? 'text-red-500' : 'text-slate-400';

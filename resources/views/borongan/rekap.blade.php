@@ -175,10 +175,13 @@
                     </div>
                     <div class="flex gap-3">
                         <button type="button" onclick="closeDetailModal()"
-                            class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">Tutup</button>
+                            class="pbtn pbtn-secondary">Tutup</button>
                         <button type="button" onclick="saveRekap()"
-                            class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
-                            💾 Simpan
+                            class="pbtn pbtn-primary">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+                            </span>
+                            <span>Simpan</span>
                         </button>
                     </div>
                 </div>

@@ -18,28 +18,44 @@
         </div>
         <div class="flex gap-3">
             <a href="{{ isset($payroll) ? route('payroll.show', $payroll->id) : route('payroll.index') }}"
-                class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">← Kembali</a>
+                class="pbtn pbtn-secondary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                </span>
+                <span>Kembali</span></a>
             <a href="{{ route('payroll.export.slip', $payroll->id) }}"
-                class="border border-[#22C55E] text-[#22C55E] px-4 py-2 rounded-lg text-sm hover:bg-green-50 transition">
-                📄 Export Slip Gaji
+                class="pbtn pbtn-secondary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 19H9"/><path d="M15 19H12"/></svg>
+                </span>
+                <span>Export Slip Gaji</span>
             </a>
             <a href="{{ route('payroll.exportHarian', $payroll->id) }}"
-                class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50">
-                📥 Export Excel
+                class="pbtn pbtn-secondary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                </span>
+                <span>Export Excel</span>
             </a>
             @if($payroll->status === 'draft')
             <button type="button" onclick="syncAllDetails()"
-                class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA] transition">
-                🔄 Sync Semua
+                class="pbtn pbtn-primary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.65 4.36A9 9 0 0 0 20.5 15"/></svg>
+                </span>
+                <span>Sync Semua</span>
             </button>
             @endif
             @if($payroll->status === 'draft')
             <form method="POST" action="{{ route('payroll.finalize', $payroll->id) }}">
                 @csrf @method('PUT')
                 <button type="submit"
-                    class="bg-[#22C55E] text-white px-4 py-2 rounded-lg text-sm hover:bg-green-600"
+                    class="pbtn pbtn-success"
                     onclick="return confirm('Finalisasi payroll? Status tidak bisa diubah kembali.')">
-                    ✅ Finalisasi
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    </span>
+                    <span>Finalisasi</span>
                 </button>
             </form>
             @endif
@@ -230,11 +246,14 @@
             </div>
             <div class="flex gap-3">
                 <button type="button" onclick="closeDetailModal()"
-                    class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50">Tutup</button>
+                    class="pbtn pbtn-secondary">Tutup</button>
                 @if($payroll->status === 'draft')
                 <button type="button" onclick="submitDetail()"
-                    class="bg-[#4F46E5] text-white px-5 py-2 rounded-lg text-sm hover:bg-[#4338CA] font-medium flex items-center gap-2">
-                    💾 Simpan
+                    class="pbtn pbtn-primary">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+                    </span>
+                    <span>Simpan</span>
                 </button>
                 @endif
             </div>
@@ -364,7 +383,7 @@ function renderDetailTable(rows) {
             cells = `
                 <td class="px-3 py-2 font-medium text-slate-700">${row.tgl_display}</td>
                 <td class="px-3 py-2 text-center text-green-600 font-mono">${row.fp_in || '<span class="text-slate-300">-</span>'}</td>
-                <td class="px-3 py-2 text-center text-blue-600 font-mono">${row.fp_out || '<span class="text-slate-300">-</span>'}</td>
+                <td class="px-3 py-2 text-center text-blue-600 font-mono">${row.fp_out || (row.kor_out ? `<span class="text-amber-600">${row.kor_out}</span>` : '<span class="text-slate-300">-</span>')}</td>
                 <td class="px-3 py-2 text-center">
                     ${payrollIsDraft
                         ? `<input type="time" value="${row.kor_in || ''}" class="border border-[#E5E7EB] rounded px-1.5 py-1 text-xs w-22 focus:outline-none focus:ring-1 focus:ring-[#4F46E5]/30" onchange="updateDetailRow(${i}, 'jam_in', this.value)">`
@@ -390,7 +409,7 @@ function renderDetailTable(rows) {
                 </td>
                 <td class="px-3 py-2 text-center">
                     ${payrollIsDraft
-                        ? `<input type="checkbox" ${lemburChecked} class="w-4 h-4 accent-[#4F46E5] cursor-pointer" onchange="updateDetailRow(${i}, 'lembur_approved', this.checked)" ${row.lembur_menit > 0 ? '' : 'disabled'}>`
+                        ? `<input type="checkbox" ${lemburChecked} class="w-4 h-4 accent-[#4F46E5] cursor-pointer" onchange="updateDetailRow(${i}, 'lembur_approved', this.checked)">`
                         : (row.lembur_approved ? '✅' : '<span class="text-slate-300">-</span>')}
                 </td>
                 <td class="px-3 py-2">

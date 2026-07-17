@@ -18,8 +18,11 @@
             </p>
         </div>
         <a href="{{ route('payroll.index') }}"
-            class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50 transition">
-            ← Kembali
+            class="pbtn pbtn-secondary">
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </span>
+            <span>Kembali</span>
         </a>
     </div>
 
@@ -33,8 +36,11 @@
                 <div class="text-center py-6">
                     <p class="text-sm text-slate-400 mb-3">Belum ada data</p>
                     <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'cabut']) }}"
-                        class="inline-block bg-[#4F46E5] text-white px-3 py-2 rounded-lg text-xs hover:bg-[#4338CA] transition">
-                        + Upload
+                        class="pbtn pbtn-primary pbtn-sm">
+                        <span class="pbtn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                        </span>
+                        <span>Upload</span>
                     </a>
                 </div>
             @else
@@ -57,16 +63,25 @@
                     </div>
                     <div class="flex flex-wrap gap-2 pt-3">
                         <a href="{{ route('borongan.review', $cabutImport->id) }}"
-                            class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
-                            Review
+                            class="flex-1 pbtn pbtn-secondary pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </span>
+                            <span>Review</span>
                         </a>
                         <a href="{{ route('borongan.rekapIndex', $cabutImport->id) }}"
-                            class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
-                            Rekap
+                            class="flex-1 pbtn pbtn-secondary pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            </span>
+                            <span>Rekap</span>
                         </a>
                         <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'cabut', 'revisi' => 1]) }}"
-                            class="flex-1 text-center border border-[#4F46E5] text-[#4F46E5] px-3 py-2 rounded-lg text-xs hover:bg-[#4F46E5]/5 transition">
-                            Upload Revisi
+                            class="flex-1 pbtn pbtn-warning pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            </span>
+                            <span>Upload Revisi</span>
                         </a>
                     </div>
                 </div>
@@ -81,8 +96,11 @@
                 <div class="text-center py-6">
                     <p class="text-sm text-slate-400 mb-3">Belum ada data</p>
                     <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'cetak']) }}"
-                        class="inline-block bg-[#4F46E5] text-white px-3 py-2 rounded-lg text-xs hover:bg-[#4338CA] transition">
-                        + Upload
+                        class="pbtn pbtn-primary pbtn-sm">
+                        <span class="pbtn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                        </span>
+                        <span>Upload</span>
                     </a>
                 </div>
             @else
@@ -105,16 +123,25 @@
                     </div>
                     <div class="flex flex-wrap gap-2 pt-3">
                         <a href="{{ route('borongan.review', $hcrImport->id) }}"
-                            class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
-                            Review
+                            class="flex-1 pbtn pbtn-secondary pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </span>
+                            <span>Review</span>
                         </a>
                         <a href="{{ route('borongan.rekapIndex', $hcrImport->id) }}"
-                            class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
-                            Rekap
+                            class="flex-1 pbtn pbtn-secondary pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            </span>
+                            <span>Rekap</span>
                         </a>
                         <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'cetak', 'revisi' => 1]) }}"
-                            class="flex-1 text-center border border-[#4F46E5] text-[#4F46E5] px-3 py-2 rounded-lg text-xs hover:bg-[#4F46E5]/5 transition">
-                            Upload Revisi
+                            class="flex-1 pbtn pbtn-warning pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            </span>
+                            <span>Upload Revisi</span>
                         </a>
                     </div>
                 </div>
@@ -129,8 +156,11 @@
                 <div class="text-center py-6">
                     <p class="text-sm text-slate-400 mb-3">Belum ada data</p>
                     <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'moulding']) }}"
-                        class="inline-block bg-[#4F46E5] text-white px-3 py-2 rounded-lg text-xs hover:bg-[#4338CA] transition">
-                        + Upload
+                        class="pbtn pbtn-primary pbtn-sm">
+                        <span class="pbtn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                        </span>
+                        <span>Upload</span>
                     </a>
                 </div>
             @else
@@ -153,16 +183,25 @@
                     </div>
                     <div class="flex flex-wrap gap-2 pt-3">
                         <a href="{{ route('borongan.review', $mouldingImport->id) }}"
-                            class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
-                            Review
+                            class="flex-1 pbtn pbtn-secondary pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </span>
+                            <span>Review</span>
                         </a>
                         <a href="{{ route('borongan.rekapIndex', $mouldingImport->id) }}"
-                            class="flex-1 text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition">
-                            Rekap
+                            class="flex-1 pbtn pbtn-secondary pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            </span>
+                            <span>Rekap</span>
                         </a>
                         <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'moulding', 'revisi' => 1]) }}"
-                            class="flex-1 text-center border border-[#4F46E5] text-[#4F46E5] px-3 py-2 rounded-lg text-xs hover:bg-[#4F46E5]/5 transition">
-                            Upload Revisi
+                            class="flex-1 pbtn pbtn-warning pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            </span>
+                            <span>Upload Revisi</span>
                         </a>
                     </div>
                 </div>
@@ -177,7 +216,7 @@
                 <div class="text-center py-6">
                     <p class="text-sm text-slate-400 mb-3">Belum ditarik</p>
                     <button type="button" onclick="tarikAbsensiDirect(this)"
-                        class="inline-block bg-[#4F46E5] text-white px-3 py-2 rounded-lg text-xs hover:bg-[#4338CA] transition">
+                        class="pbtn pbtn-primary pbtn-sm">
                         Tarik Data
                     </button>
                 </div>
@@ -190,7 +229,7 @@
                     </div>
                     <div class="flex flex-col gap-2">
                         <button type="button" onclick="tarikAbsensiDirect(this)"
-                            class="w-full text-center border border-[#4F46E5] text-[#4F46E5] px-3 py-2 rounded-lg text-xs hover:bg-indigo-50 transition font-medium">
+                            class="w-full pbtn pbtn-secondary pbtn-sm text-center">
                             Tarik Data
                         </button>
                         <a href="{{ route('payroll.harian.show', $payroll->id) }}"
@@ -213,10 +252,12 @@
                 <form id="generateGrandTotalForm" method="POST" action="{{ route('payroll.generateGrandTotal', $payroll->id) }}" onsubmit="return confirmGenerateGrandTotal(event)">
                     @csrf
                     <input type="hidden" name="force" id="forceGrandTotal" value="0">
-                    <button id="generateGrandTotalBtn" type="submit" class="inline-flex items-center gap-2 bg-[#6D28D9] text-white px-4 py-2 rounded-full text-sm hover:bg-[#5B21B6] shadow-md disabled:opacity-70 disabled:cursor-not-allowed">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 011-1h4a1 1 0 110 2H5v12h10V4h-3a1 1 0 110-2h4a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3z" /></svg>
+                    <button id="generateGrandTotalBtn" type="submit" class="pbtn pbtn-primary">
+                        <span id="generateGrandTotalIcon" class="pbtn-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 011-1h4a1 1 0 110 2H5v12h10V4h-3a1 1 0 110-2h4a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3z" /></svg>
+                        </span>
                         <span id="generateGrandTotalBtnLabel">Generate Grand Total</span>
-                        <span id="generateGrandTotalSpinner" class="hidden animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                        <span id="generateGrandTotalSpinner" class="hidden inline-flex items-center justify-center w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-1"></span>
                     </button>
                 </form>
             </div>
@@ -233,7 +274,7 @@
             <input id="searchGrandTotal" type="text" placeholder="Cari NIP atau Nama..."
                 class="border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none w-64" />
 
-            <select id="filterJob" class="border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none">
+            <select id="filterJob" class="px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                 <option value="">Semua Section</option>
                 @foreach($sectionOptions as $sec)
                     <option value="{{ $sec }}">{{ $sectionLabels[$sec] ?? $sec }}</option>
@@ -256,8 +297,8 @@
             @php $groups = $grandTotals->groupBy('section'); @endphp
             @php $groups = $grandTotals->groupBy('section'); @endphp
 
-            <div class="flex items-center justify-end mb-2 gap-2">
-                <button id="toggleDatesBtn" type="button" class="border border-[#E5E7EB] text-slate-600 px-3 py-1 rounded-lg text-xs">Sembunyikan Tanggal</button>
+            <div class="flex items-center gap-3">
+                <button id="toggleDatesBtn" type="button" class="pbtn pbtn-ghost pbtn-sm">Sembunyikan Tanggal</button>
             </div>
 
             <div id="grandtotal-groups" class="space-y-6">
@@ -317,25 +358,43 @@
         <div class="flex items-center justify-between mb-4">
             <h3 class="font-semibold text-slate-800">Pengajuan & Pencairan</h3>
             <div class="flex gap-3">
-                <form method="POST" action="{{ route('payroll.generatePengajuan', $payroll->id) }}" onsubmit="return confirm('Generate Pengajuan dari Grand Total saat ini? Data lama akan ditimpa.')" style="display:inline;">
+                <form id="generatePengajuanForm" method="POST" action="{{ route('payroll.generatePengajuan', $payroll->id) }}" onsubmit="return handleGeneratePengajuan(event)" style="display:inline;">
                     @csrf
-                    <button type="submit" class="border border-[#4F46E5] text-[#4F46E5] px-4 py-2 rounded-lg text-sm hover:bg-[#4F46E5]/5">
+                    <button id="generatePengajuanBtn" type="submit" class="pbtn pbtn-secondary">
                         Generate Pengajuan
                     </button>
                 </form>
                 @if($sudahAdaPengajuan)
-                    <a href="{{ route('payroll.exportPengajuan', $payroll->id) }}" class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA] inline-block">
-                        📥 Export Excel
+                    <a href="{{ route('payroll.exportPengajuan', $payroll->id) }}" class="pbtn pbtn-primary">
+                        <span class="pbtn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                        </span>
+                        <span>Export Excel</span>
                     </a>
-                    <a href="{{ route('payroll.pengajuan', $payroll->id) }}" class="border border-[#4F46E5] text-[#4F46E5] px-4 py-2 rounded-lg text-sm hover:bg-[#4F46E5]/5 inline-block">
-                        📄 Lihat Pengajuan
+                    <a href="{{ route('payroll.export.slip', $payroll->id) }}" class="pbtn pbtn-secondary">
+                        <span class="pbtn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 19H9"/><path d="M15 19H12"/></svg>
+                        </span>
+                        <span>Export Slip</span>
+                    </a>
+                    <a href="{{ route('payroll.pengajuan', $payroll->id) }}" class="pbtn pbtn-secondary">
+                        <span class="pbtn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 19H9"/><path d="M15 19H12"/></svg>
+                        </span>
+                        <span>Lihat Pengajuan</span>
                     </a>
                 @else
-                    <span title="Generate Pengajuan dulu" class="inline-flex items-center justify-center bg-slate-200 text-slate-500 px-4 py-2 rounded-lg text-sm cursor-not-allowed">
-                        📥 Export Excel
+                    <span title="Generate Pengajuan dulu" class="pbtn pbtn-secondary" style="opacity:0.5;cursor:not-allowed;">
+                        <span class="pbtn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                        </span>
+                        <span>Export Excel</span>
                     </span>
-                    <span title="Generate Pengajuan dulu" class="inline-flex items-center justify-center bg-slate-200 text-slate-500 px-4 py-2 rounded-lg text-sm cursor-not-allowed">
-                        📄 Lihat Pengajuan
+                    <span title="Generate Pengajuan dulu" class="pbtn pbtn-secondary" style="opacity:0.5;cursor:not-allowed;">
+                        <span class="pbtn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 19H9"/><path d="M15 19H12"/></svg>
+                        </span>
+                        <span>Lihat Pengajuan</span>
                     </span>
                 @endif
             </div>
@@ -344,7 +403,41 @@
     </div>
 </div>
 
+{{-- Loading Overlay --}}
+<div id="processingOverlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center gap-4 max-w-sm mx-4">
+        <svg class="animate-spin h-10 w-10 text-[#4F46E5]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        <p id="processingText" class="text-sm font-medium text-slate-700 text-center">Memproses...</p>
+        <p class="text-xs text-slate-400 text-center">Mohon tunggu, jangan tutup atau refresh halaman ini.</p>
+    </div>
+</div>
+
 <script>
+    function showProcessingOverlay(message = 'Memproses...') {
+        document.getElementById('processingText').textContent = message;
+        document.getElementById('processingOverlay').classList.remove('hidden');
+        document.getElementById('processingOverlay').classList.add('flex');
+    }
+
+    function hideProcessingOverlay() {
+        document.getElementById('processingOverlay').classList.add('hidden');
+        document.getElementById('processingOverlay').classList.remove('flex');
+    }
+
+    function handleGeneratePengajuan(e) {
+        e.preventDefault();
+        const confirmed = confirm('Generate Pengajuan dari Grand Total saat ini? Data lama akan ditimpa.');
+        if (!confirmed) return false;
+
+        showProcessingOverlay('Menggenerate Pengajuan...');
+        const form = document.getElementById('generatePengajuanForm');
+        form.submit();
+        return false;
+    }
+
     function confirmGenerateGrandTotal(e) {
         e.preventDefault();
         const form = document.getElementById('generateGrandTotalForm');
@@ -358,12 +451,17 @@
         @endif
 
         try {
+            showProcessingOverlay('Menggenerate Grand Total...');
             const btn = document.getElementById('generateGrandTotalBtn');
+            const icon = document.getElementById('generateGrandTotalIcon');
             const label = document.getElementById('generateGrandTotalBtnLabel');
             const spinner = document.getElementById('generateGrandTotalSpinner');
 
             if (btn) {
                 btn.disabled = true;
+                if (icon) {
+                    icon.classList.add('hidden');
+                }
                 if (label) {
                     label.textContent = 'Generating...';
                 }
@@ -374,12 +472,17 @@
 
             form.submit();
         } catch (error) {
+            hideProcessingOverlay();
             const btn = document.getElementById('generateGrandTotalBtn');
+            const icon = document.getElementById('generateGrandTotalIcon');
             const label = document.getElementById('generateGrandTotalBtnLabel');
             const spinner = document.getElementById('generateGrandTotalSpinner');
 
             if (btn) {
                 btn.disabled = false;
+                if (icon) {
+                    icon.classList.remove('hidden');
+                }
                 if (label) {
                     label.textContent = 'Generate Grand Total';
                 }

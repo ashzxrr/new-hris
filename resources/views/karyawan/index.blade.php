@@ -9,35 +9,49 @@
         </span>
         <button type="button" id="btnEdit" onclick="submitEdit()"
             disabled
-            class="text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition">
-            ✏️ Edit
+            class="pbtn pbtn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </span>
+            <span>Edit</span>
         </button>
         <button type="button" id="btnResign" onclick="submitResign()"
             disabled
-            class="text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition">
-            🚫 Resign
+            class="pbtn pbtn-danger disabled:opacity-50 disabled:cursor-not-allowed">
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </span>
+            <span>Resign</span>
         </button>
         <button type="button" id="btnHapusPermanent" onclick="submitHapusPermanent()"
             disabled
-            class="hidden text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-400 cursor-not-allowed transition">
-            🗑️ Hapus Permanen
+            class="hidden pbtn pbtn-danger disabled:opacity-50 disabled:cursor-not-allowed">
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </span>
+            <span>Hapus Permanen</span>
         </button>
         <a href="{{ route('karyawan.sync') }}"
-            class="text-xs px-3 py-1.5 rounded-lg bg-[#4F46E5] text-white hover:bg-[#4338CA] transition">
-            🔄 Sinkron dari Mesin
+            class="pbtn pbtn-primary">
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36M20.49 15a9 9 0 0 1-14.85 3.36"/></svg>
+            </span>
+            <span>Sinkron dari Mesin</span>
         </a>
     </div>
 </div>
 
 <div class="flex items-center gap-1 mb-4 border-b border-slate-200">
     <button type="button" id="tabAktif" onclick="switchTab('aktif')"
-        class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-[#4F46E5] text-[#4F46E5] -mb-px">
-        👥 Karyawan Aktif
+        class="tab-btn flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 border-[#4F46E5] text-[#4F46E5] -mb-px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Karyawan Aktif</span>
         <span id="countAktif" class="ml-1 bg-[#4F46E5] text-white text-xs px-2 py-0.5 rounded-full"></span>
     </button>
     <button type="button" id="tabResign" onclick="switchTab('resign')"
-        class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-600 -mb-px">
-        🚫 Karyawan Resign
+        class="tab-btn flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-600 -mb-px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        <span>Karyawan Resign</span>
         <span id="countResign" class="ml-1 bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full"></span>
     </button>
 </div>
@@ -60,7 +74,7 @@
     <div class="grid grid-cols-3 gap-4">
         <div class="flex flex-col">
             <label class="text-xs text-slate-400 uppercase tracking-wide font-semibold block mb-1">Bagian</label>
-            <select id="filterBagian" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300">
+            <select id="filterBagian" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                 <option value="">Semua Bagian</option>
                 @foreach($bagianList as $bagian)
                     <option value="{{ $bagian }}">{{ $bagian }}</option>
@@ -120,7 +134,7 @@
 
         <div class="flex flex-col">
             <label class="text-xs text-slate-400 uppercase tracking-wide font-semibold block mb-1">Kategori Gaji</label>
-            <select id="filterKategori" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300">
+            <select id="filterKategori" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                 <option value="">Semua Kategori</option>
                 @foreach($kategoriList as $kategori)
                     <option value="{{ $kategori }}">{{ $kategori }}</option>
@@ -213,7 +227,9 @@
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-5">
             <h3 class="font-semibold text-slate-800" id="editModalTitle">Edit Karyawan</h3>
-            <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+            <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
 
         <form id="editForm" method="POST">
@@ -339,11 +355,11 @@
 
             <div class="flex gap-3 justify-end mt-6">
                 <button type="button" onclick="closeEditModal()"
-                    class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-[#F8FAFC]">
+                    class="pbtn pbtn-secondary">
                     Batal
                 </button>
                 <button type="submit"
-                    class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
+                    class="pbtn pbtn-primary">
                     Simpan Perubahan
                 </button>
             </div>

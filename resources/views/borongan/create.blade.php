@@ -83,10 +83,18 @@
 
             <div class="flex gap-3 justify-end">
                 <a href="{{ route('borongan.index') }}"
-                    class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">Batal</a>
-                <button type="submit"
-                    class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
-                    📤 Upload & Parse
+                    class="pbtn pbtn-secondary">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                    </span>
+                    <span>Batal</span>
+                </a>
+                <button id="submitUploadBtn" type="submit"
+                    class="pbtn pbtn-primary">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                    </span>
+                    <span>Upload &amp; Parse</span>
                 </button>
             </div>
         </form>
@@ -101,11 +109,14 @@
             <div id="duplikatList" class="space-y-2 mb-4 text-sm"></div>
             <p class="text-xs text-slate-400 mb-4">Tanggal berstatus APPROVED akan dilewati (tidak diubah). Tanggal lain akan direvisi dan diganti dengan data baru. Pilih "Lanjutkan" untuk proses, atau "Batalkan".</p>
             <div class="flex gap-3">
-                <button onclick="document.getElementById('duplikatModal').classList.add('hidden')" class="flex-1 border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">
+                <button onclick="document.getElementById('duplikatModal').classList.add('hidden')" class="flex-1 pbtn pbtn-secondary">
                     Batalkan
                 </button>
-                <button id="btnLanjutkanRevisi" class="flex-1 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">
-                    Lanjutkan sebagai Revisi
+                <button id="btnLanjutkanRevisi" class="flex-1 pbtn pbtn-warning">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    </span>
+                    <span>Lanjutkan sebagai Revisi</span>
                 </button>
             </div>
         </div>
@@ -245,8 +256,11 @@ if (document.readyState === 'loading') {
 function submitUploadForm(form, confirmRevisi) {
     console.log('submitUploadForm called with confirmRevisi:', confirmRevisi, 'form action:', form.action);
     const overlay = document.getElementById('uploadLoadingOverlay');
+    const submitBtn = document.getElementById('submitUploadBtn');
     overlay.classList.remove('hidden');
     overlay.classList.add('flex');
+    submitBtn.classList.add('is-loading');
+    submitBtn.disabled = true;
     document.getElementById('uploadLoadingText').textContent = confirmRevisi
         ? 'Menghapus data lama dan memproses revisi...'
         : 'Mengupload dan memproses file...';
@@ -292,8 +306,11 @@ function submitUploadForm(form, confirmRevisi) {
 
 function hideUploadLoading() {
     const overlay = document.getElementById('uploadLoadingOverlay');
+    const submitBtn = document.getElementById('submitUploadBtn');
     overlay.classList.add('hidden');
     overlay.classList.remove('flex');
+    submitBtn.classList.remove('is-loading');
+    submitBtn.disabled = false;
 }
 
 function showDuplikatModal(duplikatList, form) {

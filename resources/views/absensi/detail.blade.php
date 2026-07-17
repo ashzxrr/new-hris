@@ -21,12 +21,18 @@
                 @foreach(request('tl_order', []) as $tlId)
                     <input type="hidden" name="tl_order[]" value="{{ $tlId }}">
                 @endforeach
-                <button type="submit" class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
-                    📊 Export Excel
+                <button type="submit" class="pbtn pbtn-secondary">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                    </span>
+                    <span>Export Excel</span>
                 </button>
             </form>
-            <a href="{{ route('absensi.index') }}" class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-700">
-                Kembali
+            <a href="{{ route('absensi.index') }}" class="pbtn pbtn-secondary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                </span>
+                <span>Kembali</span>
             </a>
         </div>
     </div>
@@ -51,26 +57,26 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="bg-white rounded-[11px] border border-[#C8D9E6] overflow-hidden shadow-[0_1px_4px_rgba(47,65,86,.06)]">
         <div class="overflow-auto max-h-[70vh]">
-            <table class="min-w-full border-separate border-spacing-0 text-left text-sm">
-                <thead class="sticky top-0 bg-slate-50 text-xs uppercase text-slate-500">
+            <table class="w-full text-[12.5px] text-[#2F4156]">
+                <thead class="sticky top-0 bg-[#EAF1F6] border-b border-[#C8D9E6]">
                     <tr>
-                        <th class="px-3 py-3">No</th>
-                        <th class="px-3 py-3">NIP</th>
-                        <th class="px-3 py-3">Nama</th>
-                        <th class="px-3 py-3">L/P</th>
-                        <th class="px-3 py-3">Jabatan</th>
-                        <th class="px-3 py-3">Tanggal</th>
-                        <th class="px-3 py-3">In</th>
-                        <th class="px-3 py-3">Out</th>
-                        <th class="px-3 py-3">Overtime</th>
-                        <th class="px-3 py-3">Keterangan</th>
-                        <th class="px-3 py-3">TL</th>
-                        <th class="px-3 py-3">Detail</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">No</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">NIP</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Nama</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">L/P</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Jabatan</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Tanggal</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">In</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Out</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Overtime</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Keterangan</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">TL</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Detail</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-200">
+                <tbody class="border-t border-[#EAF1F6]">
                     @php
                         $namaHari = [
                             'Sunday' => 'Minggu',
@@ -129,13 +135,13 @@
 
                                 if ($isSunday) {
                                     $keterangan = 'Minggu';
-                                    $rowClass = 'bg-slate-50';
+                                    $rowClass = 'bg-[#F9FBFD]';
                                 } elseif (!$inTs && !$outTs) {
                                     $keterangan = $absenceCode ? ($codeLabels[$absenceCode] ?? $absenceCode) : '-';
                                     if ($absenceText) {
                                         $keterangan .= ' — ' . $absenceText;
                                     }
-                                    $rowClass = 'bg-amber-50';
+                                    $rowClass = 'bg-[#FFF3DC]';
                                 } else {
                                     $keterangan = '----';
                                     $rowClass = '';
@@ -145,38 +151,38 @@
                                 $tlName = $tlMap[$karyawan->tl_id ?? null] ?? '-';
                             @endphp
 
-                            <tr class="border-t border-slate-100 text-sm detail-row {{ $rowClass }}"
+                            <tr class="border-b border-[#EAF1F6] last:border-0 hover:bg-[#F9FBFD] transition-colors detail-row {{ $rowClass }}"
                                 data-pin="{{ $pin }}"
                                 data-nama="{{ strtolower($karyawan->nama ?? '') }}"
                                 data-nip="{{ strtolower($karyawan->nip ?? '') }}"
                                 data-search="{{ strtolower(($karyawan->nama ?? '') . ' ' . ($karyawan->nip ?? '') . ' ' . $pin) }}">
-                                <td class="px-3 py-2 text-slate-400">{{ $no++ }}</td>
-                                <td class="px-3 py-2 font-mono text-xs">{{ $karyawan->nip ?? '-' }}</td>
-                                <td class="px-3 py-2 font-medium text-slate-800">{{ $karyawan->nama ?? '-' }}</td>
-                                <td class="px-3 py-2 text-center">{{ $karyawan->jk ?? '-' }}</td>
-                                <td class="px-3 py-2 text-xs">{{ $jabatan }}</td>
-                                <td class="px-3 py-2 text-xs text-slate-600">{{ $tglDisplay }}</td>
-                                <td class="px-3 py-2">
+                                <td class="px-4 py-3 text-[11px] text-[#8BAFC4]">{{ $no++ }}</td>
+                                <td class="px-4 py-3 font-mono text-[11px]">{{ $karyawan->nip ?? '-' }}</td>
+                                <td class="px-4 py-3 font-medium">{{ $karyawan->nama ?? '-' }}</td>
+                                <td class="px-4 py-3 text-center text-[12px]">{{ $karyawan->jk ?? '-' }}</td>
+                                <td class="px-4 py-3 text-[12px]">{{ $jabatan }}</td>
+                                <td class="px-4 py-3 text-[12px] text-[#567C8D]">{{ $tglDisplay }}</td>
+                                <td class="px-4 py-3">
                                     @if($inDisplay !== '-')
-                                        <span class="text-green-600 font-medium">{{ $inDisplay }}</span>
+                                        <span class="text-[#1B7A4A] font-medium">{{ $inDisplay }}</span>
                                     @else
                                         -
                                     @endif
                                 </td>
-                                <td class="px-3 py-2">
+                                <td class="px-4 py-3">
                                     @if($outDisplay !== '-')
-                                        <span class="text-blue-600 font-medium">{{ $outDisplay }}</span>
+                                        <span class="text-[#567C8D] font-medium">{{ $outDisplay }}</span>
                                     @else
                                         -
                                     @endif
                                 </td>
-                                <td class="px-3 py-2 text-xs text-orange-500">{{ $overtimeDisplay }}</td>
-                                <td class="px-3 py-2 text-xs">{{ $keterangan }}</td>
-                                <td class="px-3 py-2 text-xs text-slate-500">{{ $tlName }}</td>
-                                <td class="px-3 py-2">
+                                <td class="px-4 py-3 text-[12px] text-[#9A6200]">{{ $overtimeDisplay }}</td>
+                                <td class="px-4 py-3 text-[12px]">{{ $keterangan }}</td>
+                                <td class="px-4 py-3 text-[12px] text-[#8BAFC4]">{{ $tlName }}</td>
+                                <td class="px-4 py-3">
                                     <button type="button" 
                                         onclick="openSummaryModal('{{ $pin }}')"
-                                        class="text-xs px-2 py-1 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition border border-indigo-200">
+                                        class="pbtn pbtn-secondary pbtn-sm">
                                         Detail
                                     </button>
                                 </td>
@@ -393,7 +399,7 @@
     </script>
 
     <div class="text-right">
-        <a href="{{ route('absensi.index') }}" class="inline-flex items-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700">
+        <a href="{{ route('absensi.index') }}" class="pbtn pbtn-secondary">
             ← Kembali ke Filter
         </a>
     </div>

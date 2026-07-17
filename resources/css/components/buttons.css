@@ -1,0 +1,195 @@
+/* ============================================================
+   BUTTON DESIGN SYSTEM — PT WAJ HRIS
+   ============================================================ */
+
+:root {
+  --btn-primary-bg: linear-gradient(135deg, #2F4156 0%, #567C8D 100%);
+  --btn-primary-hover: linear-gradient(135deg, #243347 0%, #3F6070 100%);
+  --btn-secondary-bg: #FFFFFF;
+  --btn-secondary-border: #C8D9E6;
+  --btn-secondary-hover: #EAF1F6;
+  --btn-danger-bg: linear-gradient(135deg, #B91C1C 0%, #991B1B 100%);
+  --btn-danger-hover: linear-gradient(135deg, #7F1D1D 0%, #5F1212 100%);
+  --btn-success-bg: linear-gradient(135deg, #1B7A4A 0%, #166E3B 100%);
+  --btn-success-hover: linear-gradient(135deg, #15623D 0%, #0D4A2F 100%);
+  --btn-warning-bg: linear-gradient(135deg, #9A6200 0%, #7C5000 100%);
+  --btn-warning-hover: linear-gradient(135deg, #6B4400 0%, #5A3700 100%);
+  --btn-ghost-text: #567C8D;
+  --btn-ghost-hover: #EAF1F6;
+}
+
+/* ============================================================
+   PILL BUTTON — Primary, Danger, Success, Warning
+   ============================================================ */
+.pbtn {
+  @apply inline-flex items-center gap-3 px-5 py-2.5 rounded-full 
+         text-[12px] font-medium text-white transition-all duration-200
+         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#567C8D]/30
+         disabled:opacity-60 disabled:cursor-not-allowed;
+}
+
+/* Primary Variant */
+.pbtn-primary {
+  background: var(--btn-primary-bg);
+  @apply hover:shadow-lg hover:scale-[1.02];
+}
+
+.pbtn-primary:hover:not(:disabled) {
+  background: var(--btn-primary-hover);
+}
+
+/* Secondary Variant */
+.pbtn-secondary {
+  @apply bg-white text-[#2F4156] border border-[#C8D9E6];
+  @apply hover:bg-[#EAF1F6] hover:border-[#567C8D] hover:shadow-md;
+}
+
+/* Danger Variant */
+.pbtn-danger {
+  background: var(--btn-danger-bg);
+  @apply hover:shadow-lg hover:scale-[1.02];
+}
+
+.pbtn-danger:hover:not(:disabled) {
+  background: var(--btn-danger-hover);
+}
+
+/* Success Variant */
+.pbtn-success {
+  background: var(--btn-success-bg);
+  @apply hover:shadow-lg hover:scale-[1.02];
+}
+
+.pbtn-success:hover:not(:disabled) {
+  background: var(--btn-success-hover);
+}
+
+/* Warning Variant */
+.pbtn-warning {
+  background: var(--btn-warning-bg);
+  @apply hover:shadow-lg hover:scale-[1.02];
+}
+
+.pbtn-warning:hover:not(:disabled) {
+  background: var(--btn-warning-hover);
+}
+
+/* Ghost Variant (untuk close, clear) */
+.pbtn-ghost {
+  @apply text-[#567C8D] bg-transparent px-3 py-2;
+  @apply hover:bg-[#EAF1F6] hover:text-[#2F4156];
+}
+
+/* Size Variants */
+.pbtn-sm {
+  @apply px-4 py-1.5 text-[11px];
+}
+
+.pbtn-lg {
+  @apply px-6 py-3 text-[13px];
+}
+
+/* Icon Container — Lingkaran putih di kiri */
+.pbtn-icon {
+  @apply flex items-center justify-center w-6 h-6 rounded-full bg-white/20 flex-shrink-0;
+}
+
+.pbtn-secondary .pbtn-icon,
+.pbtn-ghost .pbtn-icon {
+  @apply bg-[#EAF1F6];
+}
+
+.pbtn-icon svg {
+  @apply w-4 h-4;
+}
+
+/* Loading State */
+.pbtn.is-loading {
+  @apply pointer-events-none opacity-75;
+}
+
+.pbtn-spinner {
+  @apply inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin;
+}
+
+/* ============================================================
+   TAB GROUP — untuk navigasi antar tab
+   ============================================================ */
+.tab-group {
+  @apply flex items-center gap-2 flex-wrap;
+}
+
+.tab-btn {
+  @apply px-4 py-2 text-[12px] font-medium rounded-lg transition-all
+         text-[#567C8D] border border-[#C8D9E6] hover:bg-[#EAF1F6];
+}
+
+.tab-btn.active {
+  @apply bg-[#2F4156] text-white border-[#2F4156];
+}
+
+/* Range Tab */
+.range-btn {
+  @apply px-3 py-1.5 text-[11px] rounded-full border border-[#C8D9E6] 
+         text-[#567C8D] hover:border-[#567C8D] hover:text-[#2F4156] transition;
+}
+
+.range-btn.active {
+  @apply border-[#2F4156] bg-[#2F4156] text-white;
+}
+
+/* ============================================================
+   FILTER BUTTON — untuk dropdown filter
+   ============================================================ */
+.filter-btn {
+  @apply px-4 py-2 text-[12px] rounded-lg border border-[#C8D9E6] 
+         text-[#2F4156] bg-white hover:bg-[#EAF1F6] transition-colors;
+}
+
+.clear-filter-btn {
+  @apply px-3 py-1.5 text-[11px] rounded-lg text-[#567C8D] 
+         hover:text-[#2F4156] hover:bg-[#EAF1F6] transition;
+}
+
+/* ============================================================
+   PAGINATION BUTTON — untuk navigasi halaman
+   ============================================================ */
+.pagination-btn {
+  @apply px-3 py-1.5 rounded-lg text-[12px] border border-[#C8D9E6]
+         text-[#567C8D] hover:bg-[#EAF1F6] transition-colors;
+}
+
+.pagination-btn.active {
+  @apply bg-[#2F4156] text-white border-[#2F4156];
+}
+
+.pagination-btn:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+/* ============================================================
+   ROW ICON BUTTON — untuk aksi per baris tabel
+   ============================================================ */
+.row-icon-btn {
+  @apply px-3 py-1.5 text-[11px] rounded-lg transition-colors
+         text-[#567C8D] hover:text-[#2F4156] hover:bg-[#EAF1F6];
+}
+
+.row-icon-btn.danger {
+  @apply text-[#B91C1C] hover:bg-[#FEE2E2];
+}
+
+.row-icon-btn.success {
+  @apply text-[#1B7A4A] hover:bg-[#E0F2EA];
+}
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+.btn-group {
+  @apply flex items-center gap-2 flex-wrap;
+}
+
+.btn-group-vertical {
+  @apply flex flex-col gap-2;
+}

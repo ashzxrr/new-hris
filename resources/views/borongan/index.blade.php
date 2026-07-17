@@ -7,7 +7,7 @@
             <p class="text-xs text-slate-400 mt-1">Upload dan kelola data payroll borongan (Cabut, HCR, Moulding/Cetak)</p>
         </div>
         <a href="{{ route('borongan.create') }}"
-            class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA] transition">
+            class="pbtn pbtn-primary">
             + Upload File Baru
         </a>
     </div>
@@ -28,7 +28,7 @@
         <div class="text-4xl mb-3">📦</div>
         <p class="text-slate-500 text-sm">Belum ada data import. Upload file pertama!</p>
         <a href="{{ route('borongan.create') }}"
-            class="inline-block mt-4 bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
+            class="inline-block mt-4 pbtn pbtn-primary">
             + Upload File
         </a>
     </div>
@@ -100,7 +100,7 @@
                                 onsubmit="return confirm('Hapus import ini?')">
                                 @csrf @method('DELETE')
                                 <button type="submit"
-                                    class="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50">
+                                    class="pbtn pbtn-danger pbtn-sm">
                                     Hapus
                                 </button>
                             </form>

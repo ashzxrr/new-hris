@@ -133,7 +133,8 @@ class PayrollController extends Controller
                 if ($isSunday) continue;
 
                 // Cek koreksi dulu
-                $correction = $corrections[$pin][$tgl] ?? null;
+                $pinCorrections = $corrections->get($pin);
+                $correction = $pinCorrections ? ($pinCorrections->get($tgl) ?? null) : null;
 
                 if ($correction) {
                     // Pakai data koreksi
@@ -143,7 +144,7 @@ class PayrollController extends Controller
                 } else {
                     // Pakai data fingerprint
                     $dayKey  = $pin . '_' . $tgl;
-                    $dayLogs = $logs[$dayKey] ?? collect();
+                    $dayLogs = $logs->get($dayKey) ?? collect();
 
                     $inTimes  = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string)$l->datetime));
                     $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string)$l->datetime));
@@ -155,7 +156,8 @@ class PayrollController extends Controller
                     $jamOut = $outTs ? date('H:i', $outTs) : null;
 
                     // Status dari absence notes
-                    $note   = $absenceNotes[$pin][$tgl] ?? null;
+                    $noteCollection = $absenceNotes->get($pin, collect());
+                    $note   = $noteCollection ? ($noteCollection->get($tgl) ?? null) : null;
                     $status = $inTs ? 'H' : ($note ? $note->code : 'A');
                 }
 
@@ -247,7 +249,7 @@ class PayrollController extends Controller
             'created_by' => Auth::guard('admin')->id(),
         ]);
 
-        return redirect()->route('payroll.show', $payroll->id)->with('success', 'Payroll berhasil dibuat. Klik "Tarik Data" di kartu Harian untuk mengambil data absensi.');
+        return redirect()->route('payroll.index')->with('success', 'Payroll berhasil dibuat. Kembali ke daftar payroll.');
     }
 
     // ========================
@@ -571,6 +573,7 @@ class PayrollController extends Controller
 
         // Grouping — skip rows that lack a section and warn instead of guessing
         $cabutRows = [];
+        $hcrRows = [];
         $mouldingRows = [];
         $harianRows = [];
         $invalidRows = [];
@@ -583,8 +586,10 @@ class PayrollController extends Controller
                 continue;
             }
 
-            if (in_array($section, ['cabut', 'hcr'], true)) {
+            if ($section === 'cabut') {
                 $cabutRows[] = $row;
+            } elseif ($section === 'hcr') {
+                $hcrRows[] = $row;
             } elseif ($section === 'moulding') {
                 $mouldingRows[] = $row;
             } elseif ($section === 'harian') {
@@ -597,19 +602,179 @@ class PayrollController extends Controller
         }
 
         // valid pengajuan set used for subsequent sheets/calculations
-        $validPengajuan = collect($cabutRows)->merge($mouldingRows)->merge($harianRows);
+        $validPengajuan = collect($cabutRows)->merge($hcrRows)->merge($mouldingRows)->merge($harianRows);
+
+        // Prepare import IDs for borongan rekap sheets
+        $cabutImportIds = BoronganImport::where('payroll_id', $id)->where('jenis', 'cabut')->pluck('id')->filter()->values()->all();
+        $hcrImportIds   = BoronganImport::where('payroll_id', $id)->where('jenis', 'hcr')->pluck('id')->filter()->values()->all();
+        $mouldingImportIds = BoronganImport::where('payroll_id', $id)->where('jenis', 'moulding')->pluck('id')->filter()->values()->all();
+
+        // Date range for per-day breakdown
+        $periodDates = [];
+        $currentDate = new \DateTime($payroll->tanggal_dari);
+        $endDate = new \DateTime($payroll->tanggal_sampai);
+        while ($currentDate <= $endDate) {
+            $periodDates[] = $currentDate->format('Y-m-d');
+            $currentDate->modify('+1 day');
+        }
+
+        // Cache attendance and corrections for harian breakdown
+        $harianNips = PayrollDetail::where('payroll_id', $id)->pluck('pin')->filter()->unique()->values()->all();
+        $harianCorrections = AttendanceCorrection::whereIn('pin', $harianNips)
+            ->whereBetween('tanggal', [$payroll->tanggal_dari, $payroll->tanggal_sampai])
+            ->get()
+            ->groupBy(function ($item) {
+                return $item->pin . '_' . $item->tanggal->format('Y-m-d');
+            });
+        $harianLogs = AttendanceLog::whereIn('pin', $harianNips)
+            ->whereBetween('tanggal', [$payroll->tanggal_dari, $payroll->tanggal_sampai])
+            ->get()
+            ->groupBy(function ($item) {
+                return $item->pin . '_' . $item->tanggal;
+            });
+        $absenceNotes = AbsenceNote::whereIn('pin', $harianNips)
+            ->whereBetween('date', [$payroll->tanggal_dari, $payroll->tanggal_sampai])
+            ->get()
+            ->groupBy('pin')
+            ->map(function($group) {
+                return $group->keyBy(function($it) { return $it->date->format('Y-m-d'); });
+            });
 
         $groups = [
             'CABUT' => $cabutRows,
+            'TITIL HCR' => $hcrRows,
             'MOULDING' => $mouldingRows,
             'HARIAN' => $harianRows,
         ];
 
         $columns = ['A','B','C','D','E','F','G','H','I','J','K','L','M'];
 
+        $workingDaysCount = 0;
+        $tempDate = new \DateTime($payroll->tanggal_dari);
+        while ($tempDate <= $endDate) {
+            if ((int) $tempDate->format('N') !== 7) {
+                $workingDaysCount++;
+            }
+            $tempDate->modify('+1 day');
+        }
+
         foreach ($groups as $name => $rows) {
             if (empty($rows)) continue;
 
+            // Create rekap sheet for each section first
+            $rekapName = 'Rekap ' . $name;
+            $rekapSheet = $spreadsheet->createSheet();
+            $rekapSheet->setTitle(substr($rekapName, 0, 31));
+
+            $rekapSheet->mergeCells('A1:Q1');
+            $rekapSheet->setCellValue('A1', 'PT WALET ABDILLAH JABLI');
+            $rekapSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+            $rekapSheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $rekapSheet->mergeCells('A2:Q2');
+            $rekapSheet->setCellValue('A2', $rekapName . ' PERIODE ' . $payroll->periode);
+            $rekapSheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
+            $rekapSheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $rekapSheet->mergeCells('A3:Q3');
+            $rekapSheet->setCellValue('A3', 'Periode ' . \Carbon\Carbon::parse($payroll->tanggal_dari)->translatedFormat('d F Y') . ' s/d ' . \Carbon\Carbon::parse($payroll->tanggal_sampai)->translatedFormat('d F Y'));
+            $rekapSheet->getStyle('A3')->getFont()->setItalic(true)->setSize(10);
+            $rekapSheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+            if ($name === 'HARIAN') {
+                $headers = array_merge(['No', 'NIP', 'Nama', 'Bagian'], array_map(fn($date) => (int) \Carbon\Carbon::parse($date)->format('d'), $periodDates), ['Hadir', 'Alpha', 'Izin', 'Sakit', 'ST']);
+            } else {
+                $headers = array_merge(['No', 'NIP', 'Nama', 'Jenis'], array_map(fn($date) => (int) \Carbon\Carbon::parse($date)->format('d'), $periodDates), ['Total']);
+            }
+
+            $lastHeadCol = chr(ord('A') + count($headers) - 1);
+            $rekapSheet->fromArray($headers, null, 'A5');
+            $rekapSheet->getStyle("A5:{$lastHeadCol}5")->getFont()->setBold(true);
+            $rekapSheet->getStyle("A5:{$lastHeadCol}5")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9D9D9');
+            $rekapSheet->getStyle("A5:{$lastHeadCol}5")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $rekapSheet->getStyle("A5:{$lastHeadCol}5")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $rekapSheet->freezePane('A6');
+
+            $rowNum = 6;
+            $no = 1;
+            if ($name === 'HARIAN') {
+                $detailRows = PayrollDetail::where('payroll_id', $id)->orderBy('nama')->get();
+                $bagianMap = User::whereIn('nip', $detailRows->pluck('nip'))->pluck('bagian', 'nip');
+                foreach ($detailRows as $detail) {
+                    $rekapSheet->setCellValue('A' . $rowNum, $no);
+                    $rekapSheet->setCellValue('B' . $rowNum, $detail->nip);
+                    $rekapSheet->setCellValue('C' . $rowNum, $detail->nama);
+                    $rekapSheet->setCellValue('D' . $rowNum, $bagianMap[$detail->nip] ?? '-');
+
+                    $colIndex = ord('E');
+                    $hadirCount = 0;
+                    $alphaCount = 0;
+                    $izinCount = 0;
+                    $sakitCount = 0;
+                    $stCount = 0;
+
+                    foreach ($periodDates as $date) {
+                        $key = $detail->pin . '_' . $date;
+                        $correction = $harianCorrections->get($key) ? $harianCorrections->get($key)->first() : null;
+                        $dayLogs = $harianLogs->get($key) ?? collect();
+                        $absenceForPin = $absenceNotes->get($detail->pin, collect());
+                        $resolved = $this->resolveAttendanceDay($correction, $dayLogs, $absenceForPin, $detail->pin, $date);
+                        $status = $resolved['status'] ?? '-';
+                        $rekapSheet->setCellValue(chr($colIndex) . $rowNum, $status);
+                        if ($status === 'H') $hadirCount++;
+                        if ($status === 'A') $alphaCount++;
+                        if ($status === 'I') $izinCount++;
+                        if ($status === 'S') $sakitCount++;
+                        if ($status === 'ST') $stCount++;
+                        $colIndex++;
+                    }
+
+                    $rekapSheet->setCellValue(chr($colIndex++) . $rowNum, $hadirCount);
+                    $rekapSheet->setCellValue(chr($colIndex++) . $rowNum, $alphaCount);
+                    $rekapSheet->setCellValue(chr($colIndex++) . $rowNum, $izinCount);
+                    $rekapSheet->setCellValue(chr($colIndex++) . $rowNum, $sakitCount);
+                    $rekapSheet->setCellValue(chr($colIndex) . $rowNum, $stCount);
+
+                    $rekapSheet->getStyle("A{$rowNum}:{$lastHeadCol}{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                    $rowNum++;
+                    $no++;
+                }
+            } else {
+                $importIds = match ($name) {
+                    'CABUT' => $cabutImportIds,
+                    'TITIL HCR' => $hcrImportIds,
+                    'MOULDING' => $mouldingImportIds,
+                    default => [],
+                };
+                $grouped = collect($rows)->groupBy(fn($item) => trim($item->nip) . '|' . trim($item->jenis));
+                foreach ($grouped as $key => $group) {
+                    [$nip, $jenis] = explode('|', $key) + ['', ''];
+                    $nama = $group->first()->nama ?? '';
+                    $rekapSheet->setCellValue('A' . $rowNum, $no);
+                    $rekapSheet->setCellValue('B' . $rowNum, $nip);
+                    $rekapSheet->setCellValue('C' . $rowNum, $nama);
+                    $rekapSheet->setCellValue('D' . $rowNum, $jenis);
+
+                    $colIndex = ord('E');
+                    foreach ($periodDates as $date) {
+                        $dailyValue = BoronganHarian::whereIn('borongan_import_id', $importIds)
+                            ->whereRaw('TRIM(UPPER(nip)) = ?', [trim(strtoupper($nip))])
+                            ->where('tanggal', $date)
+                            ->sum('upah_sistem');
+                        $rekapSheet->setCellValue(chr($colIndex) . $rowNum, $dailyValue);
+                        $colIndex++;
+                    }
+                    $rekapSheet->setCellValue(chr($colIndex) . $rowNum, "=SUM(E{$rowNum}:" . chr(ord('E') + count($periodDates) - 1) . "{$rowNum})");
+                    $rekapSheet->getStyle("E{$rowNum}:" . chr(ord('E') + count($periodDates) - 1) . "{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
+                    $rekapSheet->getStyle("A{$rowNum}:{$lastHeadCol}{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+                    $rowNum++;
+                    $no++;
+                }
+            }
+
+            foreach (range('A', $lastHeadCol) as $col) {
+                $rekapSheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Create standard detail sheet after rekap
             $sheet = $spreadsheet->createSheet();
             $sheet->setTitle(substr($name, 0, 31));
 
@@ -623,7 +788,7 @@ class PayrollController extends Controller
             $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
             $sheet->mergeCells("A2:{$lastCol}2");
-            $sheet->setCellValue('A2', 'REKAP GAJI BORONGAN ' . strtoupper($name) . ' PERIODE ' . $payroll->periode);
+            $sheet->setCellValue('A2', strtoupper($name) === 'HARIAN' ? 'REKAP GAJI HARIAN PERIODE ' . $payroll->periode : 'REKAP GAJI BORONGAN ' . strtoupper($name) . ' PERIODE ' . $payroll->periode);
             $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
             $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
@@ -670,15 +835,12 @@ class PayrollController extends Controller
                     $sheet->setCellValue('I' . $rowNum, $r->potongan_lain ?? 0);
                     $sheet->setCellValue('J' . $rowNum, $r->potongan_bpjs ?? 0);
                     $sheet->setCellValue('K' . $rowNum, $r->total_akhir ?? 0);
-                    $sheet->setCellValue('L' . $rowNum, $r->no_rekening ?? '');
+                    $acct = $r->no_rekening ?? '';
+                    $sheet->setCellValue('L' . $rowNum, $acct !== '' ? '\'' . $acct : '');
                     $sheet->setCellValue('M' . $rowNum, $r->nama_bank ?? '');
                     $sheet->setCellValue('N' . $rowNum, $r->email ?? '');
 
-                    // Number format for nominal columns E-K
                     $sheet->getStyle("E{$rowNum}:K{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
-
-                    // Border for data row
-                    $sheet->getStyle("A{$rowNum}:{$lastCol}{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 } else {
                     $sheet->setCellValue('E' . $rowNum, $r->gaji_real ?? 0);
                     $sheet->setCellValue('F' . $rowNum, $r->komplain ?? 0);
@@ -686,34 +848,28 @@ class PayrollController extends Controller
                     $sheet->setCellValue('H' . $rowNum, $r->potongan_lain ?? 0);
                     $sheet->setCellValue('I' . $rowNum, $r->potongan_bpjs ?? 0);
                     $sheet->setCellValue('J' . $rowNum, $r->total_akhir ?? 0);
-                    $sheet->setCellValue('K' . $rowNum, $r->no_rekening ?? '');
+                    $acct = $r->no_rekening ?? '';
+                    $sheet->setCellValue('K' . $rowNum, $acct !== '' ? '\'' . $acct : '');
                     $sheet->setCellValue('L' . $rowNum, $r->nama_bank ?? '');
                     $sheet->setCellValue('M' . $rowNum, $r->email ?? '');
 
-                    // Number format for nominal columns E-J
                     $sheet->getStyle("E{$rowNum}:J{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
-
-                    // Border for data row
-                    $sheet->getStyle("A{$rowNum}:{$lastCol}{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 }
 
+                $sheet->getStyle("A{$rowNum}:{$lastCol}{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $rowNum++;
                 $no++;
             }
 
             $lastDataRow = $rowNum - 1;
-
-            // Total row
             $totalRow = $lastDataRow + 1;
             $sheet->mergeCells("A{$totalRow}:D{$totalRow}");
             $sheet->setCellValue('A' . $totalRow, 'TOTAL');
             $sheet->getStyle('A' . $totalRow)->getFont()->setBold(true);
 
             if ($isHarian) {
-                // Sum formulas for E-K
                 $colsToSum = ['E','F','G','H','I','J','K'];
             } else {
-                // Sum formulas for E-J
                 $colsToSum = ['E','F','G','H','I','J'];
             }
             foreach ($colsToSum as $col) {
@@ -723,14 +879,26 @@ class PayrollController extends Controller
                 $sheet->getStyle($col . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
             }
 
-            // Border for total row
             $sheet->getStyle("A{$totalRow}:{$lastCol}{$totalRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-
-            // Auto-size columns A-lastCol
-            $columnsToAuto = range('A', $lastCol);
-            foreach ($columnsToAuto as $col) {
+            foreach (range('A', $lastCol) as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
+
+            $signRow = $totalRow + 3;
+            $sheet->setCellValue('A' . $signRow, 'Dibuat Oleh');
+            $sheet->setCellValue('D' . $signRow, 'Di Periksa Oleh');
+            $sheet->setCellValue('G' . $signRow, 'Di Ketahui Oleh');
+            $sheet->setCellValue('J' . $signRow, 'Di Setujui Oleh');
+            $signRow += 3;
+            $sheet->setCellValue('A' . $signRow, 'Khusnul Fatimah');
+            $sheet->setCellValue('D' . $signRow, 'Ratna Suminar');
+            $sheet->setCellValue('G' . $signRow, 'Patrick Justin');
+            $sheet->setCellValue('J' . $signRow, 'Djunita');
+            $signRow++;
+            $sheet->setCellValue('A' . $signRow, 'Adm Payroll');
+            $sheet->setCellValue('D' . $signRow, 'Finance Accounting');
+            $sheet->setCellValue('G' . $signRow, 'General Manager');
+            $sheet->setCellValue('J' . $signRow, 'Direktur');
         }
 
         // BELUM ADA REKENING sheet (only include valid pengajuan rows)
@@ -1025,7 +1193,11 @@ class PayrollController extends Controller
             $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
             $jamOut = $outTs ? date('H:i', $outTs) : null;
 
-            $note = $absenceNotes[$tgl] ?? null;
+            if (is_array($absenceNotes)) {
+                $note = $absenceNotes[$tgl] ?? null;
+            } else {
+                $note = $absenceNotes->get($tgl) ?? null;
+            }
             $status = ($inTs || $outTs) ? 'H' : ($note ? $note->code : 'A');
         }
 
@@ -1095,10 +1267,12 @@ class PayrollController extends Controller
             foreach ($periode as $tgl) {
                 if (date('N', strtotime($tgl)) == 7) continue;
 
-                $correction = $corrections[$pin][$tgl] ?? null;
+                $pinCorrections = $corrections->get($pin);
+                $correction = $pinCorrections ? ($pinCorrections->get($tgl) ?? null) : null;
                 $dayKey = $pin . '_' . $tgl;
-                $dayLogs = $logs[$dayKey] ?? collect();
-                $resolved = $this->resolveAttendanceDay($correction, $dayLogs, $absenceNotes[$pin] ?? [], $pin, $tgl);
+                $dayLogs = $logs->get($dayKey) ?? collect();
+                $absenceForPin = $absenceNotes->get($pin, collect());
+                $resolved = $this->resolveAttendanceDay($correction, $dayLogs, $absenceForPin, $pin, $tgl);
                 $status = $resolved['status'];
                 $jamOut = $resolved['jam_out'];
                 $resolvedLemburMenit = intval($resolved['lembur_menit'] ?? 0);
@@ -1332,13 +1506,13 @@ class PayrollController extends Controller
                 $currentDate = clone $dateFrom;
                 while ($currentDate <= $dateTo) {
                     $tanggal = $currentDate->format('Y-m-d');
-                    $correction = $corrections[$tanggal] ?? null;
+                    $correction = $corrections->get($tanggal) ?? null;
                     $isHadir = false;
 
                     if ($correction) {
                         $isHadir = in_array($correction->status, ['H', 'ST']) || $correction->lembur_approved;
                     } else {
-                        $dayLogs = $logs[$tanggal] ?? collect();
+                        $dayLogs = $logs->get($tanggal) ?? collect();
                         if ($dayLogs->isNotEmpty()) {
                             $isHadir = true;
                         }
@@ -1458,9 +1632,9 @@ class PayrollController extends Controller
             foreach ($periode as $tgl) {
                 if (date('N', strtotime($tgl)) == 7) continue;
 
-                $correction = $corrections[$tgl] ?? null;
+                $correction = $corrections->get($tgl) ?? null;
                 $dayKey = $pin . '_' . $tgl;
-                $dayLogs = $logs[$dayKey] ?? collect();
+                $dayLogs = $logs->get($dayKey) ?? collect();
                 $resolved = $this->resolveAttendanceDay($correction, $dayLogs, $absenceNotes, $pin, $tgl);
                 $status = $resolved['status'];
                 $jamOut = $resolved['jam_out'];
@@ -1566,49 +1740,40 @@ class PayrollController extends Controller
     public function exportSlipGaji($id)
     {
         $payroll = Payroll::findOrFail($id);
-        $details = PayrollDetail::where('payroll_id', $id)->orderBy('nama')->get();
+        $grandTotals = PayrollGrandTotal::where('payroll_id', $id)->orderBy('nama')->get();
 
-        $dari   = $payroll->tanggal_dari->format('Y-m-d');
-        $sampai = $payroll->tanggal_sampai->format('Y-m-d');
-
-        $periode = [];
-        $cur = new \DateTime($dari);
-        $end = new \DateTime($sampai);
-        while ($cur <= $end) {
-            $periode[] = $cur->format('Y-m-d');
-            $cur->modify('+1 day');
+        if ($grandTotals->isEmpty()) {
+            return back()->with('error', 'Grand Total belum di-generate. Slip Gaji memerlukan detail per tanggal.');
         }
 
-        $pins = $details->pluck('pin')->toArray();
+        $dari = \Carbon\Carbon::parse($payroll->tanggal_dari);
+        $sampai = \Carbon\Carbon::parse($payroll->tanggal_sampai);
 
-        $logs = \App\Models\AttendanceLog::whereIn('pin', $pins)
-            ->whereBetween('tanggal', [$dari, $sampai])
-            ->orderBy('datetime')
-            ->get()
-            ->groupBy(fn($l) => $l->pin . '_' . substr((string)$l->tanggal, 0, 10));
+        $dates = [];
+        $current = $dari->copy();
+        while ($current->lte($sampai)) {
+            $dates[] = $current->format('Y-m-d');
+            $current->addDay();
+        }
 
-        $absenceNotes = \App\Models\AbsenceNote::whereIn('pin', $pins)
-            ->whereBetween('date', [$dari, $sampai])
-            ->get()
-            ->groupBy('pin')
-            ->map(fn($n) => $n->keyBy(fn($i) => $i->date->format('Y-m-d')));
-
-        $corrections = AttendanceCorrection::whereIn('pin', $pins)
-            ->whereBetween('tanggal', [$dari, $sampai])
-            ->get()
-            ->groupBy('pin')
-            ->map(fn($n) => $n->keyBy(fn($c) => \Carbon\Carbon::parse($c->tanggal)->format('Y-m-d')));
+        $bulanIndo = [
+            'January' => 'JANUARI','February' => 'FEBRUARI','March' => 'MARET','April' => 'APRIL',
+            'May' => 'MEI','June' => 'JUNI','July' => 'JULI','August' => 'AGUSTUS',
+            'September' => 'SEPTEMBER','October' => 'OKTOBER','November' => 'NOVEMBER','December' => 'DESEMBER',
+        ];
+        $bulanNama = $bulanIndo[$dari->format('F')] ?? strtoupper($dari->format('F'));
+        $periodeLabel = 'TGL ' . $dari->format('d') . '-' . $sampai->format('d') . ' ' . $bulanNama . ' ' . $dari->format('Y');
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Slip Gaji');
 
-        $slipPerRow   = 5;
-        $colsPerSlip  = 3;
+        $slipPerRow = 5;
+        $colsPerSlip = 5;
         $colSeparator = 1;
-        $colStep      = $colsPerSlip + $colSeparator;
+        $colStep = $colsPerSlip + $colSeparator;
 
-        $colLetter = function(int $colIndex): string {
+        $colLetter = function (int $colIndex): string {
             $letters = '';
             $colIndex++;
             while ($colIndex > 0) {
@@ -1619,184 +1784,211 @@ class PayrollController extends Controller
             return $letters;
         };
 
-        $allSlips = [];
-        foreach ($details as $d) {
-            $pin     = $d->pin;
-            $nominal = $d->nominal_harian;
-            $user    = \App\Models\User::where('pin', $pin)->first();
+        $slips = [];
+        foreach ($grandTotals as $grand) {
+            $user = User::whereRaw('TRIM(UPPER(nip)) = ?', [trim(strtoupper($grand->nip))])->first();
+            $detailHarian = is_array($grand->detail_harian) ? $grand->detail_harian : (json_decode($grand->detail_harian, true) ?: []);
 
             $rows = [];
-            foreach ($periode as $tgl) {
-                if (date('N', strtotime($tgl)) == 7) continue;
-
-                $correction = $corrections[$pin][$tgl] ?? null;
-                if ($correction) {
-                    $status = $correction->status;
-                    $jamOut = $correction->jam_out ? substr($correction->jam_out, 0, 5) : null;
-                    $jamIn  = $correction->jam_in  ? substr($correction->jam_in,  0, 5) : null;
-                } else {
-                    $dayKey  = $pin . '_' . $tgl;
-                    $dayLogs = $logs[$dayKey] ?? collect();
-                    $inTimes  = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string)$l->datetime));
-                    $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string)$l->datetime));
-                    $inTs  = $inTimes->isNotEmpty()  ? $inTimes->min()  : null;
-                    $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
-                    $jamIn  = $inTs  ? date('H:i', $inTs)  : null;
-                    $jamOut = $outTs ? date('H:i', $outTs) : null;
-                    $note   = $absenceNotes[$pin][$tgl] ?? null;
-                    $status = $inTs ? 'H' : ($note ? $note->code : 'A');
-                }
-
-                $lemburJam = 0;
-                if ($jamOut) {
-                    $outTs     = strtotime($tgl . ' ' . $jamOut);
-                    $threshold = strtotime($tgl . ' 16:30:00');
-                    $selisihMenit = ($outTs - $threshold) / 60;
-                    if ($outTs > $threshold && $selisihMenit >= 60) {
-                        $lemburJam = round($selisihMenit / 3600, 1);
-                    }
-                }
-
-                $gajiHari = 0;
-                if ($status === 'H') {
-                    $upahPerJam = $nominal / 8;
-                    $gajiHari   = $nominal + floor($upahPerJam * 1.5 * $lemburJam);
-                }
-
+            foreach ($dates as $date) {
+                $amount = intval($detailHarian[$date] ?? 0);
                 $rows[] = [
-                    'tgl'       => date('j-M-Y', strtotime($tgl)),
-                    'lembur'    => $lemburJam > 0 ? $lemburJam : '-',
-                    'gaji'      => $gajiHari > 0  ? $gajiHari  : '-',
-                    'is_hadir'  => $status === 'H',
+                    'tgl' => \Carbon\Carbon::parse($date)->format('j-M-Y'),
+                    'lembur' => '-',
+                    'gaji' => $amount > 0 ? $amount : '-',
                 ];
             }
 
-            $allSlips[] = [
-                'nama'      => $d->nama,
-                'nip'       => $d->nip,
-                'bagian'    => $user->bagian    ?? '-',
-                'job_title' => $user->job_title ?? '-',
-                'periode'   => \Carbon\Carbon::parse($dari)->format('d M Y') . ' - ' . \Carbon\Carbon::parse($sampai)->format('d M Y'),
-                'total'     => $d->total_gaji,
-                'rows'      => $rows,
+            $slips[] = [
+                'nama' => $grand->nama ? ucwords(strtolower($grand->nama)) : $grand->nama,
+                'nip' => $grand->nip,
+                'divisi' => $user?->bagian ?? '-',
+                'jabatan' => $user?->job_title ?? ucfirst($grand->section),
+                'periode' => $periodeLabel,
+                'total_gaji' => array_sum(array_map('intval', $detailHarian)),
+                'komplain' => intval($grand->komplain ?? 0),
+                'insentif' => intval($grand->insentif ?? 0),
+                'potongan_lain' => intval($grand->potongan_lain ?? 0),
+                'potongan_bpjs' => intval($grand->potongan_bpjs ?? 0),
+                'total_akhir' => intval($grand->total_akhir ?? 0),
+                'rows' => $rows,
             ];
         }
 
-        $gridStartRows = [0 => 1];
-        foreach (array_chunk($allSlips, $slipPerRow) as $gi => $chunk) {
+        $rowStart = 1;
+        foreach (array_chunk($slips, $slipPerRow) as $chunk) {
             $maxRows = 0;
             foreach ($chunk as $slip) {
-                $slipRows = 2 + 5 + 1 + count($slip['rows']) + 1 + 1 + 2;
-                $maxRows  = max($maxRows, $slipRows);
+                $slipRows = 3 + 5 + 1 + count($slip['rows']) + 6;
+                $maxRows = max($maxRows, $slipRows);
             }
-            $gridStartRows[$gi + 1] = ($gridStartRows[$gi] ?? 1) + $maxRows;
-        }
 
-        foreach (array_chunk($allSlips, $slipPerRow) as $gi => $chunk) {
-            foreach ($chunk as $si => $slip) {
-                $colStart = $si * $colStep;
-                $r = $gridStartRows[$gi];
-
+            foreach ($chunk as $index => $slip) {
+                $colStart = $index * $colStep;
                 $cA = $colLetter($colStart);
                 $cB = $colLetter($colStart + 1);
                 $cC = $colLetter($colStart + 2);
+                $cD = $colLetter($colStart + 3);
+                $r = $rowStart;
 
-                $sheet->mergeCells("{$cA}{$r}:{$cC}{$r}");
-                $sheet->setCellValue("{$cA}{$r}", 'SLIP GAJI KARYAWAN');
+                $cE = $colLetter($colStart + 4);
+
+                $sheet->mergeCells("{$cA}{$r}:{$cA}" . ($r + 1));
+                $sheet->setCellValue("{$cA}{$r}", 'W.A.J');
                 $sheet->getStyle("{$cA}{$r}")->applyFromArray([
-                    'font'      => ['bold' => true, 'size' => 11],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'borders'   => ['outline' => ['borderStyle' => Border::BORDER_THIN]],
+                    'font' => ['bold' => true, 'size' => 9],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
                 ]);
+                $sheet->getStyle("{$cA}{$r}:{$cA}" . ($r + 1))->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF2CC');
+                $sheet->getStyle("{$cA}{$r}:{$cA}" . ($r + 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+
+                $sheet->mergeCells("{$cB}{$r}:{$cE}{$r}");
+                $sheet->setCellValue("{$cB}{$r}", 'PT WALET ABDILLAH JABLI');
+                $sheet->getStyle("{$cB}{$r}")->applyFromArray([
+                    'font' => ['bold' => true, 'size' => 10],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+                ]);
+                $sheet->getStyle("{$cB}{$r}:{$cE}{$r}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF2CC');
+                $sheet->getStyle("{$cB}{$r}:{$cE}{$r}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $r++;
 
-                $sheet->mergeCells("{$cA}{$r}:{$cC}{$r}");
-                $sheet->setCellValue("{$cA}{$r}", '*Private and Confidential');
-                $sheet->getStyle("{$cA}{$r}")->applyFromArray([
-                    'font'      => ['bold' => true, 'italic' => true],
+                $sheet->mergeCells("{$cB}{$r}:{$cE}{$r}");
+                $sheet->setCellValue("{$cB}{$r}", 'SLIP GAJI KARYAWAN');
+                $sheet->getStyle("{$cB}{$r}")->applyFromArray([
+                    'font' => ['bold' => true, 'size' => 10],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'borders'   => ['outline' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
+                $sheet->getStyle("{$cB}{$r}:{$cE}{$r}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF2CC');
+                $sheet->getStyle("{$cB}{$r}:{$cE}{$r}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                 $r++;
 
                 $infoRows = [
-                    ['NAMA',    $slip['nama']],
-                    ['NIP',     $slip['nip']],
-                    ['DIVISI',  $slip['bagian']],
-                    ['JABATAN', $slip['job_title']],
+                    ['NAMA', $slip['nama']],
+                    ['NIP', $slip['nip']],
+                    ['DIVISI', $slip['divisi']],
+                    ['JABATAN', $slip['jabatan']],
                     ['PERIODE', $slip['periode']],
                 ];
                 foreach ($infoRows as $info) {
                     $sheet->setCellValue("{$cA}{$r}", $info[0]);
                     $sheet->setCellValue("{$cB}{$r}", '');
                     $sheet->setCellValue("{$cC}{$r}", $info[1]);
+                    $sheet->setCellValue("{$cD}{$r}", '');
+                    $sheet->setCellValue("{$cE}{$r}", '');
+                    $sheet->getStyle("{$cA}{$r}:{$cE}{$r}")->applyFromArray(['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
                     $sheet->getStyle("{$cA}{$r}")->getFont()->setBold(true);
-                    $sheet->getStyle("{$cA}{$r}:{$cC}{$r}")->applyFromArray([
-                        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                    ]);
                     $r++;
                 }
 
                 $sheet->setCellValue("{$cA}{$r}", 'Tanggal');
                 $sheet->setCellValue("{$cB}{$r}", 'Lembur');
+                $sheet->mergeCells("{$cC}{$r}:{$cE}{$r}");
                 $sheet->setCellValue("{$cC}{$r}", 'Gaji');
-                $sheet->getStyle("{$cA}{$r}:{$cC}{$r}")->applyFromArray([
-                    'font'      => ['bold' => true],
+                $sheet->getStyle("{$cA}{$r}:{$cE}{$r}")->applyFromArray([
+                    'font' => ['bold' => true],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D9D9D9']],
-                    'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D9D9D9']],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
                 ]);
                 $r++;
 
-                foreach ($slip['rows'] as $row) {
+                $summaryRows = [
+                    ['KOMPLIAN', $slip['komplain']],
+                    ['INSENTIF', $slip['insentif']],
+                    ['POT. LAIN', $slip['potongan_lain']],
+                    ['POT. BPJS KES', $slip['potongan_bpjs']],
+                ];
+
+                foreach ($slip['rows'] as $rowIndex => $row) {
                     $sheet->setCellValue("{$cA}{$r}", $row['tgl']);
                     $sheet->setCellValue("{$cB}{$r}", $row['lembur']);
                     $sheet->setCellValue("{$cC}{$r}", $row['gaji']);
 
+                    if (isset($summaryRows[$rowIndex])) {
+                        $label = $summaryRows[$rowIndex][0];
+                        $val = $summaryRows[$rowIndex][1];
+                        $display = (intval($val) === 0) ? '-' : $val;
+                        $sheet->setCellValue("{$cD}{$r}", $label);
+                        $sheet->setCellValue("{$cE}{$r}", $display);
+                        $sheet->getStyle("{$cD}{$r}:{$cE}{$r}")->applyFromArray(['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+                        $sheet->getStyle("{$cD}{$r}")->getFont()->setBold(true);
+                        if (is_numeric($display)) {
+                            $sheet->getStyle("{$cE}{$r}")->getNumberFormat()->setFormatCode('#,##0');
+                            $sheet->getStyle("{$cE}{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                        } else {
+                            $sheet->getStyle("{$cE}{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                        }
+                    } else {
+                        $sheet->setCellValue("{$cD}{$r}", '');
+                        $sheet->setCellValue("{$cE}{$r}", '');
+                    }
+
                     if (is_numeric($row['gaji'])) {
                         $sheet->getStyle("{$cC}{$r}")->getNumberFormat()->setFormatCode('#,##0');
                     }
-
-                    $sheet->getStyle("{$cA}{$r}:{$cC}{$r}")->applyFromArray([
-                        'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                    ]);
+                    $sheet->getStyle("{$cA}{$r}:{$cE}{$r}")->applyFromArray(['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+                    $sheet->getStyle("{$cA}{$r}:{$cC}{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     $sheet->getStyle("{$cA}{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                     $r++;
                 }
 
-                $sheet->mergeCells("{$cA}{$r}:{$cC}{$r}");
-                $sheet->getStyle("{$cA}{$r}:{$cC}{$r}")->applyFromArray([
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
-                $r++;
-
-                $sheet->mergeCells("{$cA}{$r}:{$cB}{$r}");
                 $sheet->setCellValue("{$cA}{$r}", 'Total Gaji');
-                $sheet->setCellValue("{$cC}{$r}", $slip['total']);
-                $sheet->getStyle("{$cC}{$r}")->getNumberFormat()->setFormatCode('#,##0');
-                $sheet->getStyle("{$cA}{$r}:{$cC}{$r}")->applyFromArray([
-                    'font'    => ['bold' => true],
-                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-                ]);
+                $sheet->setCellValue("{$cB}{$r}", '');
+                $sheet->setCellValue("{$cC}{$r}", $slip['total_gaji']);
+                $sheet->setCellValue("{$cD}{$r}", 'Total Akhir');
+                $sheet->setCellValue("{$cE}{$r}", $slip['total_akhir']);
+                $sheet->getStyle("{$cA}{$r}:{$cE}{$r}")->applyFromArray(['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+                $sheet->getStyle("{$cA}{$r}:{$cE}{$r}")->getFont()->setBold(true);
+                $sheet->getStyle("{$cC}{$r}:{$cE}{$r}")->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle("{$cC}{$r}:{$cE}{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $r++;
             }
+
+            $rowStart += $maxRows + 1;
         }
 
         for ($si = 0; $si < $slipPerRow; $si++) {
             $colStart = $si * $colStep;
-            $sheet->getColumnDimension($colLetter($colStart))->setWidth(16);
-            $sheet->getColumnDimension($colLetter($colStart + 1))->setWidth(10);
-            $sheet->getColumnDimension($colLetter($colStart + 2))->setWidth(14);
-            $sheet->getColumnDimension($colLetter($colStart + 3))->setWidth(3);
+            $sheet->getColumnDimension($colLetter($colStart))->setWidth(11.86);
+            $sheet->getColumnDimension($colLetter($colStart + 1))->setWidth(7);
+            $sheet->getColumnDimension($colLetter($colStart + 2))->setWidth(11.86);
+            $sheet->getColumnDimension($colLetter($colStart + 3))->setWidth(11);
+            $sheet->getColumnDimension($colLetter($colStart + 4))->setWidth(14.71);
+        }
+
+        $receiptSheet = $spreadsheet->createSheet();
+        $receiptSheet->setTitle('Tanda Terima Slip');
+        $receiptSheet->setCellValue('A1', 'TANDA TERIMA SLIP GAJI');
+        $receiptSheet->setCellValue('A2', 'Periode: ' . $periodeLabel);
+        $receiptSheet->getStyle('A1')->getFont()->setBold(true)->setSize(12);
+        $receiptSheet->getStyle('A2')->getFont()->setItalic(true)->setSize(10);
+        $receiptSheet->fromArray(['No', 'Nama', 'Posisi', 'TTD'], null, 'A4');
+        $receiptSheet->getStyle('A4:D4')->applyFromArray([
+            'font' => ['bold' => true],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D9D9D9']],
+        ]);
+        $rowNum = 5;
+        foreach ($grandTotals as $index => $row) {
+            $user = User::whereRaw('TRIM(UPPER(nip)) = ?', [trim(strtoupper($row->nip))])->first();
+            $receiptSheet->setCellValue('A' . $rowNum, $index + 1);
+            $receiptSheet->setCellValue('B' . $rowNum, $user?->nama ?? $row->nama);
+            $receiptSheet->setCellValue('C' . $rowNum, $user?->bagian ?? $row->job_label ?? '-');
+            $receiptSheet->setCellValue('D' . $rowNum, '');
+            $receiptSheet->getStyle("A{$rowNum}:D{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $rowNum++;
+        }
+        foreach (['A', 'B', 'C', 'D'] as $column) {
+            $receiptSheet->getColumnDimension($column)->setAutoSize(true);
         }
 
         $filename = 'slip-gaji-' . $payroll->periode . '.xlsx';
-        $writer   = new Xlsx($spreadsheet);
+        $writer = new Xlsx($spreadsheet);
 
         return response()->streamDownload(function () use ($writer) {
             $writer->save('php://output');
         }, $filename, [
-            'Content-Type'        => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
@@ -1888,7 +2080,7 @@ class PayrollController extends Controller
         $rows = [];
         foreach ($periode as $tgl) {
             $isSunday = date('N', strtotime($tgl)) == 7;
-            $dayLogs  = $logs[$tgl] ?? collect();
+            $dayLogs  = $logs->get($tgl) ?? collect();
 
             $inTimes  = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string)$l->datetime));
             $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string)$l->datetime));
@@ -1896,7 +2088,7 @@ class PayrollController extends Controller
             $fpIn  = $inTimes->isNotEmpty()  ? date('H:i', $inTimes->min())  : null;
             $fpOut = $outTimes->isNotEmpty() ? date('H:i', $outTimes->max()) : null;
 
-            $correction = $corrections[$tgl] ?? null;
+            $correction = $corrections->get($tgl) ?? null;
 
             // Hitung lembur otomatis dari FP OUT jika koreksi tidak menyediakan jam_out
             $effectiveOutTs = null;
@@ -2054,18 +2246,18 @@ class PayrollController extends Controller
             foreach ($periode as $tgl) {
                 if (date('N', strtotime($tgl)) == 7) continue;
 
-                $correction = $corrections[$tgl] ?? null;
+                $correction = $corrections->get($tgl) ?? null;
 
                 if ($correction) {
                     $status = $correction->status;
                 } else {
                     $dayKey  = $pin . '_' . $tgl;
-                    $dayLogs = $logs[$dayKey] ?? collect();
+                    $dayLogs = $logs->get($dayKey) ?? collect();
                     $inTimes  = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string)$l->datetime));
                     $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string)$l->datetime));
                     $inTs  = $inTimes->isNotEmpty()  ? $inTimes->min()  : null;
                     $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
-                    $note   = $absenceNotes[$tgl] ?? null;
+                    $note = is_array($absenceNotes) ? ($absenceNotes[$tgl] ?? null) : ($absenceNotes->get($tgl) ?? null);
                     $status = ($inTs || $outTs) ? 'H' : ($note ? $note->code : 'A');
                 }
 

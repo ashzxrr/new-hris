@@ -9,7 +9,10 @@
         </div>
         <a href="{{ route('karyawan.index') }}"
             class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
-            ← Kembali
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </span>
+            <span>Kembali</span>
         </a>
     </div>
 
@@ -156,11 +159,11 @@
             <span class="text-sm text-slate-400">{{ count($karyawan) }} karyawan akan diupdate</span>
             <div class="flex gap-3">
                 <a href="{{ route('karyawan.index') }}"
-                    class="border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50">
+                    class="pbtn pbtn-secondary">
                     Batal
                 </a>
                 <button type="submit"
-                    class="bg-slate-800 text-white px-6 py-2 rounded-lg text-sm hover:bg-slate-700">
+                    class="pbtn pbtn-primary">
                     Simpan Semua Perubahan
                 </button>
             </div>

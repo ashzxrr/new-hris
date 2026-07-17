@@ -6,7 +6,7 @@
             <h1 class="text-xl font-semibold text-slate-800">Pengajuan Payroll — {{ $payroll->periode }}</h1>
             <p class="text-xs text-slate-400 mt-1">{{ \Carbon\Carbon::parse($payroll->tanggal_dari)->format('d M Y') }} — {{ \Carbon\Carbon::parse($payroll->tanggal_sampai)->format('d M Y') }}</p>
         </div>
-        <a href="{{ route('payroll.show', $payroll->id) }}" class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-slate-50 transition">← Kembali</a>
+        <a href="{{ route('payroll.show', $payroll->id) }}" class="pbtn pbtn-secondary">← Kembali</a>
     </div>
 
     @if($pengajuan->isEmpty())

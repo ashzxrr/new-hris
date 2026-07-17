@@ -25,10 +25,10 @@
                     <div>
                         
                         <div class="flex gap-2 mb-2">
-                            <button id="btn_today" type="button" onclick="setRange('today')" class="text-xs px-3 py-1.5 rounded-full border border-[#E5E7EB] text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Hari Ini</button>
-                            <button id="btn_yesterday" type="button" onclick="setRange('yesterday')" class="text-xs px-3 py-1.5 rounded-full border border-[#E5E7EB] text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Kemarin</button>
-                            <button id="btn_this_month" type="button" onclick="setRange('this_month')" class="text-xs px-3 py-1.5 rounded-full border border-[#E5E7EB] text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Bulan Ini</button>
-                            <button id="btn_last_month" type="button" onclick="setRange('last_month')" class="text-xs px-3 py-1.5 rounded-full border border-[#E5E7EB] text-slate-500 hover:border-slate-400 hover:text-slate-700 transition">Bulan Lalu</button>
+                            <button id="btn_today" type="button" onclick="setRange('today')" class="pbtn pbtn-secondary pbtn-sm">Hari Ini</button>
+                            <button id="btn_yesterday" type="button" onclick="setRange('yesterday')" class="pbtn pbtn-secondary pbtn-sm">Kemarin</button>
+                            <button id="btn_this_month" type="button" onclick="setRange('this_month')" class="pbtn pbtn-secondary pbtn-sm">Bulan Ini</button>
+                            <button id="btn_last_month" type="button" onclick="setRange('last_month')" class="pbtn pbtn-secondary pbtn-sm">Bulan Lalu</button>
                         </div>
                         <div class="flex items-center gap-2">
                             <div class="flex flex-col">
@@ -51,7 +51,7 @@
                     {{-- Filter Bagian --}}
                     <div class="flex flex-col">
                         
-                        <select id="filterBagian" class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300 w-52">
+                        <select id="filterBagian" class="w-52 px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                             <option value="">Semua Bagian</option>
                             @foreach($bagianList as $bagian)
                                 <option value="{{ $bagian }}">{{ $bagian }}</option>
@@ -151,7 +151,7 @@
                     {{-- Filter Kategori Gaji --}}
                     <div class="flex flex-col">
                         
-                        <select id="filterKategori" class="border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300 w-52">
+                        <select id="filterKategori" class="w-52 px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                             <option value="">Semua Kategori</option>
                             <option value="borongan cabut">Borongan Cabut</option>
                             <option value="borongan cetak">Borongan Cetak</option>
@@ -182,7 +182,7 @@
                                 + Tambah Keterangan
                             </button>
                             <button type="submit"
-                                class="text-xs px-3 py-1.5 rounded-lg bg-[#4F46E5] text-white hover:bg-[#4338CA] transition">
+                                class="pbtn pbtn-primary pbtn-sm">
                                 Lihat Detail Absensi
                             </button>
                         </div>
@@ -356,11 +356,11 @@
 
                     <div class="flex gap-3 justify-end">
                         <button type="button" onclick="closeNoteModal()"
-                            class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-[#F8FAFC]">
+                            class="pbtn pbtn-secondary">
                             Batal
                         </button>
                         <button type="submit"
-                            class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
+                            class="pbtn pbtn-primary">
                             Simpan Keterangan
                         </button>
                     </div>
