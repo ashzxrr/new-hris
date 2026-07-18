@@ -245,10 +245,19 @@
     {{-- Tarik Data modal removed; Tarik Data now triggers directly on button click --}}
 
     {{-- Grand Total Section --}}
-    <div class="bg-white rounded-2xl border border-[#E5E7EB] p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="font-semibold text-slate-800">Grand Total</h2>
+    <div class="bg-white rounded-2xl border border-[#E5E7EB] p-6" id="grandTotalSection">
+        <div class="flex items-center justify-between mb-4 gap-3">
+            <div>
+                <h2 class="font-semibold text-slate-800">Grand Total</h2>
+                <p class="text-xs text-slate-500 mt-1">Sembunyikan panel ini saat sedang tidak perlu dilihat.</p>
+            </div>
             <div class="flex items-center gap-3">
+                <button id="toggleGrandTotalBtn" type="button" class="pbtn pbtn-ghost pbtn-sm">
+                    <span class="pbtn-icon" id="toggleGrandTotalBtnIcon">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </span>
+                    <span id="toggleGrandTotalBtnText">Sembunyikan Grand Total</span>
+                </button>
                 <form id="generateGrandTotalForm" method="POST" action="{{ route('payroll.generateGrandTotal', $payroll->id) }}" onsubmit="return confirmGenerateGrandTotal(event)">
                     @csrf
                     <input type="hidden" name="force" id="forceGrandTotal" value="0">
@@ -263,7 +272,8 @@
             </div>
         </div>
 
-        <p class="text-sm text-slate-500 mb-4">Grand Total akan tersedia setelah semua jenis di-approve</p>
+        <div id="grandTotalBody" class="space-y-4 transition-all duration-300 ease-out">
+            <p class="text-sm text-slate-500 mb-4">Grand Total akan tersedia setelah semua jenis di-approve</p>
 
         {{-- Controls: search + section filter + visible total --}}
         @php
@@ -303,13 +313,16 @@
 
             <div id="grandtotal-groups" class="space-y-6">
                 @foreach($groups as $section => $group)
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="text-sm font-semibold text-slate-700">REKAPITULASI BAGIAN {{ strtoupper($sectionLabels[$section] ?? $section) }}</div>
+                    <div class="grandtotal-section" data-section="{{ $section }}">
+                        <div class="flex items-center justify-between mb-2 grandtotal-section-header cursor-pointer rounded-lg px-3 py-2 hover:bg-slate-50 transition" role="button" tabindex="0" aria-expanded="true">
+                            <div class="flex items-center gap-2">
+                                <span class="section-toggle-icon text-slate-400 transition-transform duration-200">▾</span>
+                                <div class="text-sm font-semibold text-slate-700">REKAPITULASI BAGIAN {{ strtoupper($sectionLabels[$section] ?? $section) }}</div>
+                            </div>
                             <div class="text-sm text-slate-500">Total Section: <span class="job-visible-total font-medium" data-section="{{ $section }}">Rp {{ number_format($group->sum('total_akhir'),0,',','.') }}</span></div>
                         </div>
 
-                        <div class="overflow-x-auto">
+                        <div class="overflow-x-auto grandtotal-section-body">
                             <table class="w-full text-sm">
                                 <thead class="text-xs text-slate-500 uppercase tracking-wide bg-[#F8FAFC] border-b">
                                     <tr>
@@ -352,6 +365,7 @@
                 <p class="text-sm text-slate-400 mb-3">Belum ada Grand Total</p>
             </div>
         @endif
+        </div>
     </div>
 
     <div class="bg-white rounded-2xl border border-[#E5E7EB] p-6 mt-6">
@@ -579,6 +593,43 @@
                     td.style.display = currentlyHidden ? 'none' : '';
                 });
                 toggleBtn.textContent = currentlyHidden ? 'Tampilkan Tanggal' : 'Sembunyikan Tanggal';
+            });
+        }
+
+        document.querySelectorAll('.grandtotal-section-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const section = header.closest('.grandtotal-section');
+                if (!section) return;
+                const body = section.querySelector('.grandtotal-section-body');
+                const icon = header.querySelector('.section-toggle-icon');
+                if (!body || !icon) return;
+
+                const collapsed = body.classList.toggle('hidden');
+                icon.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+                header.setAttribute('aria-expanded', String(!collapsed));
+            });
+        });
+
+        const toggleGrandTotalBtn = document.getElementById('toggleGrandTotalBtn');
+        const grandTotalBody = document.getElementById('grandTotalBody');
+        const grandTotalHiddenKey = 'hideGrandTotalSection';
+
+        function updateGrandTotalToggle(hidden) {
+            if (!toggleGrandTotalBtn || !grandTotalBody) return;
+            grandTotalBody.classList.toggle('hidden', hidden);
+            const icon = hidden
+                ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.64 21.64 0 0 1 5.06-6.94"/><path d="M1 1l22 22"/></svg>'
+                : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+            toggleGrandTotalBtn.querySelector('#toggleGrandTotalBtnIcon').innerHTML = icon;
+            toggleGrandTotalBtn.querySelector('#toggleGrandTotalBtnText').textContent = hidden ? 'Tampilkan Grand Total' : 'Sembunyikan Grand Total';
+            localStorage.setItem(grandTotalHiddenKey, hidden ? '1' : '0');
+        }
+
+        if (toggleGrandTotalBtn && grandTotalBody) {
+            const persisted = localStorage.getItem(grandTotalHiddenKey) === '1';
+            updateGrandTotalToggle(persisted);
+            toggleGrandTotalBtn.addEventListener('click', function(){
+                updateGrandTotalToggle(grandTotalBody.classList.contains('hidden'));
             });
         }
     })();

@@ -1765,6 +1765,7 @@ class PayrollController extends Controller
         $periodeLabel = 'TGL ' . $dari->format('d') . '-' . $sampai->format('d') . ' ' . $bulanNama . ' ' . $dari->format('Y');
 
         $spreadsheet = new Spreadsheet();
+        $spreadsheet->getDefaultStyle()->getFont()->setSize(10)->setName('Calibri');
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Slip Gaji');
 
@@ -1836,10 +1837,10 @@ class PayrollController extends Controller
                 $sheet->mergeCells("{$cA}{$r}:{$cA}" . ($r + 1));
                 $sheet->setCellValue("{$cA}{$r}", 'W.A.J');
                 $sheet->getStyle("{$cA}{$r}")->applyFromArray([
-                    'font' => ['bold' => true, 'size' => 9],
-                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
+                    'font' => ['bold' => true, 'size' => 9, 'color' => ['rgb' => 'FFC000']],
+                    'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
                 ]);
-                $sheet->getStyle("{$cA}{$r}:{$cA}" . ($r + 1))->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF2CC');
+                $sheet->getStyle("{$cA}{$r}:{$cA}" . ($r + 1))->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFFFF');
                 $sheet->getStyle("{$cA}{$r}:{$cA}" . ($r + 1))->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
 
                 $sheet->mergeCells("{$cB}{$r}:{$cE}{$r}");
@@ -1871,12 +1872,12 @@ class PayrollController extends Controller
                 ];
                 foreach ($infoRows as $info) {
                     $sheet->setCellValue("{$cA}{$r}", $info[0]);
-                    $sheet->setCellValue("{$cB}{$r}", '');
-                    $sheet->setCellValue("{$cC}{$r}", $info[1]);
-                    $sheet->setCellValue("{$cD}{$r}", '');
-                    $sheet->setCellValue("{$cE}{$r}", '');
-                    $sheet->getStyle("{$cA}{$r}:{$cE}{$r}")->applyFromArray(['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
+                    $sheet->mergeCells("{$cB}{$r}:{$cE}{$r}");
+                    $sheet->setCellValue("{$cB}{$r}", $info[1]);
+                    $sheet->getStyle("{$cA}{$r}")->applyFromArray(['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
                     $sheet->getStyle("{$cA}{$r}")->getFont()->setBold(true);
+                    $sheet->getStyle("{$cB}{$r}:{$cE}{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT)->setVertical(Alignment::VERTICAL_CENTER);
+                    $sheet->getStyle("{$cE}{$r}")->applyFromArray(['borders' => ['right' => ['borderStyle' => Border::BORDER_THIN]]]);
                     $r++;
                 }
 
@@ -1911,7 +1912,6 @@ class PayrollController extends Controller
                         $sheet->setCellValue("{$cD}{$r}", $label);
                         $sheet->setCellValue("{$cE}{$r}", $display);
                         $sheet->getStyle("{$cD}{$r}:{$cE}{$r}")->applyFromArray(['borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]]);
-                        $sheet->getStyle("{$cD}{$r}")->getFont()->setBold(true);
                         if (is_numeric($display)) {
                             $sheet->getStyle("{$cE}{$r}")->getNumberFormat()->setFormatCode('#,##0');
                             $sheet->getStyle("{$cE}{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
@@ -1950,10 +1950,10 @@ class PayrollController extends Controller
         for ($si = 0; $si < $slipPerRow; $si++) {
             $colStart = $si * $colStep;
             $sheet->getColumnDimension($colLetter($colStart))->setWidth(11.86);
-            $sheet->getColumnDimension($colLetter($colStart + 1))->setWidth(7);
+            $sheet->getColumnDimension($colLetter($colStart + 1))->setWidth(9.5);
             $sheet->getColumnDimension($colLetter($colStart + 2))->setWidth(11.86);
-            $sheet->getColumnDimension($colLetter($colStart + 3))->setWidth(11);
-            $sheet->getColumnDimension($colLetter($colStart + 4))->setWidth(14.71);
+            $sheet->getColumnDimension($colLetter($colStart + 3))->setWidth(14.5);
+            $sheet->getColumnDimension($colLetter($colStart + 4))->setWidth(11);
         }
 
         $receiptSheet = $spreadsheet->createSheet();
