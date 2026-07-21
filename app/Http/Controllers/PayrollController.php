@@ -43,7 +43,14 @@ class PayrollController extends Controller
     // ========================
     public function index()
     {
-        $payrolls = Payroll::orderByDesc('tanggal_dari')->get();
+        $payrolls = Payroll::withCount(['details', 'boronganRekaps', 'grandTotals', 'pengajuans'])
+            ->withSum('details', 'total_gaji')
+            ->withSum('boronganRekaps', 'total_akhir')
+            ->withSum('grandTotals', 'total_akhir')
+            ->withSum('pengajuans', 'total_akhir')
+            ->orderByDesc('tanggal_dari')
+            ->get();
+
         return view('payroll.index', compact('payrolls'));
     }
 
@@ -640,14 +647,17 @@ class PayrollController extends Controller
                 return $group->keyBy(function($it) { return $it->date->format('Y-m-d'); });
             });
 
+        $allNips = $validPengajuan->pluck('nip')->filter()->unique()->values()->all();
+        $userInfo = User::whereIn('nip', $allNips)
+            ->get(['nip', 'departemen', 'bagian'])
+            ->keyBy('nip');
+
         $groups = [
             'CABUT' => $cabutRows,
             'TITIL HCR' => $hcrRows,
             'MOULDING' => $mouldingRows,
             'HARIAN' => $harianRows,
         ];
-
-        $columns = ['A','B','C','D','E','F','G','H','I','J','K','L','M'];
 
         $workingDaysCount = 0;
         $tempDate = new \DateTime($payroll->tanggal_dari);
@@ -685,7 +695,7 @@ class PayrollController extends Controller
                 $headers = array_merge(['No', 'NIP', 'Nama', 'Jenis'], array_map(fn($date) => (int) \Carbon\Carbon::parse($date)->format('d'), $periodDates), ['Total']);
             }
 
-            $lastHeadCol = chr(ord('A') + count($headers) - 1);
+            $lastHeadCol = $this->colLetter(count($headers));
             $rekapSheet->fromArray($headers, null, 'A5');
             $rekapSheet->getStyle("A5:{$lastHeadCol}5")->getFont()->setBold(true);
             $rekapSheet->getStyle("A5:{$lastHeadCol}5")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9D9D9');
@@ -693,7 +703,8 @@ class PayrollController extends Controller
             $rekapSheet->getStyle("A5:{$lastHeadCol}5")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
             $rekapSheet->freezePane('A6');
 
-            $rowNum = 6;
+            $dataStartRow = $name === 'HARIAN' ? 6 : 7;
+            $rowNum = $dataStartRow;
             $no = 1;
             if ($name === 'HARIAN') {
                 $detailRows = PayrollDetail::where('payroll_id', $id)->orderBy('nama')->get();
@@ -704,7 +715,7 @@ class PayrollController extends Controller
                     $rekapSheet->setCellValue('C' . $rowNum, $detail->nama);
                     $rekapSheet->setCellValue('D' . $rowNum, $bagianMap[$detail->nip] ?? '-');
 
-                    $colIndex = ord('E');
+                    $colIndex = 5;
                     $hadirCount = 0;
                     $alphaCount = 0;
                     $izinCount = 0;
@@ -718,7 +729,7 @@ class PayrollController extends Controller
                         $absenceForPin = $absenceNotes->get($detail->pin, collect());
                         $resolved = $this->resolveAttendanceDay($correction, $dayLogs, $absenceForPin, $detail->pin, $date);
                         $status = $resolved['status'] ?? '-';
-                        $rekapSheet->setCellValue(chr($colIndex) . $rowNum, $status);
+                        $rekapSheet->setCellValue($this->colLetter($colIndex) . $rowNum, $status);
                         if ($status === 'H') $hadirCount++;
                         if ($status === 'A') $alphaCount++;
                         if ($status === 'I') $izinCount++;
@@ -727,11 +738,11 @@ class PayrollController extends Controller
                         $colIndex++;
                     }
 
-                    $rekapSheet->setCellValue(chr($colIndex++) . $rowNum, $hadirCount);
-                    $rekapSheet->setCellValue(chr($colIndex++) . $rowNum, $alphaCount);
-                    $rekapSheet->setCellValue(chr($colIndex++) . $rowNum, $izinCount);
-                    $rekapSheet->setCellValue(chr($colIndex++) . $rowNum, $sakitCount);
-                    $rekapSheet->setCellValue(chr($colIndex) . $rowNum, $stCount);
+                    $rekapSheet->setCellValue($this->colLetter($colIndex++) . $rowNum, $hadirCount);
+                    $rekapSheet->setCellValue($this->colLetter($colIndex++) . $rowNum, $alphaCount);
+                    $rekapSheet->setCellValue($this->colLetter($colIndex++) . $rowNum, $izinCount);
+                    $rekapSheet->setCellValue($this->colLetter($colIndex++) . $rowNum, $sakitCount);
+                    $rekapSheet->setCellValue($this->colLetter($colIndex) . $rowNum, $stCount);
 
                     $rekapSheet->getStyle("A{$rowNum}:{$lastHeadCol}{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                     $rowNum++;
@@ -753,107 +764,143 @@ class PayrollController extends Controller
                     $rekapSheet->setCellValue('C' . $rowNum, $nama);
                     $rekapSheet->setCellValue('D' . $rowNum, $jenis);
 
-                    $colIndex = ord('E');
+                    $dateStartCol = 5;
+                    $colIndex = $dateStartCol;
                     foreach ($periodDates as $date) {
                         $dailyValue = BoronganHarian::whereIn('borongan_import_id', $importIds)
                             ->whereRaw('TRIM(UPPER(nip)) = ?', [trim(strtoupper($nip))])
                             ->where('tanggal', $date)
                             ->sum('upah_sistem');
-                        $rekapSheet->setCellValue(chr($colIndex) . $rowNum, $dailyValue);
+                        $rekapSheet->setCellValue($this->colLetter($colIndex) . $rowNum, $dailyValue);
                         $colIndex++;
                     }
-                    $rekapSheet->setCellValue(chr($colIndex) . $rowNum, "=SUM(E{$rowNum}:" . chr(ord('E') + count($periodDates) - 1) . "{$rowNum})");
-                    $rekapSheet->getStyle("E{$rowNum}:" . chr(ord('E') + count($periodDates) - 1) . "{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
+                    $dateEndCol = $colIndex - 1;
+                    $dateStartLetter = $this->colLetter($dateStartCol);
+                    $dateEndLetter = $this->colLetter($dateEndCol);
+                    $komplainCol = $this->colLetter($colIndex++);
+                    $insentifCol = $this->colLetter($colIndex++);
+                    $potLainCol = $this->colLetter($colIndex++);
+                    $potBpjsCol = $this->colLetter($colIndex++);
+                    $ttlCol = $this->colLetter($colIndex);
+
+                    $rekapSheet->setCellValue($komplainCol . $rowNum, $group->sum('komplain'));
+                    $rekapSheet->setCellValue($insentifCol . $rowNum, $group->sum('insentif'));
+                    $rekapSheet->setCellValue($potLainCol . $rowNum, $group->sum('potongan_lain'));
+                    $rekapSheet->setCellValue($potBpjsCol . $rowNum, $group->sum('potongan_bpjs'));
+                    $rekapSheet->setCellValue($ttlCol . $rowNum, "=SUM({$dateStartLetter}{$rowNum}:{$dateEndLetter}{$rowNum})+{$komplainCol}{$rowNum}+{$insentifCol}{$rowNum}-{$potLainCol}{$rowNum}-{$potBpjsCol}{$rowNum}");
+                    $rekapSheet->getStyle("{$dateStartLetter}{$rowNum}:{$ttlCol}{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
                     $rekapSheet->getStyle("A{$rowNum}:{$lastHeadCol}{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
                     $rowNum++;
                     $no++;
                 }
             }
 
-            foreach (range('A', $lastHeadCol) as $col) {
-                $rekapSheet->getColumnDimension($col)->setAutoSize(true);
+            $maxColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($lastHeadCol);
+            for ($i = 2; $i <= $maxColIndex; $i++) {
+                $rekapSheet->getColumnDimension($this->colLetter($i))->setAutoSize(true);
             }
+            $rekapSheet->getColumnDimension('A')->setAutoSize(false);
+            $rekapSheet->getColumnDimension('A')->setWidth(5);
 
             // Create standard detail sheet after rekap
             $sheet = $spreadsheet->createSheet();
             $sheet->setTitle(substr($name, 0, 31));
 
             $isHarian = strtoupper($name) === 'HARIAN';
-            $lastCol = $isHarian ? 'N' : 'M';
+            $lastCol = 'P';
 
-            // Titles
-            $sheet->mergeCells("A1:{$lastCol}1");
+            $sheet->mergeCells('A1:P1');
             $sheet->setCellValue('A1', 'PT WALET ABDILLAH JABLI');
-            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(12);
             $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-            $sheet->mergeCells("A2:{$lastCol}2");
-            $sheet->setCellValue('A2', strtoupper($name) === 'HARIAN' ? 'REKAP GAJI HARIAN PERIODE ' . $payroll->periode : 'REKAP GAJI BORONGAN ' . strtoupper($name) . ' PERIODE ' . $payroll->periode);
+            $sheet->mergeCells('A2:P2');
+            $sheet->setCellValue('A2', $isHarian ? 'REKAP GAJI HARIAN PERIODE ' . $payroll->periode : 'REKAP GAJI BORONGAN ' . strtoupper($name) . ' PERIODE ' . $payroll->periode);
             $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
             $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-            $sheet->mergeCells("A3:{$lastCol}3");
+            $sheet->mergeCells('A3:P3');
             $sheet->setCellValue('A3', 'Periode ' . \Carbon\Carbon::parse($payroll->tanggal_dari)->translatedFormat('d F Y') . ' s/d ' . \Carbon\Carbon::parse($payroll->tanggal_sampai)->translatedFormat('d F Y'));
             $sheet->getStyle('A3')->getFont()->setItalic(true)->setSize(10);
             $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-            // Header row (row 5) - dynamic per group
             if ($isHarian) {
-                $headers = [
-                    'No', 'NIP', 'NAMA', 'Jenis', 'Gaji Real', 'Gaji Lembur', 'Komplain', 'Insentif', 'Potongan Lain', 'Potongan BPJS', 'TF PAYROL', 'No Rekening', 'Bank', 'Email'
-                ];
+                $headers = ['No', 'NIP', 'NAMA', 'Departemen', 'Workstation', 'Posisi', 'Gaji Real', 'Gaji Lembur', 'Komplain', 'Insentif', 'Potongan Lain', 'Potongan BPJS', 'TF PAYROL', 'No Rekening', 'Bank', 'Email'];
             } else {
-                $headers = [
-                    'No', 'NIP', 'NAMA', 'Jenis', 'Gaji Real', 'Komplain', 'Insentif', 'Potongan Lain', 'Potongan BPJS', 'TF PAYROL', 'No Rekening', 'Bank', 'Email'
-                ];
+                $headers = ['No', 'NIP', 'NAMA', 'Departemen', 'Workstation', 'Posisi', 'Gaji Real', 'Komplain', 'Tamb. Training', 'Insentif', 'Potongan Lain', 'Potongan BPJS', 'TF PAYROL', 'No Rekening', 'Bank', 'Email'];
             }
 
-            $headerRange = "A5:{$lastCol}5";
+            $headerRange = 'A5:P5';
             $sheet->fromArray($headers, null, 'A5');
             $sheet->getStyle($headerRange)->getFont()->setBold(true);
             $sheet->getStyle($headerRange)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9D9D9');
-            $sheet->getStyle($headerRange)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle($headerRange)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
             $sheet->getStyle($headerRange)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-
-            // Freeze header (A6)
             $sheet->freezePane('A6');
+            $sheet->setShowGridlines(false);
 
-            // Data rows
-            $rowNum = 6;
+            $sectionLabel = match ($name) {
+                'CABUT' => 'Cabut',
+                'TITIL HCR' => 'Titil Hcr',
+                'MOULDING' => 'Moulding',
+                default => ucfirst(strtolower($name)),
+            };
+            $isHarian = strtoupper($name) === 'HARIAN';
+            $dataStartRow = $isHarian ? 6 : 7;
+            if (!$isHarian) {
+                $sheet->setCellValue('A' . ($dataStartRow - 1), "Workstation : {$sectionLabel}, " . count($rows) . " Karyawan");
+                $sheet->getStyle('A' . ($dataStartRow - 1))->getFont()->setBold(true);
+            }
+
+            $rowNum = $dataStartRow;
             $no = 1;
             foreach ($rows as $r) {
+                $nipTrim = trim($r->nip);
+                $userRow = $userInfo->get($nipTrim);
+                $departemen = $userRow->departemen ?? 'PRODUKSI';
+                $posisi = $userRow->bagian ?? '-';
+                $workstation = strtoupper($name === 'TITIL HCR' ? 'HCR' : $name);
+
                 $sheet->setCellValue('A' . $rowNum, $no);
                 $sheet->setCellValue('B' . $rowNum, $r->nip);
                 $sheet->setCellValue('C' . $rowNum, $r->nama);
-                $sheet->setCellValue('D' . $rowNum, $r->jenis);
+                $sheet->setCellValue('D' . $rowNum, $departemen);
+                $sheet->setCellValue('E' . $rowNum, $workstation);
+                $sheet->setCellValue('F' . $rowNum, $posisi);
 
                 if ($isHarian) {
-                    $sheet->setCellValue('E' . $rowNum, $r->gaji_real ?? 0);
-                    $sheet->setCellValue('F' . $rowNum, $r->total_lembur ?? 0);
-                    $sheet->setCellValue('G' . $rowNum, $r->komplain ?? 0);
-                    $sheet->setCellValue('H' . $rowNum, $r->insentif ?? 0);
-                    $sheet->setCellValue('I' . $rowNum, $r->potongan_lain ?? 0);
-                    $sheet->setCellValue('J' . $rowNum, $r->potongan_bpjs ?? 0);
-                    $sheet->setCellValue('K' . $rowNum, $r->total_akhir ?? 0);
+                    $sheet->setCellValue('G' . $rowNum, $r->gaji_real ?? 0);
+                    $sheet->setCellValue('H' . $rowNum, $r->total_lembur ?? 0);
+                    $sheet->setCellValue('I' . $rowNum, $r->komplain ?? 0);
+                    $sheet->setCellValue('J' . $rowNum, $r->insentif ?? 0);
+                    $sheet->setCellValue('K' . $rowNum, $r->potongan_lain ?? 0);
+                    $sheet->setCellValue('L' . $rowNum, $r->potongan_bpjs ?? 0);
+                    $sheet->setCellValue('M' . $rowNum, $r->total_akhir ?? 0);
                     $acct = $r->no_rekening ?? '';
-                    $sheet->setCellValue('L' . $rowNum, $acct !== '' ? '\'' . $acct : '');
-                    $sheet->setCellValue('M' . $rowNum, $r->nama_bank ?? '');
-                    $sheet->setCellValue('N' . $rowNum, $r->email ?? '');
-
-                    $sheet->getStyle("E{$rowNum}:K{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->setCellValue('N' . $rowNum, $acct !== '' ? '\'' . $acct : '');
+                    $sheet->setCellValue('O' . $rowNum, $r->nama_bank ?? '');
+                    $sheet->setCellValue('P' . $rowNum, $r->email ?? '');
+                    $sheet->getStyle("G{$rowNum}:M{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
                 } else {
-                    $sheet->setCellValue('E' . $rowNum, $r->gaji_real ?? 0);
-                    $sheet->setCellValue('F' . $rowNum, $r->komplain ?? 0);
-                    $sheet->setCellValue('G' . $rowNum, $r->insentif ?? 0);
-                    $sheet->setCellValue('H' . $rowNum, $r->potongan_lain ?? 0);
-                    $sheet->setCellValue('I' . $rowNum, $r->potongan_bpjs ?? 0);
-                    $sheet->setCellValue('J' . $rowNum, $r->total_akhir ?? 0);
-                    $acct = $r->no_rekening ?? '';
-                    $sheet->setCellValue('K' . $rowNum, $acct !== '' ? '\'' . $acct : '');
-                    $sheet->setCellValue('L' . $rowNum, $r->nama_bank ?? '');
-                    $sheet->setCellValue('M' . $rowNum, $r->email ?? '');
+                    $rawParsed = BoronganHarian::whereIn('borongan_import_id', $importIds)
+                        ->whereRaw('TRIM(UPPER(nip)) = ?', [trim(strtoupper($nipTrim))])
+                        ->sum('upah_sistem');
+                    $storedGajiReal = $r->gaji_real ?? 0;
+                    $tambTraining = max(0, $storedGajiReal - $rawParsed);
+                    $gajiRealDisplay = $tambTraining > 0 ? $rawParsed : $storedGajiReal;
 
-                    $sheet->getStyle("E{$rowNum}:J{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
+                    $sheet->setCellValue('G' . $rowNum, $gajiRealDisplay);
+                    $sheet->setCellValue('H' . $rowNum, $r->komplain ?? 0);
+                    $sheet->setCellValue('I' . $rowNum, $tambTraining);
+                    $sheet->setCellValue('J' . $rowNum, $r->insentif ?? 0);
+                    $sheet->setCellValue('K' . $rowNum, $r->potongan_lain ?? 0);
+                    $sheet->setCellValue('L' . $rowNum, $r->potongan_bpjs ?? 0);
+                    $sheet->setCellValue('M' . $rowNum, $r->total_akhir ?? 0);
+                    $acct = $r->no_rekening ?? '';
+                    $sheet->setCellValue('N' . $rowNum, $acct !== '' ? '\'' . $acct : '');
+                    $sheet->setCellValue('O' . $rowNum, $r->nama_bank ?? '');
+                    $sheet->setCellValue('P' . $rowNum, $r->email ?? '');
+                    $sheet->getStyle("G{$rowNum}:M{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
                 }
 
                 $sheet->getStyle("A{$rowNum}:{$lastCol}{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
@@ -863,26 +910,25 @@ class PayrollController extends Controller
 
             $lastDataRow = $rowNum - 1;
             $totalRow = $lastDataRow + 1;
-            $sheet->mergeCells("A{$totalRow}:D{$totalRow}");
+            $sheet->mergeCells("A{$totalRow}:F{$totalRow}");
             $sheet->setCellValue('A' . $totalRow, 'TOTAL');
             $sheet->getStyle('A' . $totalRow)->getFont()->setBold(true);
 
-            if ($isHarian) {
-                $colsToSum = ['E','F','G','H','I','J','K'];
-            } else {
-                $colsToSum = ['E','F','G','H','I','J'];
-            }
+            $colsToSum = ['G', 'H', 'I', 'J', 'K', 'L', 'M'];
             foreach ($colsToSum as $col) {
-                $sheet->setCellValue($col . $totalRow, "=SUM({$col}6:{$col}{$lastDataRow})");
+                $sheet->setCellValue($col . $totalRow, "=SUM({$col}{$dataStartRow}:{$col}{$lastDataRow})");
                 $sheet->getStyle($col . $totalRow)->getFont()->setBold(true);
                 $sheet->getStyle($col . $totalRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF2CC');
                 $sheet->getStyle($col . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
             }
 
             $sheet->getStyle("A{$totalRow}:{$lastCol}{$totalRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
-            foreach (range('A', $lastCol) as $col) {
-                $sheet->getColumnDimension($col)->setAutoSize(true);
+            $sheet->setAutoFilter("A5:{$lastCol}{$lastDataRow}");
+            for ($i = 2; $i <= 16; $i++) {
+                $sheet->getColumnDimension($this->colLetter($i))->setAutoSize(true);
             }
+            $sheet->getColumnDimension('A')->setAutoSize(false);
+            $sheet->getColumnDimension('A')->setWidth(5);
 
             $signRow = $totalRow + 3;
             $sheet->setCellValue('A' . $signRow, 'Dibuat Oleh');
@@ -997,10 +1043,14 @@ class PayrollController extends Controller
         // table headers
         $leftCol = 'A'; $rightCol = 'H';
         $headers = ['REKAPITALISASI GAJI', 'QTY MP', 'STATUS', 'QTY', 'NOMINAL'];
+        $leftBaseIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($leftCol);
+        $rightBaseIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($rightCol);
+        $leftHeaderEndCol = $this->colLetter($leftBaseIndex + count($headers) - 1);
+        $rightHeaderEndCol = $this->colLetter($rightBaseIndex + count($headers) - 1);
         $resumSheet->fromArray($headers, null, $leftCol . $row);
         $resumSheet->fromArray($headers, null, $rightCol . $row);
-        $resumSheet->getStyle($leftCol . $row . ':' . chr(ord($leftCol) + count($headers) -1) . $row)->getFont()->setBold(true);
-        $resumSheet->getStyle($rightCol . $row . ':' . chr(ord($rightCol) + count($headers) -1) . $row)->getFont()->setBold(true);
+        $resumSheet->getStyle($leftCol . $row . ':' . $leftHeaderEndCol . $row)->getFont()->setBold(true);
+        $resumSheet->getStyle($rightCol . $row . ':' . $rightHeaderEndCol . $row)->getFont()->setBold(true);
         $row++;
 
         $leftRow = $row; $rightRow = $row;
@@ -1022,10 +1072,10 @@ class PayrollController extends Controller
             $nominal = $members->sum('total_akhir');
 
             $resumSheet->setCellValue($leftCol . $leftRow, $label);
-            $resumSheet->setCellValue(chr(ord($leftCol)+1) . $leftRow, $qtyMp);
-            $resumSheet->setCellValue(chr(ord($leftCol)+2) . $leftRow, $status);
-            $resumSheet->setCellValue(chr(ord($leftCol)+3) . $leftRow, $qtyText);
-            $resumSheet->setCellValue(chr(ord($leftCol)+4) . $leftRow, $nominal);
+            $resumSheet->setCellValue($this->colLetter($leftBaseIndex + 1) . $leftRow, $qtyMp);
+            $resumSheet->setCellValue($this->colLetter($leftBaseIndex + 2) . $leftRow, $status);
+            $resumSheet->setCellValue($this->colLetter($leftBaseIndex + 3) . $leftRow, $qtyText);
+            $resumSheet->setCellValue($this->colLetter($leftBaseIndex + 4) . $leftRow, $nominal);
 
             $leftRow++;
         }
@@ -1048,10 +1098,10 @@ class PayrollController extends Controller
             $nominal = $members->sum('total_akhir');
 
             $resumSheet->setCellValue($rightCol . $rightRow, $label);
-            $resumSheet->setCellValue(chr(ord($rightCol)+1) . $rightRow, $qtyMp);
-            $resumSheet->setCellValue(chr(ord($rightCol)+2) . $rightRow, $status);
-            $resumSheet->setCellValue(chr(ord($rightCol)+3) . $rightRow, $qtyText);
-            $resumSheet->setCellValue(chr(ord($rightCol)+4) . $rightRow, $nominal);
+            $resumSheet->setCellValue($this->colLetter($rightBaseIndex + 1) . $rightRow, $qtyMp);
+            $resumSheet->setCellValue($this->colLetter($rightBaseIndex + 2) . $rightRow, $status);
+            $resumSheet->setCellValue($this->colLetter($rightBaseIndex + 3) . $rightRow, $qtyText);
+            $resumSheet->setCellValue($this->colLetter($rightBaseIndex + 4) . $rightRow, $nominal);
 
             $rightRow++;
         }
@@ -1059,10 +1109,12 @@ class PayrollController extends Controller
         $endRow = max($leftRow, $rightRow);
         // TOTAL row below both tables
         $totalRow = $endRow + 1;
-        $resumSheet->mergeCells($leftCol . $totalRow . ':' . chr(ord($leftCol)+2) . $totalRow);
+        $resumSheet->mergeCells($leftCol . $totalRow . ':' . $this->colLetter($leftBaseIndex + 2) . $totalRow);
         $resumSheet->setCellValue($leftCol . $totalRow, 'TOTAL');
-        $resumSheet->setCellValue(chr(ord($leftCol)+4) . $totalRow, "=SUM(" . chr(ord($leftCol)+4) . ($row) . ":" . chr(ord($leftCol)+4) . ($endRow -1) . ") + SUM(" . chr(ord($rightCol)+4) . ($row) . ":" . chr(ord($rightCol)+4) . ($endRow -1) . ")");
-        $resumSheet->getStyle($leftCol . $totalRow . ':' . chr(ord($rightCol)+4) . $totalRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF2CC');
+        $leftNominalCol = $this->colLetter($leftBaseIndex + 4);
+        $rightNominalCol = $this->colLetter($rightBaseIndex + 4);
+        $resumSheet->setCellValue($leftNominalCol . $totalRow, "=SUM({$leftNominalCol}{$row}:{$leftNominalCol}" . ($endRow - 1) . ") + SUM({$rightNominalCol}{$row}:{$rightNominalCol}" . ($endRow - 1) . ")");
+        $resumSheet->getStyle($leftCol . $totalRow . ':' . $rightNominalCol . $totalRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF2CC');
 
         $currentRow = $totalRow + 2;
 
@@ -1163,6 +1215,11 @@ class PayrollController extends Controller
         $writer->save($tmpFile);
 
         return response()->download($tmpFile, $fileName)->deleteFileAfterSend(true);
+    }
+
+    private function colLetter(int $index): string
+    {
+        return \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index);
     }
 
     private function resolveAttendanceDay($correction, $dayLogs, $absenceNotes, $pin, $tgl)

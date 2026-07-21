@@ -149,7 +149,8 @@ class AbsensiController extends Controller
 
             foreach ($periode as $tgl) {
                 $isSunday = date('N', strtotime($tgl)) == 7;
-                if ($isSunday) continue;
+                $dayKey = $pin . '_' . $tgl;
+                $dayLogs = $logs[$dayKey] ?? collect();
 
                 $result = $this->getInOutForDay($pin, $tgl, $logs, $karyawan);
 
@@ -160,8 +161,9 @@ class AbsensiController extends Controller
 
                 $inTs  = $result['in_ts'];
                 $outTs = $result['out_ts'];
+                $hasChecklok = $dayLogs->isNotEmpty() || $inTs || $outTs;
 
-                if ($inTs || $outTs) {
+                if ($hasChecklok) {
                     $totalHadir++;
                 } else {
                     $totalTidakHadir++;
@@ -318,22 +320,25 @@ public function exportDetail(Request $request)
 
         foreach ($periode as $tgl) {
             $isSunday = date('N', strtotime($tgl)) == 7;
-            if ($isSunday) {
-                continue;
-            }
 
             $dayKey = $pin . '_' . $tgl;
             $dayLogs = $logs[$dayKey] ?? collect();
             $absenceNote = $absenceNotes[$pin][$tgl] ?? null;
             $absenceCode = $absenceNote->code ?? null;
 
-            if ($dayLogs->isEmpty()) {
+            $result = $this->getInOutForDay($pin, $tgl, $logs, $karyawan);
+            if ($result['skip']) {
+                continue;
+            }
+
+            $hasChecklok = $dayLogs->isNotEmpty() || $result['in_ts'] || $result['out_ts'];
+            if ($hasChecklok) {
+                $totalHadir++;
+            } else {
                 $totalTidakHadir++;
                 if ($absenceCode && isset($codes[$absenceCode])) {
                     $codes[$absenceCode]++;
                 }
-            } else {
-                $totalHadir++;
             }
         }
 
@@ -373,11 +378,12 @@ public function exportDetail(Request $request)
 
             $isAbsent = false;
             $isSundayRow = false;
+            $hasChecklok = $dayLogs->isNotEmpty() || $result['in_ts'] || $result['out_ts'];
 
-            if ($isSunday) {
+            if ($isSunday && !$hasChecklok) {
                 $keterangan = 'Minggu';
                 $isSundayRow = true;
-            } elseif ($dayLogs->isEmpty()) {
+            } elseif (!$hasChecklok) {
                 $isAbsent = true;
                 $keterangan = $absenceCode ? strtoupper($absenceCode) : '-';
                 if ($absenceText !== '') {

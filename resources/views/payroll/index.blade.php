@@ -57,15 +57,19 @@
 
                 {{-- Total Karyawan --}}
                 <div class="mb-4 pb-4 border-b border-[#EAF1F6]">
+                    @php
+                        $totalKaryawan = $p->grand_totals_count ?: $p->pengajuans_count ?: ($p->details_count ?? 0);
+                        $totalGaji = $p->grand_totals_sum_total_akhir ?: $p->pengajuans_sum_total_akhir ?: ($p->details_sum_total_gaji ?? 0);
+                    @endphp
                     <p class="text-[11px] text-[#567C8D] mb-1">Total Karyawan</p>
-                    <p class="text-[18px] font-semibold text-[#2F4156]">{{ $p->details->count() }}</p>
+                    <p class="text-[18px] font-semibold text-[#2F4156]">{{ $totalKaryawan }}</p>
                 </div>
 
                 {{-- Total Gaji --}}
                 <div>
                     <p class="text-[11px] text-[#567C8D] mb-1">Total Gaji</p>
                     <p class="text-[16px] font-semibold text-[#2F4156]">
-                        Rp {{ number_format($p->details->sum('total_gaji'), 0, ',', '.') }}
+                        Rp {{ number_format($totalGaji, 0, ',', '.') }}
                     </p>
                 </div>
             </div>
