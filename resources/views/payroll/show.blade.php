@@ -216,8 +216,11 @@
                 <div class="text-center py-6">
                     <p class="text-sm text-slate-400 mb-3">Belum ditarik</p>
                     <button type="button" onclick="tarikAbsensiDirect(this)"
-                        class="pbtn pbtn-primary pbtn-sm">
-                        Tarik Data
+                        class="pbtn pbtn-secondary pbtn-sm inline-flex items-center justify-center gap-2">
+                        <span class="pbtn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M4 4v6h6"/><path d="M20 20v-6h-6"/><path d="M5 9a7 7 0 0 1 11-5.6"/><path d="M19 15a7 7 0 0 1-11 5.6"/></svg>
+                        </span>
+                        <span>Tarik Data Absensi</span>
                     </button>
                 </div>
             @else
@@ -229,8 +232,11 @@
                     </div>
                     <div class="flex flex-col gap-2">
                         <button type="button" onclick="tarikAbsensiDirect(this)"
-                            class="w-full pbtn pbtn-secondary pbtn-sm text-center">
-                            Tarik Data
+                            class="w-full pbtn pbtn-secondary pbtn-sm inline-flex items-center justify-center gap-2 text-center">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M4 4v6h6"/><path d="M20 20v-6h-6"/><path d="M5 9a7 7 0 0 1 11-5.6"/><path d="M19 15a7 7 0 0 1-11 5.6"/></svg>
+                            </span>
+                            <span>Tarik Data Absensi</span>
                         </button>
                         <a href="{{ route('payroll.harian.show', $payroll->id) }}"
                             class="block w-full text-center border border-[#E5E7EB] text-slate-600 px-3 py-2 rounded-lg text-xs hover:bg-slate-50 transition font-medium">
@@ -266,7 +272,6 @@
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 011-1h4a1 1 0 110 2H5v12h10V4h-3a1 1 0 110-2h4a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V3z" /></svg>
                         </span>
                         <span id="generateGrandTotalBtnLabel">Generate Grand Total</span>
-                        <span id="generateGrandTotalSpinner" class="hidden inline-flex items-center justify-center w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-1"></span>
                     </button>
                 </form>
             </div>
@@ -418,42 +423,18 @@
 </div>
 
 {{-- Loading Overlay --}}
-<div id="processingOverlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center">
-    <div class="bg-white rounded-2xl shadow-xl p-8 flex flex-col items-center gap-4 max-w-sm mx-4">
-        <svg class="animate-spin h-10 w-10 text-[#4F46E5]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-        </svg>
-        <p id="processingText" class="text-sm font-medium text-slate-700 text-center">Memproses...</p>
-        <p class="text-xs text-slate-400 text-center">Mohon tunggu, jangan tutup atau refresh halaman ini.</p>
-    </div>
-</div>
-
 <script>
-    function showProcessingOverlay(message = 'Memproses...') {
-        document.getElementById('processingText').textContent = message;
-        document.getElementById('processingOverlay').classList.remove('hidden');
-        document.getElementById('processingOverlay').classList.add('flex');
-    }
-
-    function hideProcessingOverlay() {
-        document.getElementById('processingOverlay').classList.add('hidden');
-        document.getElementById('processingOverlay').classList.remove('flex');
-    }
-
     function handleGeneratePengajuan(e) {
         e.preventDefault();
         const confirmed = confirm('Generate Pengajuan dari Grand Total saat ini? Data lama akan ditimpa.');
         if (!confirmed) return false;
 
-        showProcessingOverlay('Menggenerate Pengajuan...');
         const form = document.getElementById('generatePengajuanForm');
         form.submit();
         return false;
     }
 
     function confirmGenerateGrandTotal(e) {
-        e.preventDefault();
         const form = document.getElementById('generateGrandTotalForm');
 
         @if(!$bisaGenerateGrandTotal)
@@ -464,49 +445,7 @@
             if (!confirm('Generate Grand Total untuk periode ini? Data lama (jika ada) akan ditimpa.')) return false;
         @endif
 
-        try {
-            showProcessingOverlay('Menggenerate Grand Total...');
-            const btn = document.getElementById('generateGrandTotalBtn');
-            const icon = document.getElementById('generateGrandTotalIcon');
-            const label = document.getElementById('generateGrandTotalBtnLabel');
-            const spinner = document.getElementById('generateGrandTotalSpinner');
-
-            if (btn) {
-                btn.disabled = true;
-                if (icon) {
-                    icon.classList.add('hidden');
-                }
-                if (label) {
-                    label.textContent = 'Generating...';
-                }
-                if (spinner) {
-                    spinner.classList.remove('hidden');
-                }
-            }
-
-            form.submit();
-        } catch (error) {
-            hideProcessingOverlay();
-            const btn = document.getElementById('generateGrandTotalBtn');
-            const icon = document.getElementById('generateGrandTotalIcon');
-            const label = document.getElementById('generateGrandTotalBtnLabel');
-            const spinner = document.getElementById('generateGrandTotalSpinner');
-
-            if (btn) {
-                btn.disabled = false;
-                if (icon) {
-                    icon.classList.remove('hidden');
-                }
-                if (label) {
-                    label.textContent = 'Generate Grand Total';
-                }
-                if (spinner) {
-                    spinner.classList.add('hidden');
-                }
-            }
-        }
-
-        return false;
+        return true;
     }
 
     function tarikAbsensiDirect(btn) {
