@@ -7,6 +7,7 @@ use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\BoronganController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\TlBawahanController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest:admin')->group(function () {
@@ -61,6 +62,9 @@ Route::middleware('auth:admin')->group(function () {
     });
 
     Route::middleware(['auth.admin'])->group(function () {
+        Route::get('/tl-bawahan', [TlBawahanController::class, 'index'])->name('tl-bawahan.index');
+        Route::post('/tl-bawahan/update', [TlBawahanController::class, 'updateTl'])->name('tl-bawahan.update');
+
         Route::get('/setting', [SettingController::class, 'index'])->name('setting.index');
         Route::post('/setting/profile', [SettingController::class, 'updateProfile'])->name('setting.profile');
 

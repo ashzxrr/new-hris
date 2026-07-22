@@ -15,6 +15,16 @@ class User extends Authenticatable
 
     protected $table = 'users';
 
+    public function tl()
+    {
+        return $this->belongsTo(User::class, 'tl_id');
+    }
+
+    public function anggota()
+    {
+        return $this->hasMany(User::class, 'tl_id');
+    }
+
     protected $fillable = [
         'pin',
         'nip',
