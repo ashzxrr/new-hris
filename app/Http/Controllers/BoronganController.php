@@ -986,6 +986,8 @@ class BoronganController extends Controller
         
         // Group by NIP, aggregate total gram & upah, flag jika ada yg flagged
         $items = $this->getVisibleBoronganRows(BoronganHarian::query()->where('borongan_import_id', $id))
+            ->whereNotNull('nip')
+            ->where('nip', '<>', '')
             ->get()
             ->groupBy('nip')
             ->map(function ($rows) {
@@ -1003,8 +1005,15 @@ class BoronganController extends Controller
             ->sortBy('nama')
             ->values();
 
+        $additionalGram = BoronganHarian::where('borongan_import_id', $id)
+            ->where(function ($q) {
+                $q->whereNull('nip')
+                  ->orWhere('nip', '');
+            })
+            ->sum('berat_gram');
+
         $payrollId = $import->payroll_id;
-        return view('borongan.review', compact('import', 'items', 'payrollId', 'pendingMutasi', 'siblingImports'));
+        return view('borongan.review', compact('import', 'items', 'payrollId', 'pendingMutasi', 'siblingImports', 'additionalGram'));
     }
 
     public function bulkHapusKosong(Request $request, $id)
@@ -1134,25 +1143,18 @@ class BoronganController extends Controller
     public function addGram(Request $request, $id)
     {
         $request->validate([
-            'nip' => 'required|string|max:50',
             'tanggal' => 'required|date',
             'berat_gram' => 'required|integer|min:1',
             'gram_note' => 'nullable|string|max:255',
         ]);
 
         $import = BoronganImport::findOrFail($id);
-        $existingRow = BoronganHarian::where('borongan_import_id', $id)
-            ->where('nip', $request->nip)
-            ->first();
 
-        $nama = $existingRow?->nama ?? null;
-        $pin = $existingRow?->pin ?? null;
-
-        $newRow = BoronganHarian::create([
+        BoronganHarian::create([
             'borongan_import_id' => $import->id,
-            'pin' => $pin,
-            'nip' => $request->nip,
-            'nama' => $nama,
+            'pin' => null,
+            'nip' => null,
+            'nama' => null,
             'tanggal' => $request->tanggal,
             'kategori' => 'Tambahan',
             'berat_gram' => intval($request->berat_gram),
@@ -1165,31 +1167,17 @@ class BoronganController extends Controller
             'status' => 'pending',
         ]);
 
-        $totalGram = BoronganHarian::where('borongan_import_id', $import->id)
-            ->where('nip', $request->nip)
+        $additionalGram = BoronganHarian::where('borongan_import_id', $import->id)
+            ->where(function ($q) {
+                $q->whereNull('nip')
+                  ->orWhere('nip', '');
+            })
             ->sum('berat_gram');
-
-        $totalUpah = BoronganHarian::where('borongan_import_id', $import->id)
-            ->where('nip', $request->nip)
-            ->sum('upah_sistem');
-
-        $rekap = BoronganRekap::where('borongan_import_id', $import->id)
-            ->where('nip', $request->nip)
-            ->first();
-
-        if ($rekap) {
-            $rekap->total_gram = $totalGram;
-            $rekap->total_upah = $totalUpah;
-            $rekap->total_akhir = $totalUpah + $rekap->tambahan - $rekap->potongan_bpjs - $rekap->potongan_lain;
-            $rekap->save();
-        }
 
         return response()->json([
             'success' => true,
             'added' => true,
-            'total_gram' => $totalGram,
-            'total_upah_rekap' => $rekap->total_upah ?? null,
-            'total_akhir_rekap' => $rekap->total_akhir ?? null,
+            'additional_gram' => $additionalGram,
         ]);
     }
 

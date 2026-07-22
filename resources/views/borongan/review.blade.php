@@ -55,6 +55,13 @@
                 </span>
                 <span>Export Excel</span>
             </a>
+            <button type="button" onclick="openAddGramModal()"
+                class="pbtn pbtn-secondary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </span>
+                <span>Tambah Gram</span>
+            </button>
             <form method="POST" action="{{ route('borongan.undo', $import->id) }}"
                 onsubmit="return confirm('Undo upload ini? Semua data akan dihapus.')" style="display:inline;">
                 @csrf @method('DELETE')
@@ -105,7 +112,14 @@
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Total Gram</div>
-            <div class="text-xl font-bold text-slate-800">{{ number_format($items->sum('total_gram')) }}</div>
+            <div class="text-xl font-bold text-slate-800">{{ number_format($items->sum('total_gram') + ($additionalGram ?? 0)) }}</div>
+            <div class="text-xs text-slate-500 mt-1 additional-gram-note">
+                @if(!empty($additionalGram))
+                    Termasuk {{ number_format($additionalGram) }} gram tambahan
+                @else
+                    Tambahan belum ada
+                @endif
+            </div>
         </div>
     </div>
 
@@ -250,12 +264,6 @@
                 <p class="text-xs text-slate-400" id="reviewModalNip"></p>
             </div>
             <div class="flex items-center gap-2">
-                <button type="button" onclick="openAddGramModal()" class="pbtn pbtn-secondary pbtn-sm">
-                    <span class="pbtn-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    </span>
-                    <span>Tambah Gram</span>
-                </button>
                 <button onclick="closeReviewModal()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
             </div>
         </div>
@@ -291,30 +299,24 @@
         <div class="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
             <div>
                 <h3 class="font-semibold text-slate-800">Tambah Gram Tambahan</h3>
-                <p class="text-xs text-slate-500" id="addGramNama"></p>
+                <p class="text-xs text-slate-500">Tambahkan gram untuk tanggal tertentu tanpa mengaitkan karyawan.</p>
             </div>
             <button type="button" onclick="closeAddGramModal()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
         </div>
         <form onsubmit="submitAddGramForm(event)" class="p-5 space-y-4">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                    <label class="text-xs text-slate-500 mb-1 block">NIP</label>
-                    <input id="addGramNip" type="text" readonly class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm bg-slate-100" />
-                </div>
-                <div>
                     <label class="text-xs text-slate-500 mb-1 block">Tanggal</label>
                     <input id="addGramTanggal" type="date" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm" required />
-                </div>
-            </div>
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                    <label class="text-xs text-slate-500 mb-1 block">Gram Tambahan</label>
-                    <input id="addGramBerat" type="number" min="1" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm" placeholder="Mis. 100" required />
                 </div>
                 <div>
                     <label class="text-xs text-slate-500 mb-1 block">Catatan</label>
                     <input id="addGramNote" type="text" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm" placeholder="Contoh: Gram tambahan" />
                 </div>
+            </div>
+            <div>
+                <label class="text-xs text-slate-500 mb-1 block">Gram Tambahan</label>
+                <input id="addGramBerat" type="number" min="1" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm" placeholder="Mis. 100" required />
             </div>
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeAddGramModal()" class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">Batal</button>
@@ -375,7 +377,10 @@
 <script>
 const reviewBaseUrl = "{{ url('borongan') }}";
 const mutasiResolveBaseUrl = "{{ url('borongan/mutasi') }}";
+let currentReviewImportId = {{ $import->id }};
 let currentReviewNip = null;
+let currentReviewName = null;
+let previousAdditionalGram = {{ $additionalGram ?? 0 }};
 let hasUpahChanged = false;
 
 function openReviewModal(importId, nip, nama) {
@@ -682,15 +687,10 @@ function recalculateReviewModalTotals() {
     }
 }
 
-let currentReviewImportId = null;
-let currentReviewName = null;
-
 function openAddGramModal() {
     const modal = document.getElementById('addGramModal');
     if (!modal) return;
 
-    document.getElementById('addGramNip').value = currentReviewNip || '';
-    document.getElementById('addGramNama').textContent = currentReviewName || '';
     document.getElementById('addGramTanggal').value = new Date().toISOString().slice(0, 10);
     document.getElementById('addGramBerat').value = '';
     document.getElementById('addGramNote').value = '';
@@ -708,13 +708,12 @@ function submitAddGramForm(event) {
     const importId = currentReviewImportId;
     if (!importId) return;
 
-    const nip = document.getElementById('addGramNip').value;
     const tanggal = document.getElementById('addGramTanggal').value;
     const beratGram = parseInt(document.getElementById('addGramBerat').value) || 0;
     const gramNote = document.getElementById('addGramNote').value || null;
 
-    if (!nip || !tanggal || beratGram <= 0) {
-        alert('Lengkapi NIP, tanggal, dan nominal gram tambahan.');
+    if (!tanggal || beratGram <= 0) {
+        alert('Lengkapi tanggal dan nominal gram tambahan.');
         return;
     }
 
@@ -725,7 +724,6 @@ function submitAddGramForm(event) {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
         },
         body: JSON.stringify({
-            nip,
             tanggal,
             berat_gram: beratGram,
             gram_note: gramNote,
@@ -740,14 +738,9 @@ function submitAddGramForm(event) {
 
         closeAddGramModal();
         showToast('Gram tambahan berhasil disimpan.', 'success');
-        const row = document.querySelector(`.review-row[data-nip="${currentReviewNip}"]`);
-        const oldTotal = row ? parseIdNumber(row.children[3]?.textContent || '0') : 0;
-        const newTotal = data.total_gram ?? oldTotal;
-        const diff = newTotal - oldTotal;
 
-        if (row) {
-            row.children[3].textContent = newTotal.toLocaleString('id-ID');
-        }
+        const addedGram = (data.additional_gram || 0) - previousAdditionalGram;
+        previousAdditionalGram = data.additional_gram || 0;
 
         const totalGramCard = Array.from(document.querySelectorAll('div.grid.grid-cols-4 > div'))
             .find(card => card.querySelector('div.text-xs')?.textContent.trim() === 'Total Gram');
@@ -755,11 +748,13 @@ function submitAddGramForm(event) {
             const valueEl = totalGramCard.querySelector('div.text-xl, div.text-2xl');
             if (valueEl) {
                 const currentValue = parseIdNumber(valueEl.textContent || '0');
-                valueEl.textContent = (currentValue + diff).toLocaleString('id-ID');
+                valueEl.textContent = (currentValue + addedGram).toLocaleString('id-ID');
+            }
+            const noteEl = totalGramCard.querySelector('.additional-gram-note');
+            if (noteEl) {
+                noteEl.textContent = `Termasuk ${previousAdditionalGram.toLocaleString('id-ID')} gram tambahan`;
             }
         }
-
-        openReviewModal(importId, currentReviewNip, currentReviewName);
     })
     .catch(e => {
         console.error(e);
