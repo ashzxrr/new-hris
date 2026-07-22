@@ -438,7 +438,17 @@ function openReviewModal(importId, nip, nama) {
                     <td class="px-3 py-1.5 text-right text-slate-700">${job.gram.toLocaleString('id-ID')}</td>
                     <td class="px-3 py-1.5 text-left text-slate-700">${job.gram_note ? job.gram_note : '-'}</td>
                     <td class="px-3 py-1.5 text-right font-medium">Rp ${job.upah_file.toLocaleString('id-ID')}</td>
-                    <td class="px-3 py-1.5 text-right">Rp ${job.upah_sistem.toLocaleString('id-ID')}</td>
+                    <td class="px-3 py-1.5 text-right">
+                        <input
+                            type="number"
+                            min="0"
+                            step="1000"
+                            data-field="upah_sistem"
+                            value="${job.upah_sistem}"
+                            class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-right text-slate-700 text-sm"
+                            onchange="updateUpahSistem(${job.id}, this.value || 0, ${importId})"
+                        />
+                    </td>
                     <td class="px-3 py-1.5 text-right font-medium text-red-500">Rp <span class="potongan-${job.id}">${job.potongan.toLocaleString('id-ID')}</span></td>
                         ${trainingCell}
                         <td class="px-3 py-1.5 text-center">
