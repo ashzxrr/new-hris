@@ -1131,32 +1131,50 @@ class BoronganController extends Controller
         ]);
     }
 
-    public function updateGram(Request $request, $id)
+    public function addGram(Request $request, $id)
     {
         $request->validate([
-            'harian_id' => 'required|exists:borongan_harian,id',
-            'berat_gram' => 'required|integer|min:0',
+            'nip' => 'required|string|max:50',
+            'tanggal' => 'required|date',
+            'berat_gram' => 'required|integer|min:1',
             'gram_note' => 'nullable|string|max:255',
         ]);
 
-        $harian = BoronganHarian::findOrFail($request->harian_id);
-        $harian->update([
+        $import = BoronganImport::findOrFail($id);
+        $existingRow = BoronganHarian::where('borongan_import_id', $id)
+            ->where('nip', $request->nip)
+            ->first();
+
+        $nama = $existingRow?->nama ?? null;
+        $pin = $existingRow?->pin ?? null;
+
+        $newRow = BoronganHarian::create([
+            'borongan_import_id' => $import->id,
+            'pin' => $pin,
+            'nip' => $request->nip,
+            'nama' => $nama,
+            'tanggal' => $request->tanggal,
+            'kategori' => 'Tambahan',
             'berat_gram' => intval($request->berat_gram),
             'gram_note' => $request->gram_note,
+            'upah_sistem' => 0,
+            'upah_file' => 0,
+            'selisih' => 0,
+            'is_flagged' => false,
+            'flag_reason' => null,
+            'status' => 'pending',
         ]);
 
-        $importId = $harian->borongan_import_id;
-        $nip = $harian->nip;
-
-        $totalGram = BoronganHarian::where('borongan_import_id', $importId)
-            ->where('nip', $nip)
+        $totalGram = BoronganHarian::where('borongan_import_id', $import->id)
+            ->where('nip', $request->nip)
             ->sum('berat_gram');
-        $totalUpah = BoronganHarian::where('borongan_import_id', $importId)
-            ->where('nip', $nip)
+
+        $totalUpah = BoronganHarian::where('borongan_import_id', $import->id)
+            ->where('nip', $request->nip)
             ->sum('upah_sistem');
 
-        $rekap = BoronganRekap::where('borongan_import_id', $importId)
-            ->where('nip', $nip)
+        $rekap = BoronganRekap::where('borongan_import_id', $import->id)
+            ->where('nip', $request->nip)
             ->first();
 
         if ($rekap) {
@@ -1168,8 +1186,7 @@ class BoronganController extends Controller
 
         return response()->json([
             'success' => true,
-            'berat_gram' => $harian->berat_gram,
-            'gram_note' => $harian->gram_note,
+            'added' => true,
             'total_gram' => $totalGram,
             'total_upah_rekap' => $rekap->total_upah ?? null,
             'total_akhir_rekap' => $rekap->total_akhir ?? null,

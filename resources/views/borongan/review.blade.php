@@ -244,12 +244,20 @@
 
 <div id="reviewModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
-        <div class="sticky top-0 bg-white rounded-t-2xl border-b border-[#E5E7EB] px-6 py-4 flex items-center justify-between">
+        <div class="sticky top-0 bg-white rounded-t-2xl border-b border-[#E5E7EB] px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
                 <h3 class="font-semibold text-slate-800" id="reviewModalNama"></h3>
                 <p class="text-xs text-slate-400" id="reviewModalNip"></p>
             </div>
-            <button onclick="closeReviewModal()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="openAddGramModal()" class="pbtn pbtn-secondary pbtn-sm">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </span>
+                    <span>Tambah Gram</span>
+                </button>
+                <button onclick="closeReviewModal()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
         </div>
         <div class="p-6">
             <div id="reviewModalLoading" class="text-center py-8 text-slate-400 text-sm">Memuat data...</div>
@@ -263,6 +271,7 @@
                             <th class="px-3 py-2 text-left text-slate-400">Tanggal</th>
                             <th class="px-3 py-2 text-left text-slate-400">Kategori</th>
                             <th class="px-3 py-2 text-right text-slate-400">Gram</th>
+                            <th class="px-3 py-2 text-left text-slate-400">Catatan</th>
                             <th class="px-3 py-2 text-right text-slate-400">Upah File</th>
                             <th class="px-3 py-2 text-right text-slate-400">Upah Sistem</th>
                             <th class="px-3 py-2 text-right text-slate-400">Potongan</th>
@@ -274,6 +283,44 @@
                 </table>
             </div>
         </div>
+    </div>
+</div>
+
+<div id="addGramModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
+            <div>
+                <h3 class="font-semibold text-slate-800">Tambah Gram Tambahan</h3>
+                <p class="text-xs text-slate-500" id="addGramNama"></p>
+            </div>
+            <button type="button" onclick="closeAddGramModal()" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+        </div>
+        <form onsubmit="submitAddGramForm(event)" class="p-5 space-y-4">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">NIP</label>
+                    <input id="addGramNip" type="text" readonly class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm bg-slate-100" />
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">Tanggal</label>
+                    <input id="addGramTanggal" type="date" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm" required />
+                </div>
+            </div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">Gram Tambahan</label>
+                    <input id="addGramBerat" type="number" min="1" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm" placeholder="Mis. 100" required />
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">Catatan</label>
+                    <input id="addGramNote" type="text" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm" placeholder="Contoh: Gram tambahan" />
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeAddGramModal()" class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">Batal</button>
+                <button type="submit" class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">Simpan Gram</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -332,7 +379,9 @@ let currentReviewNip = null;
 let hasUpahChanged = false;
 
 function openReviewModal(importId, nip, nama) {
+    currentReviewImportId = importId;
     currentReviewNip = nip.toLowerCase();
+    currentReviewName = nama;
     document.getElementById('reviewModalNama').textContent = nama;
     document.getElementById('reviewModalNip').textContent = nip;
     document.getElementById('reviewModalLoading').classList.remove('hidden');
@@ -375,27 +424,16 @@ function openReviewModal(importId, nip, nama) {
                     </div>`
                     : '';
                 const selisihClass = Math.abs(job.selisih) > 1000 ? 'text-red-500' : 'text-slate-400';
+                const additionBadge = job.is_additional ? '<span class="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full">Tambahan</span>' : ''; 
                 const trainingCell = hasTraining ? `<td class="px-3 py-1.5 text-green-600">${(job.tambahan_training>0)? ('Rp ' + job.tambahan_training.toLocaleString('id-ID')) : '-'}</td>` : '';
                 tbody.innerHTML += `
-                <tr class="job-row border-b border-[#E5E7EB]/50 ${job.is_flagged ? 'bg-amber-50' : ''}">
+                <tr class="job-row border-b border-[#E5E7EB]/50 ${job.is_flagged ? 'bg-amber-50' : job.is_additional ? 'bg-slate-50' : ''}">
                     <td class="px-3 py-1.5 text-slate-600">${i === 0 ? tgl : ''}</td>
-                    <td class="px-3 py-1.5 font-medium text-slate-800">${job.kategori}</td>
-                    <td class="px-3 py-1.5 text-right text-slate-700">
-                        <input type="number" class="w-20 px-2 py-1 border border-[#E5E7EB] rounded text-right text-sm"
-                            value="${job.gram}" data-harian-id="${job.id}" data-field="gram"
-                            onchange="saveGramUpdate(${job.id}, '${importId}')" />
-                    </td>
-                    <td class="px-3 py-1.5 text-left text-slate-700">
-                        <input type="text" class="w-full px-2 py-1 border border-[#E5E7EB] rounded text-sm"
-                            value="${job.gram_note || ''}" data-harian-id="${job.id}" data-field="gram_note"
-                            onchange="saveGramUpdate(${job.id}, '${importId}')" />
-                    </td>
+                    <td class="px-3 py-1.5 font-medium text-slate-800">${job.kategori} ${additionBadge}</td>
+                    <td class="px-3 py-1.5 text-right text-slate-700">${job.gram.toLocaleString('id-ID')}</td>
+                    <td class="px-3 py-1.5 text-left text-slate-700">${job.gram_note ? job.gram_note : '-'}</td>
                     <td class="px-3 py-1.5 text-right font-medium">Rp ${job.upah_file.toLocaleString('id-ID')}</td>
-                    <td class="px-3 py-1.5 text-right">
-                        <input type="number" class="w-20 px-2 py-1 border border-[#E5E7EB] rounded text-right text-sm" 
-                            value="${job.upah_sistem}" data-harian-id="${job.id}" data-field="upah_sistem" 
-                            onchange="updateUpahSistem(${job.id}, this.value, '${importId}')"/>
-                    </td>
+                    <td class="px-3 py-1.5 text-right">Rp ${job.upah_sistem.toLocaleString('id-ID')}</td>
                     <td class="px-3 py-1.5 text-right font-medium text-red-500">Rp <span class="potongan-${job.id}">${job.potongan.toLocaleString('id-ID')}</span></td>
                         ${trainingCell}
                         <td class="px-3 py-1.5 text-center">
@@ -409,12 +447,13 @@ function openReviewModal(importId, nip, nama) {
             // Subtotal per tanggal
             tbody.innerHTML += `
             <tr class="subtotal-row bg-slate-50 border-b border-[#E5E7EB]" data-tanggal="${d.tanggal}">
-                <td class="px-3 py-1 text-slate-400 text-right" colspan="2"><span class="text-[10px] uppercase tracking-wide">Subtotal</span></td>
+                <td class="px-3 py-1 text-slate-400 text-right" colspan="3"><span class="text-[10px] uppercase tracking-wide">Subtotal</span></td>
                 <td class="px-3 py-1 text-right font-semibold text-slate-700 subtotal-gram">${d.total_gram.toLocaleString('id-ID')}</td>
                 <td class="px-3 py-1"></td>
                 <td class="px-3 py-1"></td>
                 <td class="px-3 py-1 text-right font-semibold text-slate-800 subtotal-upah">Rp ${d.total_upah.toLocaleString('id-ID')}</td>
-                <td class="px-3 py-1" colspan="2"></td>
+                <td class="px-3 py-1"></td>
+                <td class="px-3 py-1"></td>
             </tr>`;
         });
 
@@ -506,6 +545,35 @@ function parseIdNumber(value) {
     return parseInt(value.toString().replace(/[^0-9-]/g, '')) || 0;
 }
 
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-4 right-4 z-50 max-w-xs rounded-xl px-4 py-3 text-sm font-medium shadow-lg transition duration-200';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-8px)';
+
+    if (type === 'success') {
+        toast.classList.add('bg-emerald-600', 'text-white');
+    } else if (type === 'error') {
+        toast.classList.add('bg-red-600', 'text-white');
+    } else {
+        toast.classList.add('bg-slate-800', 'text-white');
+    }
+
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    });
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-8px)';
+        toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+    }, 2200);
+}
+
 function toggleSortUpah() {
     const tbody = document.getElementById('reviewBody');
     const rows = Array.from(tbody.querySelectorAll('.review-row'));
@@ -583,10 +651,10 @@ function recalculateReviewModalTotals() {
 
     rows.forEach(row => {
         if (row.classList.contains('job-row')) {
-            const gramInput = row.querySelector('input[data-field="gram"]');
+            const gramCell = row.children[2];
             const upahInput = row.querySelector('input[data-field="upah_sistem"]');
-            const gramValue = parseIdNumber(gramInput?.value || '0');
-            const upahValue = parseIdNumber(upahInput?.value || '0');
+            const gramValue = parseIdNumber(gramCell?.textContent || '0');
+            const upahValue = parseIdNumber(upahInput?.value || upahInput?.textContent || '0');
 
             subtotalGram += gramValue;
             subtotalUpah += upahValue;
@@ -614,59 +682,89 @@ function recalculateReviewModalTotals() {
     }
 }
 
-function saveGramUpdate(harianId, importId) {
-    const gramInput = document.querySelector(`input[data-harian-id="${harianId}"][data-field="gram"]`);
-    const noteInput = document.querySelector(`input[data-harian-id="${harianId}"][data-field="gram_note"]`);
-    if (!gramInput) return;
+let currentReviewImportId = null;
+let currentReviewName = null;
 
-    const beratGram = parseInt(gramInput.value) || 0;
-    const gramNote = noteInput?.value || null;
+function openAddGramModal() {
+    const modal = document.getElementById('addGramModal');
+    if (!modal) return;
 
-    fetch(`${reviewBaseUrl}/${importId}/update-gram`, {
+    document.getElementById('addGramNip').value = currentReviewNip || '';
+    document.getElementById('addGramNama').textContent = currentReviewName || '';
+    document.getElementById('addGramTanggal').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('addGramBerat').value = '';
+    document.getElementById('addGramNote').value = '';
+    modal.classList.remove('hidden');
+}
+
+function closeAddGramModal() {
+    const modal = document.getElementById('addGramModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+}
+
+function submitAddGramForm(event) {
+    event.preventDefault();
+    const importId = currentReviewImportId;
+    if (!importId) return;
+
+    const nip = document.getElementById('addGramNip').value;
+    const tanggal = document.getElementById('addGramTanggal').value;
+    const beratGram = parseInt(document.getElementById('addGramBerat').value) || 0;
+    const gramNote = document.getElementById('addGramNote').value || null;
+
+    if (!nip || !tanggal || beratGram <= 0) {
+        alert('Lengkapi NIP, tanggal, dan nominal gram tambahan.');
+        return;
+    }
+
+    fetch(`${reviewBaseUrl}/${importId}/add-gram`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
         },
         body: JSON.stringify({
-            harian_id: harianId,
+            nip,
+            tanggal,
             berat_gram: beratGram,
             gram_note: gramNote,
         })
     })
     .then(r => r.json())
     .then(data => {
-        if (!data.success) return;
+        if (!data.success) {
+            alert(data.message || 'Gagal menambahkan gram tambahan.');
+            return;
+        }
 
-        const totalGram = data.total_gram ?? null;
-        if (totalGram !== null && currentReviewNip) {
-            let row = null;
-            try {
-                row = document.querySelector(`.review-row[data-nip="${CSS.escape(currentReviewNip)}"]`);
-            } catch (error) {
-                row = document.querySelector(`.review-row[data-nip="${currentReviewNip}"]`);
-            }
+        closeAddGramModal();
+        showToast('Gram tambahan berhasil disimpan.', 'success');
+        const row = document.querySelector(`.review-row[data-nip="${currentReviewNip}"]`);
+        const oldTotal = row ? parseIdNumber(row.children[3]?.textContent || '0') : 0;
+        const newTotal = data.total_gram ?? oldTotal;
+        const diff = newTotal - oldTotal;
 
-            if (row) {
-                const gramCell = row.children[3];
-                if (gramCell) {
-                    gramCell.textContent = totalGram.toLocaleString('id-ID');
-                }
-            }
+        if (row) {
+            row.children[3].textContent = newTotal.toLocaleString('id-ID');
+        }
 
-            const totalGramCard = Array.from(document.querySelectorAll('div.grid.grid-cols-4 > div'))
-                .find(card => card.querySelector('div.text-xs')?.textContent.trim() === 'Total Gram');
-            if (totalGramCard) {
-                const valueEl = totalGramCard.querySelector('div.text-xl, div.text-2xl');
-                if (valueEl) {
-                    valueEl.textContent = totalGram.toLocaleString('id-ID');
-                }
+        const totalGramCard = Array.from(document.querySelectorAll('div.grid.grid-cols-4 > div'))
+            .find(card => card.querySelector('div.text-xs')?.textContent.trim() === 'Total Gram');
+        if (totalGramCard) {
+            const valueEl = totalGramCard.querySelector('div.text-xl, div.text-2xl');
+            if (valueEl) {
+                const currentValue = parseIdNumber(valueEl.textContent || '0');
+                valueEl.textContent = (currentValue + diff).toLocaleString('id-ID');
             }
         }
 
-        recalculateReviewModalTotals();
+        openReviewModal(importId, currentReviewNip, currentReviewName);
     })
-    .catch(e => console.error('Error:', e));
+    .catch(e => {
+        console.error(e);
+        alert('Gagal menambahkan gram tambahan.');
+    });
 }
 
 function konfirmasiKosong(harianId) {
