@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -22,13 +23,66 @@ class BoronganController extends Controller
         return view('borongan.index', compact('imports'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        return view('borongan.create');
+        $payroll = null;
+        $defaultMonth = null;
+        $defaultHalf = null;
+        $defaultTanggalDari = null;
+        $defaultTanggalSampai = null;
+
+        if ($request->filled('payroll_id')) {
+            $payroll = \App\Models\Payroll::find($request->payroll_id);
+            if ($payroll) {
+                $defaultTanggalDari = $payroll->tanggal_dari;
+                $defaultTanggalSampai = $payroll->tanggal_sampai;
+                $defaultMonth = \Carbon\Carbon::parse($defaultTanggalDari)->format('Y-m');
+                $defaultHalf = \Carbon\Carbon::parse($defaultTanggalDari)->day <= 15 ? '1' : '2';
+            }
+        }
+
+        return view('borongan.create', compact(
+            'payroll',
+            'defaultMonth',
+            'defaultHalf',
+            'defaultTanggalDari',
+            'defaultTanggalSampai'
+        ));
+    }
+
+    private function getVisibleBoronganUsersQuery()
+    {
+        $query = User::query()->whereNotNull('nip');
+
+        if (Schema::hasColumn('users', 'is_active')) {
+            $query->where('is_active', 1);
+        }
+
+        return $query;
+    }
+
+    private function getVisibleBoronganUsersByNip(): array
+    {
+        return $this->getVisibleBoronganUsersQuery()
+            ->get()
+            ->keyBy(fn ($user) => trim((string) $user->nip))
+            ->all();
     }
 
     public function upload(Request $request)
     {
+        if (empty($request->input('tanggal_dari')) || empty($request->input('tanggal_sampai'))) {
+            if ($request->filled('payroll_id')) {
+                $payroll = \App\Models\Payroll::find($request->payroll_id);
+                if ($payroll) {
+                    $request->merge([
+                        'tanggal_dari' => $payroll->tanggal_dari,
+                        'tanggal_sampai' => $payroll->tanggal_sampai,
+                    ]);
+                }
+            }
+        }
+
         $request->validate([
             'jenis'         => 'required|in:hcr,cabut,moulding',
             'payroll_id'    => 'nullable|exists:payrolls,id',
@@ -41,7 +95,7 @@ class BoronganController extends Controller
         $tanggalDari  = $request->tanggal_dari;
         $tanggalSampai= $request->tanggal_sampai;
 
-        $usersByNip = User::whereNotNull('nip')->get()->keyBy(fn($u) => trim($u->nip));
+        $usersByNip = $this->getVisibleBoronganUsersByNip();
         $rates = BoronganRate::where('jenis', $request->jenis)
             ->orderByDesc('berlaku_dari')
             ->get();
@@ -91,18 +145,23 @@ class BoronganController extends Controller
                     ->map(fn($n) => trim(strtoupper($n)))
                     ->unique();
 
-                // Filter: hanya NIP yang beneran terdaftar di master karyawan (buang sampah dari data korup lama)
-                $validNipSet = User::pluck('nip')->map(fn($n) => trim(strtoupper($n)))->filter()->unique();
+                // Filter: hanya NIP yang beneran terdaftar di master karyawan aktif (buang sampah dari data korup lama)
+                $activeUsersQuery = $this->getVisibleBoronganUsersQuery();
+                $validNipSet = $activeUsersQuery->pluck('nip')->map(fn($n) => trim(strtoupper($n)))->filter()->unique();
                 $nipHistoris = $nipHistoris->intersect($validNipSet);
 
                 $nipKategoriGaji = $kategoriGajiTarget
-                    ? User::where('kategori_gaji', $kategoriGajiTarget)->pluck('nip')->map(fn($n) => trim(strtoupper($n)))->unique()
+                    ? (clone $activeUsersQuery)->where('kategori_gaji', $kategoriGajiTarget)->pluck('nip')->map(fn($n) => trim(strtoupper($n)))->unique()
                     : collect();
 
                 $nipWajibAda = $nipHistoris->merge($nipKategoriGaji)->unique()->diff($nipSudahAda);
 
                 foreach ($nipWajibAda as $nipMissing) {
                     $user = collect($usersByNip)->first(fn($u, $k) => trim(strtoupper($k)) === $nipMissing);
+
+                    if (! $user) {
+                        continue;
+                    }
 
                     BoronganHarian::create([
                         'borongan_import_id' => $import->id,
@@ -388,6 +447,10 @@ class BoronganController extends Controller
 
                         $user = $usersByNip[$nip] ?? null;
 
+                        if (! $user) {
+                            continue;
+                        }
+
                         if ($totalGram < 0 || $totalUpah < 0) {
                             $parsedDataSheet[] = [
                                 'pin'         => $user->pin ?? null,
@@ -413,9 +476,8 @@ class BoronganController extends Controller
                         $isFlagged = false;
                         $flagReason = null;
 
-                        if (!$user) {
-                            $isFlagged = true;
-                            $flagReason = 'NIP tidak ditemukan di master karyawan';
+                        if (! $user) {
+                            continue;
                         }
                         if ($category === 'UNKNOWN') {
                             $isFlagged = true;
@@ -789,9 +851,8 @@ class BoronganController extends Controller
                         $isFlagged = true;
                         $flagReason = 'Tidak ditemukan di file kategori';
                     }
-                    if (!$user) {
-                        $isFlagged = true;
-                        $flagReason = 'NIP tidak ditemukan di master karyawan';
+                    if (! $user) {
+                        continue;
                     }
 
                     $totalGram = $file1Row['total_gram'] ?? 0;
@@ -869,7 +930,7 @@ class BoronganController extends Controller
     {
         $import = BoronganImport::findOrFail($id);
 
-        $rows = BoronganHarian::where('borongan_import_id', $id)->get();
+        $rows = $this->getVisibleBoronganRows(BoronganHarian::query()->where('borongan_import_id', $id))->get();
 
         $allKategori = $rows->pluck('kategori')->unique()->sort()->values();
         $grouped = $rows->groupBy('nip');
@@ -924,7 +985,7 @@ class BoronganController extends Controller
         $pendingMutasi = $this->detectMutasi($import->payroll_id);
         
         // Group by NIP, aggregate total gram & upah, flag jika ada yg flagged
-        $items = BoronganHarian::where('borongan_import_id', $id)
+        $items = $this->getVisibleBoronganRows(BoronganHarian::query()->where('borongan_import_id', $id))
             ->get()
             ->groupBy('nip')
             ->map(function ($rows) {
@@ -1184,7 +1245,7 @@ class BoronganController extends Controller
         }
 
         // Group borongan_harian by NIP → akumulasi gram & upah
-        $grouped = BoronganHarian::where('borongan_import_id', $id)
+        $grouped = $this->getVisibleBoronganRows(BoronganHarian::query()->where('borongan_import_id', $id))
             ->get()
             ->groupBy('nip');
 
@@ -1268,6 +1329,7 @@ class BoronganController extends Controller
             ->pluck('id');
 
         $rekaps = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
+            ->whereIn('nip', $this->getVisibleBoronganNips())
             ->selectRaw('MIN(id) as rekap_id, nip, nama, SUM(total_gram) as total_gram, SUM(total_upah) as total_upah, SUM(potongan_bpjs) as potongan_bpjs, SUM(potongan_lain) as potongan_lain, SUM(tambahan) as tambahan, SUM(komplain) as komplain, SUM(total_akhir) as total_akhir')
             ->groupBy('nip', 'nama')
             ->orderBy('nama')
@@ -1285,14 +1347,14 @@ class BoronganController extends Controller
             ->where('jenis', $import->jenis)
             ->pluck('id');
 
-        $harianGrouped = BoronganHarian::whereIn('borongan_import_id', $siblingImportIds)
-            ->where('nip', $nip)
+        $harianGrouped = $this->getVisibleBoronganRows(BoronganHarian::query()->whereIn('borongan_import_id', $siblingImportIds)->where('nip', $nip))
             ->orderBy('tanggal')
             ->get()
             ->groupBy(fn($h) => \Carbon\Carbon::parse($h->tanggal)->format('Y-m-d'));
 
         $rekapRows = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
             ->where('nip', $nip)
+            ->whereIn('nip', $this->getVisibleBoronganNips())
             ->get();
 
         $rekapTotal = [
@@ -1401,6 +1463,37 @@ class BoronganController extends Controller
         $import->delete();
         
         return redirect()->route('borongan.index')->with('success', 'Upload berhasil di-undo. Semua data telah dihapus.');
+    }
+
+    private function getVisibleBoronganRows($query)
+    {
+        $visibleNips = $this->getVisibleBoronganNips();
+
+        if (empty($visibleNips)) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->whereIn('nip', $visibleNips);
+    }
+
+    private function getVisibleBoronganNips(): array
+    {
+        $query = User::query()->whereNotNull('nip');
+
+        if (Schema::hasColumn('users', 'is_active')) {
+            $query->where('is_active', 1);
+        }
+
+        if (Schema::hasColumn('users', 'tl_id')) {
+            $query->whereNotNull('tl_id');
+        }
+
+        return $query->pluck('nip')
+            ->map(fn ($nip) => trim((string) $nip))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function detectMutasi($payrollId)

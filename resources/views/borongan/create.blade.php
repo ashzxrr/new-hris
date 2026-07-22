@@ -30,23 +30,23 @@
 
             <div class="mb-4">
                 <label class="text-xs font-medium text-slate-500 mb-1 block">Bulan</label>
-                <input type="month" name="bulan" id="bulan" required
+                <input type="month" name="bulan" id="bulan" required value="{{ old('bulan', $defaultMonth ?? '') }}"
                     class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
             </div>
             <div class="mb-4">
                 <label class="text-xs font-medium text-slate-500 mb-1 block">Periode</label>
                 <div class="grid grid-cols-2 gap-3 mb-3">
                     <button type="button" data-half="1" onclick="setPeriode('1')"
-                        class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left">
+                        class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left {{ ($defaultHalf ?? '') === '1' ? 'selected bg-[#4F46E5]/10 border-[#4F46E5]' : '' }}">
                         📅 Periode 1 (1–15)
                     </button>
                     <button type="button" data-half="2" onclick="setPeriode('2')"
-                        class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left">
+                        class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left {{ ($defaultHalf ?? '') === '2' ? 'selected bg-[#4F46E5]/10 border-[#4F46E5]' : '' }}">
                         📅 Periode 2 (16–akhir)
                     </button>
                 </div>
-                <input type="hidden" name="tanggal_dari" id="tanggal_dari" required>
-                <input type="hidden" name="tanggal_sampai" id="tanggal_sampai" required>
+                <input type="hidden" name="tanggal_dari" id="tanggal_dari" value="{{ old('tanggal_dari', $defaultTanggalDari ?? '') }}" required>
+                <input type="hidden" name="tanggal_sampai" id="tanggal_sampai" value="{{ old('tanggal_sampai', $defaultTanggalSampai ?? '') }}" required>
                 <p id="periodeInfo" class="text-xs text-slate-400 mt-1">Pilih bulan dan periode untuk upload harian.</p>
             </div>
 
