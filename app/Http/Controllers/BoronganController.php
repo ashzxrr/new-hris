@@ -1276,7 +1276,7 @@ class BoronganController extends Controller
     {
         $import = BoronganImport::findOrFail($id);
 
-        $adaBelumDikonfirmasi = BoronganHarian::where('borongan_import_id', $id)
+        $adaBelumDikonfirmasi = $this->getVisibleBoronganRows(BoronganHarian::query()->where('borongan_import_id', $id))
             ->where('is_flagged', true)
             ->where('flag_reason', 'Tidak ada data pada tanggal ini')
             ->exists();
