@@ -380,12 +380,21 @@ function openReviewModal(importId, nip, nama) {
                 <tr class="job-row border-b border-[#E5E7EB]/50 ${job.is_flagged ? 'bg-amber-50' : ''}">
                     <td class="px-3 py-1.5 text-slate-600">${i === 0 ? tgl : ''}</td>
                     <td class="px-3 py-1.5 font-medium text-slate-800">${job.kategori}</td>
-                    <td class="px-3 py-1.5 text-right text-slate-700">${job.gram.toLocaleString('id-ID')}</td>
+                    <td class="px-3 py-1.5 text-right text-slate-700">
+                        <input type="number" class="w-20 px-2 py-1 border border-[#E5E7EB] rounded text-right text-sm"
+                            value="${job.gram}" data-harian-id="${job.id}" data-field="gram"
+                            onchange="saveGramUpdate(${job.id}, '${importId}')" />
+                    </td>
+                    <td class="px-3 py-1.5 text-left text-slate-700">
+                        <input type="text" class="w-full px-2 py-1 border border-[#E5E7EB] rounded text-sm"
+                            value="${job.gram_note || ''}" data-harian-id="${job.id}" data-field="gram_note"
+                            onchange="saveGramUpdate(${job.id}, '${importId}')" />
+                    </td>
                     <td class="px-3 py-1.5 text-right font-medium">Rp ${job.upah_file.toLocaleString('id-ID')}</td>
                     <td class="px-3 py-1.5 text-right">
                         <input type="number" class="w-20 px-2 py-1 border border-[#E5E7EB] rounded text-right text-sm" 
-                            value="${job.upah_sistem}" data-harian-id="${job.id}" 
-                            onchange="updateUpahSistem(${job.id}, this.value, '{{ $import->id }}')"/>
+                            value="${job.upah_sistem}" data-harian-id="${job.id}" data-field="upah_sistem" 
+                            onchange="updateUpahSistem(${job.id}, this.value, '${importId}')"/>
                     </td>
                     <td class="px-3 py-1.5 text-right font-medium text-red-500">Rp <span class="potongan-${job.id}">${job.potongan.toLocaleString('id-ID')}</span></td>
                         ${trainingCell}
@@ -402,6 +411,7 @@ function openReviewModal(importId, nip, nama) {
             <tr class="subtotal-row bg-slate-50 border-b border-[#E5E7EB]" data-tanggal="${d.tanggal}">
                 <td class="px-3 py-1 text-slate-400 text-right" colspan="2"><span class="text-[10px] uppercase tracking-wide">Subtotal</span></td>
                 <td class="px-3 py-1 text-right font-semibold text-slate-700 subtotal-gram">${d.total_gram.toLocaleString('id-ID')}</td>
+                <td class="px-3 py-1"></td>
                 <td class="px-3 py-1"></td>
                 <td class="px-3 py-1 text-right font-semibold text-slate-800 subtotal-upah">Rp ${d.total_upah.toLocaleString('id-ID')}</td>
                 <td class="px-3 py-1" colspan="2"></td>
@@ -573,9 +583,9 @@ function recalculateReviewModalTotals() {
 
     rows.forEach(row => {
         if (row.classList.contains('job-row')) {
-            const gramText = row.children[2]?.textContent.trim() || '0';
-            const upahInput = row.querySelector('input[data-harian-id]');
-            const gramValue = parseIdNumber(gramText);
+            const gramInput = row.querySelector('input[data-field="gram"]');
+            const upahInput = row.querySelector('input[data-field="upah_sistem"]');
+            const gramValue = parseIdNumber(gramInput?.value || '0');
             const upahValue = parseIdNumber(upahInput?.value || '0');
 
             subtotalGram += gramValue;
@@ -602,6 +612,61 @@ function recalculateReviewModalTotals() {
         totalEl.textContent = `Total Upah (NIP ini): Rp ${totalUpah.toLocaleString('id-ID')}`;
         totalEl.classList.remove('hidden');
     }
+}
+
+function saveGramUpdate(harianId, importId) {
+    const gramInput = document.querySelector(`input[data-harian-id="${harianId}"][data-field="gram"]`);
+    const noteInput = document.querySelector(`input[data-harian-id="${harianId}"][data-field="gram_note"]`);
+    if (!gramInput) return;
+
+    const beratGram = parseInt(gramInput.value) || 0;
+    const gramNote = noteInput?.value || null;
+
+    fetch(`${reviewBaseUrl}/${importId}/update-gram`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+        },
+        body: JSON.stringify({
+            harian_id: harianId,
+            berat_gram: beratGram,
+            gram_note: gramNote,
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) return;
+
+        const totalGram = data.total_gram ?? null;
+        if (totalGram !== null && currentReviewNip) {
+            let row = null;
+            try {
+                row = document.querySelector(`.review-row[data-nip="${CSS.escape(currentReviewNip)}"]`);
+            } catch (error) {
+                row = document.querySelector(`.review-row[data-nip="${currentReviewNip}"]`);
+            }
+
+            if (row) {
+                const gramCell = row.children[3];
+                if (gramCell) {
+                    gramCell.textContent = totalGram.toLocaleString('id-ID');
+                }
+            }
+
+            const totalGramCard = Array.from(document.querySelectorAll('div.grid.grid-cols-4 > div'))
+                .find(card => card.querySelector('div.text-xs')?.textContent.trim() === 'Total Gram');
+            if (totalGramCard) {
+                const valueEl = totalGramCard.querySelector('div.text-xl, div.text-2xl');
+                if (valueEl) {
+                    valueEl.textContent = totalGram.toLocaleString('id-ID');
+                }
+            }
+        }
+
+        recalculateReviewModalTotals();
+    })
+    .catch(e => console.error('Error:', e));
 }
 
 function konfirmasiKosong(harianId) {

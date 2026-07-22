@@ -7,7 +7,7 @@ class BoronganHarian extends Model
     protected $table = 'borongan_harian';
     protected $fillable = [
         'borongan_import_id', 'pin', 'nip', 'nama', 'tanggal',
-        'kategori', 'berat_gram', 'upah_sistem', 'upah_file',
+        'kategori', 'berat_gram', 'gram_note', 'upah_sistem', 'upah_file',
         'selisih', 'is_flagged', 'flag_reason', 'status', 'tambahan_training'
     ];
     protected $casts = [

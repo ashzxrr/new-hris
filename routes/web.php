@@ -99,6 +99,7 @@ Route::middleware('auth:admin')->group(function () {
             Route::get('/{id}/export-review', [BoronganController::class, 'exportReview'])->name('exportReview');
             Route::get('/{id}/review-detail/{nip}', [BoronganController::class, 'getReviewDetail'])->name('review.detail');
             Route::post('/{id}/update-upah-sistem', [BoronganController::class, 'updateUpahSistem'])->name('update.upah.sistem');
+            Route::post('/{id}/update-gram', [BoronganController::class, 'updateGram'])->name('update.gram');
             Route::post('/{id}/bulk-upah-sistem', [BoronganController::class, 'bulkUpdateUpahSistem'])->name('bulkUpahSistem');
             Route::post('/{id}/bulk-training', [BoronganController::class, 'bulkApplyTraining'])->name('bulkTraining');
             Route::post('/{id}/bulk-hapus-kosong', [BoronganController::class, 'bulkHapusKosong'])->name('bulkHapusKosong');

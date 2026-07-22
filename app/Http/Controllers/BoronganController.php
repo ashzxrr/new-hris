@@ -1062,6 +1062,7 @@ class BoronganController extends Controller
                     'id'         => $j->id,
                     'kategori'   => $j->kategori,
                     'gram'       => $j->berat_gram,
+                    'gram_note'  => $j->gram_note,
                     'upah_file'  => $j->upah_file,
                     'upah_sistem'=> $j->upah_sistem,
                             'tambahan_training' => $j->tambahan_training ?? 0,
@@ -1125,6 +1126,51 @@ class BoronganController extends Controller
             'success' => true,
             'upah_sistem' => $upahSistem,
             'potongan' => $potongan,
+            'total_upah_rekap' => $rekap->total_upah ?? null,
+            'total_akhir_rekap' => $rekap->total_akhir ?? null,
+        ]);
+    }
+
+    public function updateGram(Request $request, $id)
+    {
+        $request->validate([
+            'harian_id' => 'required|exists:borongan_harian,id',
+            'berat_gram' => 'required|integer|min:0',
+            'gram_note' => 'nullable|string|max:255',
+        ]);
+
+        $harian = BoronganHarian::findOrFail($request->harian_id);
+        $harian->update([
+            'berat_gram' => intval($request->berat_gram),
+            'gram_note' => $request->gram_note,
+        ]);
+
+        $importId = $harian->borongan_import_id;
+        $nip = $harian->nip;
+
+        $totalGram = BoronganHarian::where('borongan_import_id', $importId)
+            ->where('nip', $nip)
+            ->sum('berat_gram');
+        $totalUpah = BoronganHarian::where('borongan_import_id', $importId)
+            ->where('nip', $nip)
+            ->sum('upah_sistem');
+
+        $rekap = BoronganRekap::where('borongan_import_id', $importId)
+            ->where('nip', $nip)
+            ->first();
+
+        if ($rekap) {
+            $rekap->total_gram = $totalGram;
+            $rekap->total_upah = $totalUpah;
+            $rekap->total_akhir = $totalUpah + $rekap->tambahan - $rekap->potongan_bpjs - $rekap->potongan_lain;
+            $rekap->save();
+        }
+
+        return response()->json([
+            'success' => true,
+            'berat_gram' => $harian->berat_gram,
+            'gram_note' => $harian->gram_note,
+            'total_gram' => $totalGram,
             'total_upah_rekap' => $rekap->total_upah ?? null,
             'total_akhir_rekap' => $rekap->total_akhir ?? null,
         ]);
