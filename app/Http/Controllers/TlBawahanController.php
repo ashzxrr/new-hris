@@ -10,7 +10,7 @@ class TlBawahanController extends Controller
 {
     public function index()
     {
-        $tlUsers = User::query()
+        $allTls = User::query()
             ->with('anggota')
             ->where(function ($query) {
                 $query->whereHas('anggota');
@@ -43,12 +43,69 @@ class TlBawahanController extends Controller
                     });
                 }
             })
-            ->orderBy('nama')
-            ->get();
+            ->get()
+            ->keyBy('id');
+
+        // Definisi grup: [nama_grup => [tl_id => checker_name]]
+        $groupDefs = [
+            'Cabut' => [
+                8   => 'Agung Hermansyah',
+                3   => 'Agus Kurniawan',
+                2   => 'Emanual Arvit Afriza',
+                25  => 'Nita Nurul Aini',
+                22  => 'Umariyah',
+                119 => 'Yuni Indarwati',
+                34  => 'Suwanto',
+                30  => 'Khalawatul Imah',
+                109 => 'Asmaiyah',
+            ],
+            'Cetak / Moulding' => [
+                57  => null,
+                113 => null,
+                7   => null,
+                71  => null,
+                27  => null,
+                48  => null,
+                99  => null,
+                75  => null,
+                69  => null,
+                74  => null,
+                134 => null,   // M. Jamaluddin Saputra (TL, bukan checker)
+            ],
+            'Bahan Baku & Lainnya' => [
+                1   => null,   // Anik - Pre Wash
+                98  => null,   // M Gaung Sidiq - Pre Cleaning
+                40  => null,   // Cankiswan - Bahan Baku
+                865 => null,   // TL CCP 1
+                63  => null,   // Puput Indarwati
+                118 => null,   // Kerinna
+                871 => null,   // Sanitasi
+                872 => null,   // Checker
+            ],
+        ];
+
+        $groupedTls = [];
+        foreach ($groupDefs as $groupName => $tlMap) {
+            $tlUserList = collect();
+            $checkerMap = [];
+            foreach ($tlMap as $tlId => $checkerName) {
+                if (isset($allTls[$tlId])) {
+                    $tlUserList->push($allTls[$tlId]);
+                    if ($checkerName) {
+                        $checkerMap[$tlId] = $checkerName;
+                    }
+                }
+            }
+            $groupedTls[] = [
+                'name'       => $groupName,
+                'tls'        => $tlUserList,
+                'checkers'   => $checkerMap,
+            ];
+        }
 
         return view('tl-bawahan.index', [
-            'title' => 'Daftar TL & Bawahan',
-            'tls' => $tlUsers,
+            'title'      => 'Daftar TL & Bawahan',
+            'groupedTls' => $groupedTls,
         ]);
     }
 
@@ -93,6 +150,48 @@ class TlBawahanController extends Controller
             'success' => true,
             'message' => 'Berhasil dipindahkan',
         ]);
+    }
+
+    public function searchUsers(Request $request)
+    {
+        $search = $request->q;
+        $excludeTlId = $request->exclude_tl_id;
+
+        if (!$search || strlen($search) < 2) {
+            return response()->json([]);
+        }
+
+        $query = User::query()
+            ->where(function ($q) use ($search) {
+                $q->where('nama', 'like', "%{$search}%")
+                  ->orWhere('nip', 'like', "%{$search}%");
+            })
+            ->orderBy('nama')
+            ->limit(20);
+
+        // Exclude users already under this TL
+        if ($excludeTlId) {
+            $query->where(function ($q) use ($excludeTlId) {
+                $q->whereNull('tl_id')
+                  ->orWhere('tl_id', '!=', $excludeTlId);
+            });
+        }
+
+        $users = $query->get(['id', 'nama', 'nip', 'tl_id']);
+
+        $tlIds = $users->pluck('tl_id')->filter()->unique();
+        $tlMap = User::whereIn('id', $tlIds)->pluck('nama', 'id');
+
+        $results = $users->map(function ($u) use ($tlMap) {
+            return [
+                'id'         => $u->id,
+                'nama'       => $u->nama,
+                'nip'        => $u->nip,
+                'current_tl' => $u->tl_id ? ($tlMap[$u->tl_id] ?? 'TL #' . $u->tl_id) : null,
+            ];
+        });
+
+        return response()->json($results);
     }
 
     private function wouldCreateCircularReference(User $user, User $targetTl): bool

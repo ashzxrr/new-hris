@@ -7,7 +7,8 @@ class BoronganImport extends Model
     protected $table = 'borongan_imports';
     protected $fillable = [
         'payroll_id', 'jenis', 'filename', 'tanggal_dari', 'tanggal_sampai',
-        'total_baris', 'total_flagged', 'status', 'uploaded_by'
+        'total_baris', 'total_flagged', 'tambahan_gram', 'tambahan_gram_notes',
+        'status', 'uploaded_by'
     ];
     protected $casts = [
         'tanggal_dari'   => 'date',

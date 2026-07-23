@@ -64,6 +64,7 @@ Route::middleware('auth:admin')->group(function () {
     Route::middleware(['auth.admin'])->group(function () {
         Route::get('/tl-bawahan', [TlBawahanController::class, 'index'])->name('tl-bawahan.index');
         Route::post('/tl-bawahan/update', [TlBawahanController::class, 'updateTl'])->name('tl-bawahan.update');
+        Route::get('/tl-bawahan/search-users', [TlBawahanController::class, 'searchUsers'])->name('tl-bawahan.search-users');
 
         Route::get('/setting', [SettingController::class, 'index'])->name('setting.index');
         Route::post('/setting/profile', [SettingController::class, 'updateProfile'])->name('setting.profile');

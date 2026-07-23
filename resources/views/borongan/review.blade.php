@@ -116,6 +116,16 @@
             <div class="text-xs text-slate-500 mt-1 additional-gram-note">
                 @if(!empty($additionalGram))
                     Termasuk {{ number_format($additionalGram) }} gram tambahan
+                    @php
+                        $tambahanNotes = \App\Helpers\BoronganHelper::getTambahanGramNotes($import->id);
+                    @endphp
+                    @if(!empty($tambahanNotes))
+                        <div class="text-xs text-slate-400 mt-0.5 additional-gram-notes-list">
+                            @foreach($tambahanNotes as $note)
+                                <div>• {{ $note }}</div>
+                            @endforeach
+                        </div>
+                    @endif
                 @else
                     Tambahan belum ada
                 @endif
@@ -762,7 +772,14 @@ function submitAddGramForm(event) {
             }
             const noteEl = totalGramCard.querySelector('.additional-gram-note');
             if (noteEl) {
-                noteEl.textContent = `Termasuk ${previousAdditionalGram.toLocaleString('id-ID')} gram tambahan`;
+                let noteHtml = `Termasuk ${previousAdditionalGram.toLocaleString('id-ID')} gram tambahan`;
+                if (data.additional_notes) {
+                    const notes = data.additional_notes.split('; ');
+                    noteHtml += `<div class="text-xs text-slate-400 mt-0.5">`;
+                    notes.forEach(n => { noteHtml += `<div>• ${n}</div>`; });
+                    noteHtml += `</div>`;
+                }
+                noteEl.innerHTML = noteHtml;
             }
         }
     })

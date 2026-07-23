@@ -324,6 +324,7 @@ class PayrollController extends Controller
             'cabut' => 'REKAPITULASI BAGIAN CABUT',
             'moulding' => 'REKAPITULASI BAGIAN MOULDING',
             'harian' => 'REKAPITULASI BAGIAN HARIAN',
+            'tambahan' => 'TAMBAHAN GRAM',
         ];
 
         $sectionGroups = $grandTotals->groupBy(fn($g) => in_array($g->section, ['cabut', 'hcr']) ? 'cabut' : $g->section);
@@ -500,10 +501,13 @@ class PayrollController extends Controller
             // Determine gaji_real according to business rule:
             // - For harian section, use PayrollDetail.gaji_pokok (authoritative base pay)
             // - For borongan (cabut/hcr/moulding), use array_sum(detail_harian)
+            // - For tambahan gram entry, gaji_real = 0 (no financial value)
             $section = strtolower((string) ($row->section ?? $row->job_label ?? $row->jenis ?? ''));
             $gajiReal = 0;
 
-            if (stripos($section, 'harian') !== false) {
+            if (stripos($section, 'tambahan') !== false) {
+                $gajiReal = 0;
+            } elseif (stripos($section, 'harian') !== false) {
                 $detailModel = PayrollDetail::where('payroll_id', $id)
                     ->where('nip', $row->nip)
                     ->first();
@@ -1062,11 +1066,17 @@ class PayrollController extends Controller
             $qtyText = '-';
             if ($status === 'Borongan') {
                 $nips = $members->pluck('nip')->filter()->unique()->values()->all();
-                $totalGram = BoronganRekap::join('borongan_imports', 'borongan_rekap.borongan_import_id', '=', 'borongan_imports.id')
-                    ->where('borongan_imports.payroll_id', $payroll->id)
-                    ->where('borongan_imports.jenis', $g['section'])
-                    ->whereIn('borongan_rekap.nip', $nips)
-                    ->sum('borongan_rekap.total_gram');
+                // Total gram from rekap (per-employee)
+                $importIdsForSection = BoronganImport::where('payroll_id', $payroll->id)
+                    ->where('jenis', $g['section'])
+                    ->pluck('id');
+                $totalGramRekap = BoronganRekap::whereIn('borongan_import_id', $importIdsForSection)
+                    ->whereIn('nip', $nips)
+                    ->sum('total_gram');
+                // Tambahan gram from import-level (rows without NIP)
+                $tambahanGram = BoronganImport::whereIn('id', $importIdsForSection)
+                    ->sum('tambahan_gram');
+                $totalGram = $totalGramRekap + $tambahanGram;
                 $qtyText = 'QTY ' . strtoupper($label) . ' ' . number_format($totalGram, 0, ',', '.');
             }
             $nominal = $members->sum('total_akhir');
@@ -1088,11 +1098,17 @@ class PayrollController extends Controller
             $qtyText = '-';
             if ($status === 'Borongan') {
                 $nips = $members->pluck('nip')->filter()->unique()->values()->all();
-                $totalGram = BoronganRekap::join('borongan_imports', 'borongan_rekap.borongan_import_id', '=', 'borongan_imports.id')
-                    ->where('borongan_imports.payroll_id', $payroll->id)
-                    ->where('borongan_imports.jenis', $g['section'])
-                    ->whereIn('borongan_rekap.nip', $nips)
-                    ->sum('borongan_rekap.total_gram');
+                // Total gram from rekap (per-employee)
+                $importIdsForSection = BoronganImport::where('payroll_id', $payroll->id)
+                    ->where('jenis', $g['section'])
+                    ->pluck('id');
+                $totalGramRekap = BoronganRekap::whereIn('borongan_import_id', $importIdsForSection)
+                    ->whereIn('nip', $nips)
+                    ->sum('total_gram');
+                // Tambahan gram from import-level (rows without NIP)
+                $tambahanGram = BoronganImport::whereIn('id', $importIdsForSection)
+                    ->sum('tambahan_gram');
+                $totalGram = $totalGramRekap + $tambahanGram;
                 $qtyText = 'QTY ' . strtoupper($label) . ' ' . number_format($totalGram, 0, ',', '.');
             }
             $nominal = $members->sum('total_akhir');
@@ -1636,8 +1652,74 @@ class PayrollController extends Controller
             ]);
         }
 
+        // ========================
+        // Tambahan Gram Entry — rows with null/empty NIP (import-level)
+        // ========================
+        $allTambahanImports = BoronganImport::where('payroll_id', $id)
+            ->where('tambahan_gram', '>', 0)
+            ->get();
+
+        if ($allTambahanImports->isNotEmpty()) {
+            // Build per-day gram breakdown and aggregate notes from tambahan rows
+            $detailTambahan = [];
+            $totalTambahanGram = 0;
+            $allTambahanNotes = [];
+            $tambahanImportIds = $allTambahanImports->pluck('id')->all();
+
+            $tambahanRows = BoronganHarian::whereIn('borongan_import_id', $tambahanImportIds)
+                ->where(function ($q) {
+                    $q->whereNull('nip')->orWhere('nip', '');
+                })
+                ->orderBy('tanggal')
+                ->get();
+
+            foreach ($tambahanRows as $row) {
+                $tgl = \Carbon\Carbon::parse($row->tanggal)->format('Y-m-d');
+                $detailTambahan[$tgl] = ($detailTambahan[$tgl] ?? 0) + $row->berat_gram;
+                $totalTambahanGram += $row->berat_gram;
+                if (!empty($row->gram_note)) {
+                    $allTambahanNotes[] = $row->gram_note;
+                }
+            }
+
+            $allTambahanNotes = array_unique($allTambahanNotes);
+
+            // Build nama: include total gram and notes
+            $namaTambahan = 'Gram Tambahan: ' . number_format($totalTambahanGram) . ' gram';
+            if (!empty($allTambahanNotes)) {
+                $namaTambahan .= ' (' . implode(', ', $allTambahanNotes) . ')';
+            }
+
+            // detail_harian stores upah_sistem (0 for tambahan rows)
+            // The gram breakdown is visible in the nama field
+            $detailTambahanFilled = [];
+            $currentDate = clone $dateFrom;
+            while ($currentDate <= $dateTo) {
+                $tgl = $currentDate->format('Y-m-d');
+                $detailTambahanFilled[$tgl] = 0; // upah_sistem = 0
+                $currentDate->modify('+1 day');
+            }
+
+            PayrollGrandTotal::create([
+                'payroll_id'    => $id,
+                'nip'           => 'TAMBAHAN_GRAM',
+                'nama'          => $namaTambahan,
+                'job_label'     => 'Tambahan Gram',
+                'section'       => 'tambahan',
+                'detail_harian' => json_encode($detailTambahanFilled),
+                'total_lembur'  => 0,
+                'insentif'      => 0,
+                'komplain'      => 0,
+                'potongan_lain' => 0,
+                'potongan_bpjs' => 0,
+                'total_akhir'   => 0,
+                'generated_at'  => now(),
+            ]);
+        }
+
+        $tambahanMsg = $allTambahanImports->isNotEmpty() ? ' (+ 1 baris tambahan gram)' : '';
         return redirect()->route('payroll.show', $id)
-            ->with('success', 'Grand Total berhasil di-generate untuk ' . $allNips->count() . ' karyawan.');
+            ->with('success', 'Grand Total berhasil di-generate untuk ' . $allNips->count() . ' karyawan' . $tambahanMsg . '.');
     }
 
     // ========================

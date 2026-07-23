@@ -32,7 +32,19 @@
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Total Gram</div>
-            <div class="text-xl font-bold text-slate-800">{{ number_format($rekaps->sum('total_gram')) }}</div>
+            <div class="text-xl font-bold text-slate-800">{{ number_format($rekaps->sum('total_gram') + ($tambahanGram ?? 0)) }}</div>
+            @if(!empty($tambahanGram))
+                <div class="text-xs text-slate-500 mt-1">
+                    Termasuk {{ number_format($tambahanGram) }} gram tambahan
+                    @if(!empty($tambahanGramNotes))
+                        <div class="text-xs text-slate-400 mt-0.5">
+                            @foreach(explode('; ', $tambahanGramNotes) as $note)
+                                <div>• {{ $note }}</div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            @endif
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Total Upah</div>

@@ -283,7 +283,7 @@
         {{-- Controls: search + section filter + visible total --}}
         @php
             $sectionOptions = isset($grandTotals) ? $grandTotals->pluck('section')->unique()->filter()->values() : collect();
-            $sectionLabels = ['cabut' => 'Cabut', 'hcr' => 'Titil Hcr', 'moulding' => 'Moulding', 'harian' => 'Harian'];
+            $sectionLabels = ['cabut' => 'Cabut', 'hcr' => 'Titil Hcr', 'moulding' => 'Moulding', 'harian' => 'Harian', 'tambahan' => 'Tambahan'];
         @endphp
         <div class="flex flex-wrap items-center gap-3 mb-4">
             <input id="searchGrandTotal" type="text" placeholder="Cari NIP atau Nama..."

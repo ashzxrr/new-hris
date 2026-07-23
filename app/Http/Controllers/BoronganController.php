@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Helpers\BoronganHelper;
 use App\Models\BoronganHarian;
 use App\Models\BoronganImport;
 use App\Models\BoronganRate;
@@ -1174,10 +1175,16 @@ class BoronganController extends Controller
             })
             ->sum('berat_gram');
 
+        // Update aggregated notes on the import
+        $tambahanNotes = BoronganHelper::getTambahanGramNotes($import->id);
+        $import->tambahan_gram_notes = !empty($tambahanNotes) ? implode('; ', $tambahanNotes) : null;
+        $import->saveQuietly();
+
         return response()->json([
-            'success' => true,
-            'added' => true,
-            'additional_gram' => $additionalGram,
+            'success'          => true,
+            'added'            => true,
+            'additional_gram'  => $additionalGram,
+            'additional_notes' => $import->tambahan_gram_notes,
         ]);
     }
 
@@ -1295,46 +1302,10 @@ class BoronganController extends Controller
             return back()->with('error', 'Ada ' . $pendingCount . ' indikasi mutasi karyawan yang belum dikonfirmasi. Selesaikan dulu sebelum approve.');
         }
 
-        // Group borongan_harian by NIP → akumulasi gram & upah
-        $grouped = $this->getVisibleBoronganRows(BoronganHarian::query()->where('borongan_import_id', $id))
-            ->get()
-            ->groupBy('nip');
-
-        foreach ($grouped as $nip => $rows) {
-            $first = $rows->first();
-            $totalGram = $rows->sum('berat_gram');
-            $totalUpah = $rows->sum('upah_sistem');
-
-            // Upsert rekap — kalau sudah ada (re-approve), update akumulasi tapi jaga potongan/tambahan
-            $existing = BoronganRekap::where('borongan_import_id', $id)
-                ->where('nip', $nip)
-                ->first();
-
-            if ($existing) {
-                $existing->total_gram = $totalGram;
-                $existing->total_upah = $totalUpah;
-                $existing->total_akhir = $totalUpah + $existing->tambahan
-                    - $existing->potongan_bpjs
-                    - $existing->potongan_lain;
-                $existing->save();
-            } else {
-                BoronganRekap::create([
-                    'borongan_import_id' => $id,
-                    'pin'                => $first->pin,
-                    'nip'                => $nip,
-                    'nama'               => $first->nama,
-                    'periode_dari'       => $import->tanggal_dari,
-                    'periode_sampai'     => $import->tanggal_sampai,
-                    'total_gram'         => $totalGram,
-                    'total_upah'         => $totalUpah,
-                    'potongan_bpjs'      => 0,
-                    'potongan_lain'      => 0,
-                    'tambahan'           => 0,
-                    'total_akhir'        => $totalUpah,
-                    'status'             => 'draft',
-                ]);
-            }
-        }
+        // Sync rekap via shared helper — includes per-employee rows AND tambahan gram (rows without NIP)
+        // This uses the same data source as getVisibleBoronganRows() on the review page,
+        // ensuring total_gram in rekap matches what's displayed in review.
+        BoronganHelper::syncRekapForImport($id);
 
         BoronganHarian::where('borongan_import_id', $id)->update(['status' => 'approved']);
         $import->update(['status' => 'approved']);
@@ -1386,8 +1357,17 @@ class BoronganController extends Controller
             ->orderBy('nama')
             ->get();
 
+        // Include tambahan gram and notes from imports (rows without NIP)
+        $tambahanGram = BoronganImport::whereIn('id', $siblingImportIds)
+            ->sum('tambahan_gram');
+        $tambahanGramNotes = BoronganImport::whereIn('id', $siblingImportIds)
+            ->pluck('tambahan_gram_notes')
+            ->filter()
+            ->unique()
+            ->implode('; ');
+
         $payrollId = $import->payroll_id;
-        return view('borongan.rekap', compact('import', 'rekaps', 'payrollId'));
+        return view('borongan.rekap', compact('import', 'rekaps', 'payrollId', 'tambahanGram', 'tambahanGramNotes'));
     }
 
     public function getDetail(Request $request, $id, $nip)
@@ -1529,22 +1509,7 @@ class BoronganController extends Controller
 
     private function getVisibleBoronganNips(): array
     {
-        $query = User::query()->whereNotNull('nip');
-
-        if (Schema::hasColumn('users', 'is_active')) {
-            $query->where('is_active', 1);
-        }
-
-        if (Schema::hasColumn('users', 'tl_id')) {
-            $query->whereNotNull('tl_id');
-        }
-
-        return $query->pluck('nip')
-            ->map(fn ($nip) => trim((string) $nip))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
+        return BoronganHelper::getVisibleNips();
     }
 
     public function detectMutasi($payrollId)
