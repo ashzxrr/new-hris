@@ -79,6 +79,14 @@
                                     <span>Data Bank Karyawan</span>
                                 </a>
                             @endif
+
+                            @if (in_array($role, ['admin', 'hrd', 'payroll'], true))
+                                <a href="{{ route('id-card.index') }}"
+                                    class="flex items-center gap-2 px-3 py-2 text-[12.5px] rounded-lg transition {{ request()->routeIs('id-card.*') ? 'bg-[#2F4156] text-white font-medium' : 'text-[#567C8D] hover:bg-[#D6E5EF]' }}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 flex-shrink-0"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 14.25a2.25 2.25 0 0 1 2.25-2.25h1.5A2.25 2.25 0 0 1 15 14.25v.75"/><circle cx="12" cy="8.25" r="2.25"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                                    <span>Export ID Card</span>
+                                </a>
+                            @endif
                         </div>
                     @endif
 
@@ -192,5 +200,6 @@
                 });
             }, 4000);
         </script>
+        @stack('scripts')
     </body>
 </html>
