@@ -9,7 +9,12 @@ use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\TlBawahanController;
 use App\Http\Controllers\IdCardController;
+use App\Http\Controllers\AbsensiPublikController;
 use Illuminate\Support\Facades\Route;
+
+// Publik — cek absensi tanpa login
+Route::get('/kehadiran', [AbsensiPublikController::class, 'index'])->name('absensi.publik');
+Route::post('/kehadiran/cari', [AbsensiPublikController::class, 'cari'])->name('absensi.publik.cari');
 
 Route::middleware('guest:admin')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
