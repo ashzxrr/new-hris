@@ -61,6 +61,11 @@ class KaryawanController extends Controller
             'bagian'        => 'nullable|string',
             'departemen'    => 'nullable|string',
             'kategori_gaji' => 'nullable|string',
+            'tl_id'         => 'nullable|string',
+            'tempat_lahir'  => 'nullable|string',
+            'tanggal_lahir' => 'nullable|string',
+            'alamat'        => 'nullable|string',
+            'no_hp'         => 'nullable|string',
         ]);
 
         User::create([
@@ -74,6 +79,11 @@ class KaryawanController extends Controller
             'bagian'        => $request->bagian,
             'departemen'    => $request->departemen ?: 'Produksi',
             'kategori_gaji' => $request->kategori_gaji ?? '',
+            'tl_id'         => $request->tl_id ?: null,
+            'tempat_lahir'  => $request->tempat_lahir ?? '',    
+            'tanggal_lahir' => $request->tanggal_lahir ?? '',
+            'alamat'        => $request->alamat ?? '',
+            'no_hp'         => $request->no_hp ?? '',     
             'is_active'     => 1,
         ]);
 
@@ -109,6 +119,11 @@ class KaryawanController extends Controller
             'departemen'    => 'nullable|string',
             'kategori_gaji' => 'nullable|string',
             'tl_id'         => 'nullable|integer',
+            'tempat_lahir'  => 'nullable|string',
+            'tanggal_lahir' => 'nullable|string',
+            'alamat'        => 'nullable|string',
+            'no_hp'         => 'nullable|string',
+
         ]);
 
         $karyawan->update([
@@ -122,6 +137,11 @@ class KaryawanController extends Controller
             'departemen'    => $request->departemen,
             'kategori_gaji' => $request->kategori_gaji,
             'tl_id'         => $request->tl_id ?: null,
+            'tempat_lahir'  => $request->tempat_lahir ?? '',
+            'tanggal_lahir' => $request->tanggal_lahir ?? '',
+            'alamat'        => $request->alamat ?? '',
+            'no_hp'         => $request->no_hp ?? '',
+            
         ]);
 
         return redirect()->route('karyawan.index')

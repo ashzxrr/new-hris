@@ -76,7 +76,32 @@
                     <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">NIK</label>
                     <input name="nik" type="text" placeholder="Masukkan NIK" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition" />
                 </div>
-
+                <div>
+                {{-- tempat_lahir --}}
+                <div>
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Tempat Lahir</label>
+                    <input name="tempat_lahir" type="text" placeholder="Masukkan tempat lahir"
+                        class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition" />
+                </div>
+                {{-- tanggal_lahir --}}
+                <div>
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Tanggal Lahir</label>
+                    <input name="tanggal_lahir" type="date"
+                        class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition" />
+                </div>
+                {{-- alamat --}}
+                <div>
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Alamat</label>
+                    <textarea name="alamat" rows="2" placeholder="Masukkan alamat"
+                        class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition"></textarea>
+                </div>
+                {{-- no_hp --}}
+                <div>
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">No. HP</label>
+                    <input name="no_hp" type="text" placeholder="Masukkan nomor HP"
+                        class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition" />
+                </div>
+                </div>
                 <div>
                     <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Jenis Kelamin</label>
                     <select name="jk" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
@@ -200,47 +225,53 @@
                 </div>
                 <div>
                     <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">TL (Team Leader)</label>
-                    <select name="tl_id" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
-                        <option value="">- Tidak Ada -</option>
-                        
-                        <optgroup label="CABUT">
-                            <option value="8">Karyawati</option>
-                            <option value="3">Sri Utami</option>
-                            <option value="2">ST Nur Farokah</option>
-                            <option value="25">Fhilis Sulestari</option>
-                            <option value="22">Muhammad Regatana Hidayatulloh</option>
-                            <option value="119">Zusita Arsdhia Indrayani</option>
-                            <option value="34">Wahyu Surodo</option>
-                            <option value="30">Deniko Fergian</option>
-                            <option value="109">Ruliatul Fidiah</option>
-                        </optgroup>
-
-                        <optgroup label="CETAK">
-                            <option value="57">Muhammad Tamamur Ridlwan</option>
-
-                            <option value="7">Anita</option>
-                            <option value="74">Nur Alim Zainuri</option>
-                            <option value="27">Anas Ja'far</option>
-                            <option value="48">M.Jamaludin</option>
-                            <option value="134">M. Jamaluddin Saputra</option>
-                            <option value="99">Nila Widya Sari</option>
-                            <option value="113">Nurul Izzuddin</option>
-                            <option value="75">Niko Yudho</option>
-                            <option value="71">Tsalis Akmaludin</option>
-                            <option value="69">Prayoga Dwi Cahyo</option>
-                        </optgroup>
-
-                        <optgroup label="DAN LAIN LAIN">
-                            <option value="1">Anik</option>
-                            <option value="98">M Gaung Sidiq</option>
-                            <option value="40">Cankiswan</option>
-                            <option value="118">Kerinna</option>
-                            <option value="865">TL CCP 1</option>
-                            <option value="871">Sanitasi</option>
-                            <option value="872">Checker</option>
-                            <option value="43">GD Kart</option>
-                        </optgroup>
-                    </select>
+                    <div class="tl-combobox" style="position:relative;">
+                        <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">TL (Team Leader)</label>
+                        <input type="text" id="sync_tl_search" placeholder="Ketik untuk cari TL..."
+                            autocomplete="off"
+                            class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition"
+                            onfocus="showTLDropdown('sync')" onkeyup="filterTLDropdown('sync')" />
+                        <input type="hidden" name="tl_id" id="sync_tl_id" value="" />
+                        <div id="sync_tl_dropdown" class="hidden absolute z-40 w-full bg-white border border-[#C8D9E6] rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1"
+                            style="display:none;">
+                            <div class="p-2 text-xs text-slate-400 border-b border-[#E5E7EB] cursor-pointer hover:bg-[#F8FAFC]"
+                                onclick="selectTL('sync', '', '')">— Tidak Ada —</div>
+                            <!-- CABUT -->
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-1 bg-[#F8FAFC]">CABUT</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="8" onclick="selectTL('sync', '8', 'Karyawati')">Karyawati</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="3" onclick="selectTL('sync', '3', 'Sri Utami')">Sri Utami</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="2" onclick="selectTL('sync', '2', 'ST Nur Farokah')">ST Nur Farokah</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="25" onclick="selectTL('sync', '25', 'Fhilis Sulestari')">Fhilis Sulestari</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="22" onclick="selectTL('sync', '22', 'Muhammad Regatana Hidayatulloh')">Muhammad Regatana Hidayatulloh</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="119" onclick="selectTL('sync', '119', 'Zusita Arsdhia Indrayani')">Zusita Arsdhia Indrayani</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="34" onclick="selectTL('sync', '34', 'Wahyu Surodo')">Wahyu Surodo</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="30" onclick="selectTL('sync', '30', 'Deniko Fergian')">Deniko Fergian</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="109" onclick="selectTL('sync', '109', 'Ruliatul Fidiah')">Ruliatul Fidiah</div>
+                            <!-- CETAK -->
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-1 bg-[#F8FAFC]">CETAK</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="57" onclick="selectTL('sync', '57', 'Muhammad Tamamur Ridlwan')">Muhammad Tamamur Ridlwan</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="7" onclick="selectTL('sync', '7', 'Anita')">Anita</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="74" onclick="selectTL('sync', '74', 'Nur Alim Zainuri')">Nur Alim Zainuri</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="27" onclick="selectTL('sync', '27', \"Anas Ja'far\")">Anas Ja'far</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="48" onclick="selectTL('sync', '48', 'M.Jamaludin')">M.Jamaludin</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="134" onclick="selectTL('sync', '134', 'M. Jamaluddin Saputra')">M. Jamaluddin Saputra</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="99" onclick="selectTL('sync', '99', 'Nila Widya Sari')">Nila Widya Sari</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="113" onclick="selectTL('sync', '113', 'Nurul Izzuddin')">Nurul Izzuddin</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="75" onclick="selectTL('sync', '75', 'Niko Yudho')">Niko Yudho</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="71" onclick="selectTL('sync', '71', 'Tsalis Akmaludin')">Tsalis Akmaludin</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="69" onclick="selectTL('sync', '69', 'Prayoga Dwi Cahyo')">Prayoga Dwi Cahyo</div>
+                            <!-- DAN LAIN LAIN -->
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-1 bg-[#F8FAFC]">DAN LAIN LAIN</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="1" onclick="selectTL('sync', '1', 'Anik')">Anik</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="98" onclick="selectTL('sync', '98', 'M Gaung Sidiq')">M Gaung Sidiq</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="40" onclick="selectTL('sync', '40', 'Cankiswan')">Cankiswan</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="118" onclick="selectTL('sync', '118', 'Kerinna')">Kerinna</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="865" onclick="selectTL('sync', '865', 'TL CCP 1')">TL CCP 1</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="871" onclick="selectTL('sync', '871', 'Sanitasi')">Sanitasi</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="872" onclick="selectTL('sync', '872', 'Checker')">Checker</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="43" onclick="selectTL('sync', '43', 'GD Kart')">GD Kart</div>
+                        </div>
+                    </div>
                 </div>
                 <div class="col-span-3">
                     <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Kategori Gaji</label>
@@ -263,23 +294,86 @@
 </div>
 
 <script>
-    function openModal(pin, nama) {
-        document.getElementById('modal_pin').value = pin;
-        document.getElementById('modal_nama').value = nama;
-        document.getElementById('modal_user_info').textContent = 'PIN: ' + pin + ' - Nama: ' + nama;
-        document.getElementById('syncModal').classList.remove('hidden');
-    }
-
-    function closeModal() {
-        document.getElementById('syncModal').classList.add('hidden');
-        document.getElementById('modal_nama').value = '';
-        document.getElementById('modal_pin').value = '';
-    }
-
-    document.getElementById('syncModal').addEventListener('click', function (e) {
-        if (e.target === this) {
-            closeModal();
+        function openModal(pin, nama) {
+            document.getElementById('modal_pin').value = pin;
+            document.getElementById('modal_nama').value = nama;
+            document.getElementById('modal_user_info').textContent = 'PIN: ' + pin + ' - Nama: ' + nama;
+            document.getElementById('syncModal').classList.remove('hidden');
         }
+
+        function closeModal() {
+            document.getElementById('syncModal').classList.add('hidden');
+            document.getElementById('modal_nama').value = '';
+            document.getElementById('modal_pin').value = '';
+        }
+
+        document.getElementById('syncModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // ===== TL SEARCHABLE COMBOBOX =====
+    function showTLDropdown(prefix) {
+        const dd = document.getElementById(prefix + '_tl_dropdown');
+        dd.style.display = 'block';
+    }
+
+    function hideTLDropdown(prefix) {
+        setTimeout(() => {
+            document.getElementById(prefix + '_tl_dropdown').style.display = 'none';
+        }, 200);
+    }
+
+    function filterTLDropdown(prefix) {
+        const input = document.getElementById(prefix + '_tl_search');
+        const q = input.value.toLowerCase().trim();
+        const dd = document.getElementById(prefix + '_tl_dropdown');
+        const options = dd.querySelectorAll('.tl-option');
+        let visibleCount = 0;
+        
+        // Also show the "Tidak Ada" option
+        const firstChild = dd.firstElementChild;
+        if (firstChild) firstChild.style.display = 'block';
+        
+        options.forEach(opt => {
+            const text = opt.textContent.toLowerCase();
+            if (!q || text.includes(q)) {
+                opt.style.display = 'block';
+                visibleCount++;
+            } else {
+                opt.style.display = 'none';
+            }
+        });
+        
+        // Hide group headers if no visible children
+        dd.querySelectorAll('.text-\\[10px\\]').forEach(hdr => {
+            let next = hdr.nextElementSibling;
+            let hasVisible = false;
+            while (next && next.classList.contains('tl-option')) {
+                if (next.style.display !== 'none') { hasVisible = true; break; }
+                next = next.nextElementSibling;
+            }
+            hdr.style.display = hasVisible ? 'block' : 'none';
+        });
+        
+        dd.style.display = 'block';
+    }
+
+    function selectTL(prefix, id, nama) {
+        document.getElementById(prefix + '_tl_id').value = id;
+        document.getElementById(prefix + '_tl_search').value = nama;
+        document.getElementById(prefix + '_tl_dropdown').style.display = 'none';
+    }
+
+    // Click outside to close TL dropdown
+    document.addEventListener('click', function(e) {
+        document.querySelectorAll('.tl-combobox').forEach(function(container) {
+            if (!container.contains(e.target)) {
+                const dd = container.querySelector('[id$="_tl_dropdown"]');
+                if (dd) dd.style.display = 'none';
+            }
+        });
     });
 </script>
 @endsection

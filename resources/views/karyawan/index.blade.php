@@ -270,6 +270,31 @@
                         class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                 </div>
 
+                {{-- Tempat Lahir --}}
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">Tempat Lahir</label>
+                    <input type="text" name="tempat_lahir" id="edit_tempat_lahir"
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                </div>
+                {{-- Tanggal Lahir --}}
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">Tanggal Lahir</label>
+                    <input type="date" name="tanggal_lahir" id="edit_tanggal_lahir"
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                </div>
+                {{-- Alamat --}}
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">Alamat</label>
+                    <textarea name="alamat" id="edit_alamat" rows="2"
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"></textarea>
+                </div>
+                {{-- No HP --}}
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">No. HP</label>
+                    <input type="text" name="no_hp" id="edit_no_hp"
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                </div>
+
                 <div>
                     <label class="text-xs text-slate-500 mb-1 block">Jenis Kelamin</label>
                     <select name="jk" id="edit_jk"
@@ -338,25 +363,53 @@
 
                 <div class="col-span-3">
                     <label class="text-xs text-slate-500 mb-1 block">TL (Team Leader)</label>
-                    <select name="tl_id" id="edit_tl_id"
-                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
-                        <option value="">- Tidak Ada -</option>
-                        <optgroup label="CABUT">
-                            @foreach([['id'=>8,'nama'=>'Karyawati'],['id'=>3,'nama'=>'Sri Utami'],['id'=>2,'nama'=>'ST Nur Farokah'],['id'=>25,'nama'=>'Fhilis Sulestari'],['id'=>22,'nama'=>'Muhammad Regatana Hidayatulloh'],['id'=>119,'nama'=>'Zusita Arsdhia Indrayani'],['id'=>34,'nama'=>'Wahyu Surodo'],['id'=>30,'nama'=>'Deniko Fergian'],['id'=>109,'nama'=>'Ruliatul Fidiah']] as $tl)
-                            <option value="{{ $tl['id'] }}">{{ $tl['nama'] }}</option>
-                            @endforeach
-                        </optgroup>
-                        <optgroup label="CETAK">
-                            @foreach([['id'=>57,'nama'=>'Muhammad Tamamur Ridlwan'],['id'=>7,'nama'=>'Anita'],['id'=>74,'nama'=>'Nur Alim Zainuri'],['id'=>27,'nama'=>"Anas Ja'far"],['id'=>48,'nama'=>'M.Jamaludin'],['id'=>134,'nama'=>'M. Jamaluddin Saputra'],['id'=>99,'nama'=>'Nila Widya Sari'],['id'=>113,'nama'=>'Nurul Izzuddin'],['id'=>75,'nama'=>'Niko Yudho'],['id'=>71,'nama'=>'Tsalis Akmaludin'],['id'=>69,'nama'=>'Prayogo Dwi']] as $tl)
-                            <option value="{{ $tl['id'] }}">{{ $tl['nama'] }}</option>
-                            @endforeach
-                        </optgroup>
-                        <optgroup label="DAN LAIN LAIN">
-                            @foreach([['id'=>1,'nama'=>'Anik'],['id'=>98,'nama'=>'M Gaung Sidiq'],['id'=>40,'nama'=>'Cankiswan'],['id'=>118,'nama'=>'Kerinna'],['id'=>63,'nama'=>'Puput Indarwati'],['id'=>865,'nama'=>'TL CCP 1'],['id'=>871,'nama'=>'Sanitasi'],['id'=>872,'nama'=>'Checker'],['id'=>43,'nama'=>'GD Kart']] as $tl)
-                            <option value="{{ $tl['id'] }}">{{ $tl['nama'] }}</option>
-                            @endforeach
-                        </optgroup>
-                    </select>
+                    <div class="col-span-3 tl-combobox" style="position:relative;">
+                        <label class="text-xs text-slate-500 mb-1 block">TL (Team Leader)</label>
+                        <input type="text" id="edit_tl_search" placeholder="Ketik untuk cari TL..."
+                            autocomplete="off"
+                            class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                            onfocus="showTLDropdown('edit')" onkeyup="filterTLDropdown('edit')" />
+                        <input type="hidden" name="tl_id" id="edit_tl_id" value="" />
+                        <div id="edit_tl_dropdown" class="hidden absolute z-40 w-full bg-white border border-[#E5E7EB] rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1"
+                            style="display:none;">
+                            <div class="p-2 text-xs text-slate-400 border-b border-[#E5E7EB] cursor-pointer hover:bg-[#F8FAFC]"
+                                onclick="selectTL('edit', '', '')">— Tidak Ada —</div>
+                            <!-- CABUT -->
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-1 bg-[#F8FAFC]">CABUT</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="8" onclick="selectTL('edit', '8', 'Karyawati')">Karyawati</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="3" onclick="selectTL('edit', '3', 'Sri Utami')">Sri Utami</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="2" onclick="selectTL('edit', '2', 'ST Nur Farokah')">ST Nur Farokah</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="25" onclick="selectTL('edit', '25', 'Fhilis Sulestari')">Fhilis Sulestari</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="22" onclick="selectTL('edit', '22', 'Muhammad Regatana Hidayatulloh')">Muhammad Regatana Hidayatulloh</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="119" onclick="selectTL('edit', '119', 'Zusita Arsdhia Indrayani')">Zusita Arsdhia Indrayani</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="34" onclick="selectTL('edit', '34', 'Wahyu Surodo')">Wahyu Surodo</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="30" onclick="selectTL('edit', '30', 'Deniko Fergian')">Deniko Fergian</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="109" onclick="selectTL('edit', '109', 'Ruliatul Fidiah')">Ruliatul Fidiah</div>
+                            <!-- CETAK -->
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-1 bg-[#F8FAFC]">CETAK</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="57" onclick="selectTL('edit', '57', 'Muhammad Tamamur Ridlwan')">Muhammad Tamamur Ridlwan</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="7" onclick="selectTL('edit', '7', 'Anita')">Anita</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="74" onclick="selectTL('edit', '74', 'Nur Alim Zainuri')">Nur Alim Zainuri</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="27" onclick="selectTL('edit', '27', \"Anas Ja'far\")">Anas Ja'far</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="48" onclick="selectTL('edit', '48', 'M.Jamaludin')">M.Jamaludin</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="134" onclick="selectTL('edit', '134', 'M. Jamaluddin Saputra')">M. Jamaluddin Saputra</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="99" onclick="selectTL('edit', '99', 'Nila Widya Sari')">Nila Widya Sari</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="113" onclick="selectTL('edit', '113', 'Nurul Izzuddin')">Nurul Izzuddin</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="75" onclick="selectTL('edit', '75', 'Niko Yudho')">Niko Yudho</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="71" onclick="selectTL('edit', '71', 'Tsalis Akmaludin')">Tsalis Akmaludin</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="69" onclick="selectTL('edit', '69', 'Prayoga Dwi Cahyo')">Prayoga Dwi Cahyo</div>
+                            <!-- DAN LAIN LAIN -->
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-1 bg-[#F8FAFC]">DAN LAIN LAIN</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="1" onclick="selectTL('edit', '1', 'Anik')">Anik</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="98" onclick="selectTL('edit', '98', 'M Gaung Sidiq')">M Gaung Sidiq</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="40" onclick="selectTL('edit', '40', 'Cankiswan')">Cankiswan</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="118" onclick="selectTL('edit', '118', 'Kerinna')">Kerinna</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="865" onclick="selectTL('edit', '865', 'TL CCP 1')">TL CCP 1</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="871" onclick="selectTL('edit', '871', 'Sanitasi')">Sanitasi</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="872" onclick="selectTL('edit', '872', 'Checker')">Checker</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="43" onclick="selectTL('edit', '43', 'GD Kart')">GD Kart</div>
+                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -792,5 +845,40 @@
     function closeEditModal() {
         document.getElementById('editModal').classList.add('hidden');
     }
+
+    function openEditModal(id, nama) {
+    fetch('/karyawan/' + id + '/edit')
+        .then(r => r.json())
+        .then(data => {
+            const k = data.karyawan;
+            document.getElementById('editModalTitle').textContent = 'Edit — ' + k.nama;
+            document.getElementById('edit_pin').value = k.pin;
+            document.getElementById('edit_nama').value = k.nama;
+            document.getElementById('edit_nip').value = k.nip ?? '';
+            document.getElementById('edit_nik').value = k.nik ?? '';
+            // Field baru
+            document.getElementById('edit_tempat_lahir').value = k.tempat_lahir ?? '';
+            document.getElementById('edit_tanggal_lahir').value = k.tanggal_lahir ? k.tanggal_lahir.substring(0, 10) : '';
+            document.getElementById('edit_alamat').value = k.alamat ?? '';
+            document.getElementById('edit_no_hp').value = k.no_hp ?? '';
+            document.getElementById('edit_jk').value = k.jk ?? '';
+            document.getElementById('edit_job_title').value = k.job_title ?? '';
+            document.getElementById('edit_job_level').value = k.job_level ?? '';
+            document.getElementById('edit_bagian').value = k.bagian ?? '';
+            document.getElementById('edit_departemen').value = k.departemen ?? '';
+            document.getElementById('edit_kategori_gaji').value = k.kategori_gaji ?? '';
+            // TL — set searchable combobox
+            if (k.tl_id) {
+                const tlName = data.tlMap.find(t => t.id == k.tl_id)?.nama || '';
+                document.getElementById('edit_tl_search').value = tlName;
+                document.getElementById('edit_tl_id').value = k.tl_id;
+            } else {
+                document.getElementById('edit_tl_search').value = '';
+                document.getElementById('edit_tl_id').value = '';
+            }
+            document.getElementById('editForm').action = '/karyawan/' + id;
+            document.getElementById('editModal').classList.remove('hidden');
+        });
+}
 </script>
 @endsection
