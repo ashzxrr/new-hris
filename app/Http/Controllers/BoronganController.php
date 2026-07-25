@@ -155,7 +155,18 @@ class BoronganController extends Controller
                     ? (clone $activeUsersQuery)->where('kategori_gaji', $kategoriGajiTarget)->pluck('nip')->map(fn($n) => trim(strtoupper($n)))->unique()
                     : collect();
 
-                $nipWajibAda = $nipHistoris->merge($nipKategoriGaji)->unique()->diff($nipSudahAda);
+                // Untuk moulding, juga include semua user aktif yang bagannya Moulding
+                $nipBagianMoulding = collect();
+                if ($request->jenis === 'moulding' && Schema::hasColumn('users', 'bagian')) {
+                    $nipBagianMoulding = (clone $activeUsersQuery)
+                        ->whereRaw('LOWER(TRIM(bagian)) = ?', ['moulding'])
+                        ->pluck('nip')
+                        ->map(fn($n) => trim(strtoupper($n)))
+                        ->unique();
+                }
+
+                $nipWajibAda = $nipHistoris->merge($nipKategoriGaji)->merge($nipBagianMoulding)->unique()->diff($nipSudahAda);
+                $nipBagianMouldingSet = $nipBagianMoulding->toArray();
 
                 foreach ($nipWajibAda as $nipMissing) {
                     $user = collect($usersByNip)->first(fn($u, $k) => trim(strtoupper($k)) === $nipMissing);
@@ -163,6 +174,11 @@ class BoronganController extends Controller
                     if (! $user) {
                         continue;
                     }
+
+                    $isFromBagianMoulding = in_array(trim(strtoupper($nipMissing)), $nipBagianMouldingSet, true);
+                    $flagReason = $isFromBagianMoulding
+                        ? 'User aktif di bagian Moulding, tidak ditemukan di file'
+                        : 'Tidak ada data pada tanggal ini';
 
                     BoronganHarian::create([
                         'borongan_import_id' => $import->id,
@@ -176,7 +192,7 @@ class BoronganController extends Controller
                         'upah_file'   => 0,
                         'selisih'     => 0,
                         'is_flagged'  => true,
-                        'flag_reason' => 'Tidak ada data pada tanggal ini',
+                        'flag_reason' => $flagReason,
                         'status'      => 'pending',
                     ]);
                 }
@@ -986,7 +1002,7 @@ class BoronganController extends Controller
         $pendingMutasi = $this->detectMutasi($import->payroll_id);
         
         // Group by NIP, aggregate total gram & upah, flag jika ada yg flagged
-        $items = $this->getVisibleBoronganRows(BoronganHarian::query()->where('borongan_import_id', $id))
+        $items = BoronganHarian::where('borongan_import_id', $id)
             ->whereNotNull('nip')
             ->where('nip', '<>', '')
             ->get()
@@ -1000,7 +1016,10 @@ class BoronganController extends Controller
                     'total_upah'  => $rows->sum('upah_sistem'),
                     'is_flagged'  => $rows->contains('is_flagged', true),
                     'flag_count'  => $rows->where('is_flagged', true)->count(),
-                    'is_kosong'   => $rows->contains(fn($r) => $r->flag_reason === 'Tidak ada data pada tanggal ini'),
+                    'is_kosong'   => $rows->contains(fn($r) => in_array($r->flag_reason, [
+                    'Tidak ada data pada tanggal ini',
+                    'User aktif di bagian Moulding, tidak ditemukan di file',
+                ])),
                 ];
             })
             ->sortBy('nama')
@@ -1032,13 +1051,18 @@ class BoronganController extends Controller
             })
             ->get();
 
-        $toDelete = $rows->filter(function ($r) {
-            return $r->flag_reason === 'Tidak ada data pada tanggal ini'
+        $emptyFlagReasons = [
+            'Tidak ada data pada tanggal ini',
+            'User aktif di bagian Moulding, tidak ditemukan di file',
+        ];
+
+        $toDelete = $rows->filter(function ($r) use ($emptyFlagReasons) {
+            return in_array($r->flag_reason, $emptyFlagReasons)
                 || trim((string) $r->nip) === '';
         });
 
-        $skipped = $rows->reject(function ($r) {
-            return $r->flag_reason === 'Tidak ada data pada tanggal ini'
+        $skipped = $rows->reject(function ($r) use ($emptyFlagReasons) {
+            return in_array($r->flag_reason, $emptyFlagReasons)
                 || trim((string) $r->nip) === '';
         })->pluck('nama', 'nip')->toArray();
 
@@ -1283,13 +1307,18 @@ class BoronganController extends Controller
     {
         $import = BoronganImport::findOrFail($id);
 
+        $emptyFlagReasons = [
+            'Tidak ada data pada tanggal ini',
+            'User aktif di bagian Moulding, tidak ditemukan di file',
+        ];
+
         $adaBelumDikonfirmasi = $this->getVisibleBoronganRows(BoronganHarian::query()->where('borongan_import_id', $id))
             ->where('is_flagged', true)
-            ->where('flag_reason', 'Tidak ada data pada tanggal ini')
+            ->whereIn('flag_reason', $emptyFlagReasons)
             ->exists();
 
         if ($adaBelumDikonfirmasi) {
-            $msg = 'Masih ada karyawan yang belum dikonfirmasi statusnya (tidak ada data pada tanggal ini). Buka Detail per karyawan untuk konfirmasi atau hapus dari daftar.';
+            $msg = 'Masih ada karyawan yang belum dikonfirmasi statusnya (tidak ada data). Buka Detail per karyawan untuk konfirmasi atau hapus dari daftar.';
             if (request()->expectsJson()) {
                 return response()->json(['success' => false, 'message' => $msg], 422);
             }

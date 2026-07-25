@@ -38,6 +38,10 @@ class User extends Authenticatable
         'kategori_gaji',
         'tl_id',
         'is_active',
+        'alamat',
+        'no_hp',
+        'tempat_lahir',
+        'tanggal_lahir',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -55,6 +59,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'tanggal_lahir' => 'date',
         ];
     }
 }
