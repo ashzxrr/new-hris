@@ -9,6 +9,7 @@ use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\TlBawahanController;
 use App\Http\Controllers\IdCardController;
+use App\Http\Controllers\PkwtController;
 use App\Http\Controllers\AbsensiPublikController;
 use Illuminate\Support\Facades\Route;
 
@@ -122,6 +123,16 @@ Route::middleware('auth:admin')->group(function () {
             Route::put('/rekap/{rekapId}', [BoronganController::class, 'updateRekap'])->name('updateRekap');
             Route::delete('/{id}',      [BoronganController::class, 'destroy'])->name('destroy');
             Route::post('/mutasi/{logId}/resolve', [BoronganController::class, 'resolveMutasi'])->name('mutasi.resolve');
+        });
+
+        Route::middleware(['role:admin,hrd,ga'])->group(function () {
+            Route::prefix('pkwt')->name('pkwt.')->group(function () {
+                Route::get('/',                    [PkwtController::class, 'index'])->name('index');
+                Route::get('/riwayat',             [PkwtController::class, 'riwayat'])->name('riwayat');
+                Route::get('/{user}/form',         [PkwtController::class, 'form'])->name('form');
+                Route::post('/{user}/export',      [PkwtController::class, 'export'])->name('export');
+                Route::get('/download/{pkwt}',     [PkwtController::class, 'download'])->name('download');
+            });
         });
 
         Route::middleware(['role:admin'])->group(function () {

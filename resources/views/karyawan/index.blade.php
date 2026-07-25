@@ -170,11 +170,15 @@
                     <th class="px-2 py-2 text-left">Bagian</th>
                     <th class="px-2 py-2 text-left">Departemen</th>
                     <th class="px-2 py-2 text-left">TL</th>
+                    <th class="px-2 py-2 text-left">Alamat</th>
+                    <th class="px-2 py-2 text-left">No. HP</th>
+                    <th class="px-2 py-2 text-left">Tempat Lahir</th>
+                    <th class="px-2 py-2 text-left">Tgl Lahir</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
             @forelse ($karyawan as $k)
-                <tr class="karyawan-row border-t border-slate-50 cursor-pointer transition-colors duration-100 @if($k->is_active == 0) bg-red-50 @endif" onclick="toggleRow(this)" data-status="{{ $k->is_active == 0 ? 'resign' : 'aktif' }}" data-bagian="{{ $k->bagian }}" data-kategori="{{ $k->kategori_gaji }}" data-tl-id="{{ $k->tl_id }}" data-search="{{ strtolower($k->pin . ' ' . $k->nama . ' ' . $k->nip . ' ' . $k->nik . ' ' . $k->bagian . ' ' . $k->job_title) }}">
+                <tr class="karyawan-row border-t border-slate-50 cursor-pointer transition-colors duration-100 @if($k->is_active == 0) bg-red-50 @endif" onclick="toggleRow(this)" data-status="{{ $k->is_active == 0 ? 'resign' : 'aktif' }}" data-bagian="{{ $k->bagian }}" data-kategori="{{ $k->kategori_gaji }}" data-tl-id="{{ $k->tl_id }}" data-search="{{ strtolower($k->pin . ' ' . $k->nama . ' ' . $k->nip . ' ' . $k->nik . ' ' . $k->bagian . ' ' . $k->job_title . ' ' . $k->alamat . ' ' . $k->no_hp . ' ' . $k->tempat_lahir) }}">
                     <td class="px-2 py-1.5 sticky left-0 bg-white z-10 border-r border-[#E5E7EB]" onclick="event.stopPropagation()">
                         <input type="checkbox" class="karyawan-check accent-[#4F46E5]" value="{{ $k->id }}" data-pin="{{ $k->pin }}" onchange="updateSelectedCount()">
                     </td>
@@ -190,12 +194,16 @@
                     <td class="px-2 py-1.5 text-slate-600">{{ $k->bagian ?: '-' }}</td>
                     <td class="px-2 py-1.5 text-slate-600">{{ $k->departemen ?: '-' }}</td>
                     <td class="px-2 py-1.5 text-slate-600">{{ $tlMap[$k->tl_id] ?? '-' }}</td>
+                    <td class="px-2 py-1.5 text-slate-600 max-w-[200px] truncate" title="{{ $k->alamat ?? '' }}">{{ $k->alamat ?: '-' }}</td>
+                    <td class="px-2 py-1.5 text-slate-600">{{ $k->no_hp ?: '-' }}</td>
+                    <td class="px-2 py-1.5 text-slate-600">{{ $k->tempat_lahir ?: '-' }}</td>
+                    <td class="px-2 py-1.5 text-slate-600">{{ $k->tanggal_lahir ? \Carbon\Carbon::parse($k->tanggal_lahir)->format('d/m/Y') : '-' }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td class="px-4 py-8 text-center text-sm text-slate-400" colspan="14">
+                    <td class="px-4 py-8 text-center text-sm text-slate-400" colspan="17">
                         Belum ada data karyawan.
-                    </td>3
+                    </td>
                 </tr>
             @endforelse
         </tbody>

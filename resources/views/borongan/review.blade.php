@@ -421,7 +421,7 @@ function openReviewModal(importId, nip, nama) {
                 const flagCell = job.is_flagged
                     ? `<span class="text-xs text-amber-500" title="${job.flag_reason || ''}">⚠️</span>`
                     : `<span class="text-xs text-green-500">✅</span>`;
-                const specialFlag = (job.flag_reason || '') === 'Tidak ada data pada tanggal ini';
+                const specialFlag = ['Tidak ada data pada tanggal ini', 'User aktif di bagian Moulding, tidak ditemukan di file'].includes(job.flag_reason || '');
                 const actionCell = specialFlag
                     ? `<div class="flex flex-col items-center gap-1 mt-1">
                         <button type="button" onclick="konfirmasiKosong(${job.id})" class="pbtn pbtn-success pbtn-sm">
