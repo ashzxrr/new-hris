@@ -79,7 +79,7 @@
     </style>
 </head>
 <body>
-    @foreach($karyawan->chunk(9) as $page)
+    @foreach($karyawan->chunk(12) as $page)
         <table class="grid">
             @foreach($page->chunk(3) as $row)
                 <tr>
