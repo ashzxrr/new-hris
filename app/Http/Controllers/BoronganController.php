@@ -66,7 +66,7 @@ class BoronganController extends Controller
     {
         return $this->getVisibleBoronganUsersQuery()
             ->get()
-            ->keyBy(fn ($user) => trim((string) $user->nip))
+            ->keyBy(fn ($user) => strtoupper(trim((string) $user->nip)))
             ->all();
     }
 
@@ -462,7 +462,7 @@ class BoronganController extends Controller
                             continue;
                         }
 
-                        $user = $usersByNip[$nip] ?? null;
+                        $user = $usersByNip[strtoupper($nip)] ?? null;
 
                         if (! $user) {
                             continue;
@@ -489,7 +489,7 @@ class BoronganController extends Controller
 
                         $category = $this->normalizeBuluCategory($bulu);
                         $rate = $this->findRateForCategory($rates, $category);
-                        $user = $usersByNip[$nip] ?? null;
+                        $user = $usersByNip[strtoupper($nip)] ?? null;
                         $isFlagged = false;
                         $flagReason = null;
 
@@ -617,7 +617,7 @@ class BoronganController extends Controller
                             }
                         }
 
-                        $user = $usersByNip[$nip] ?? null;
+                        $user = $usersByNip[strtoupper($nip)] ?? null;
                         $isFlagged = false;
                         $flagReason = null;
                         if (!$user) {
@@ -848,7 +848,7 @@ class BoronganController extends Controller
                     if ($totalGramRow === 0) {
                         continue;
                     }
-                    $file1Data[$nip] = ['nama' => $nama, 'categories_gram' => $categoriesGram, 'total_gram' => $totalGramRow];
+                    $file1Data[strtoupper($nip)] = ['nama' => $nama, 'categories_gram' => $categoriesGram, 'total_gram' => $totalGramRow];
                 }
 
                 $parsedDataSheet = [];
@@ -861,7 +861,7 @@ class BoronganController extends Controller
                         $totalSkippedInvalidNip++;
                         continue;
                     }
-                    $user = $usersByNip[$nip] ?? null;
+                    $user = $usersByNip[strtoupper($nip)] ?? null;
                     $isFlagged = false;
                     $flagReason = null;
                     if (!$file1Row) {
