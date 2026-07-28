@@ -146,6 +146,109 @@ class PkwtController extends Controller
     }
 
     /**
+     * Export PKWT massal untuk beberapa karyawan sekaligus.
+     * Generate semua PDF dan kembalikan sebagai file ZIP.
+     */
+    public function exportBulk(Request $request)
+    {
+        $request->validate([
+            'user_ids'        => 'required|array|min:1',
+            'user_ids.*'      => 'exists:users,id',
+            'tanggal_mulai'   => 'required|date',
+            'tanggal_selesai'  => 'required|date|after_or_equal:tanggal_mulai',
+        ]);
+
+        $userIds = $request->user_ids;
+        $users = User::whereIn('id', $userIds)->where('is_active', 1)->get();
+
+        if ($users->isEmpty()) {
+            return back()->with('error', 'Tidak ada karyawan aktif yang dipilih.');
+        }
+
+        $dibuatOleh = Auth::guard('admin')->user()->id;
+        $generatedFiles = [];
+        $errors = [];
+
+        foreach ($users as $user) {
+            try {
+                // Ambil nomor urut terkecil yang belum terpakai
+                $nomorUrut = \DB::transaction(function () {
+                    $usedNumbers = PkwtExport::lockForUpdate()
+                        ->orderBy('nomor_urut')
+                        ->pluck('nomor_urut')
+                        ->toArray();
+
+                    $candidate = self::BASELINE_NOMOR + 1;
+
+                    while (in_array($candidate, $usedNumbers, true)) {
+                        $candidate++;
+                    }
+
+                    return $candidate;
+                });
+
+                $romawiBulan = $this->romanMonth(now()->month);
+                $tahun = now()->year;
+                $nomorSurat = "{$nomorUrut}/PKWT/HRGA/{$romawiBulan}/{$tahun}";
+
+                // Simpan ke database
+                $pkwt = PkwtExport::create([
+                    'user_id'        => $user->id,
+                    'nomor_urut'     => $nomorUrut,
+                    'nomor_surat'    => $nomorSurat,
+                    'tanggal_mulai'  => $request->tanggal_mulai,
+                    'tanggal_selesai' => $request->tanggal_selesai,
+                    'tanggal_dibuat' => $request->tanggal_mulai,
+                    'tempat_dibuat'  => 'Lamongan',
+                    'dibuat_oleh'    => $dibuatOleh,
+                ]);
+
+                // Generate PDF
+                $pdf = $this->generatePdf($pkwt, $user);
+
+                // Simpan file
+                $filename = "pkwt/{$nomorSurat}.pdf";
+                Storage::disk('public')->put($filename, $pdf->output());
+                $pkwt->update(['file_path' => $filename]);
+
+                $generatedFiles[] = Storage::disk('public')->path($filename);
+            } catch (\Exception $e) {
+                $errors[] = "{$user->nama}: {$e->getMessage()}";
+            }
+        }
+
+        if (empty($generatedFiles)) {
+            return back()->with('error', 'Gagal generate semua PKWT: ' . implode(', ', $errors));
+        }
+
+        // Buat ZIP
+        $zipFileName = 'PKWT_Bulk_' . now()->format('Ymd_His') . '.zip';
+        $zipPath = Storage::disk('public')->path('pkwt/' . $zipFileName);
+
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true) {
+            foreach ($generatedFiles as $file) {
+                $zip->addFile($file, basename($file));
+            }
+            $zip->close();
+        } else {
+            return back()->with('error', 'Gagal membuat file ZIP.');
+        }
+
+        // Hapus file individual setelah di-zip
+        foreach ($generatedFiles as $file) {
+            @unlink($file);
+        }
+
+        $message = count($generatedFiles) . ' PKWT berhasil digenerate.';
+        if (!empty($errors)) {
+            $message .= ' Gagal: ' . implode(', ', $errors);
+        }
+
+        return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
+    }
+
+    /**
      * Download ulang PKWT dari history.
      */
     public function download(PkwtExport $pkwt)

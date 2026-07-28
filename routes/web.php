@@ -131,6 +131,7 @@ Route::middleware('auth:admin')->group(function () {
                 Route::get('/riwayat',             [PkwtController::class, 'riwayat'])->name('riwayat');
                 Route::get('/{user}/form',         [PkwtController::class, 'form'])->name('form');
                 Route::post('/{user}/export',      [PkwtController::class, 'export'])->name('export');
+                Route::post('/export-bulk',      [PkwtController::class, 'exportBulk'])->name('exportBulk');
                 Route::get('/download/{pkwt}',     [PkwtController::class, 'download'])->name('download');
             });
         });
