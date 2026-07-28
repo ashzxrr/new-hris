@@ -367,3 +367,7 @@
 
     bulkExportModal?.addEventListener('click', function(e) {
         if (e.target === this) closeBulkExportModal();
+    });
+
+    </script>
+@endpush
