@@ -1380,7 +1380,6 @@ class BoronganController extends Controller
         $otherRows = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
             ->where('nip', $rekap->nip)
             ->where('id', '!=', $rekap->id)
-            ->whereIn('nip', $this->getVisibleBoronganNips())
             ->get();
 
         foreach ($otherRows as $row) {
@@ -1395,7 +1394,6 @@ class BoronganController extends Controller
         // Return the SUM of total_akhir across all rows for this NIP
         $totalAkhir = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
             ->where('nip', $rekap->nip)
-            ->whereIn('nip', $this->getVisibleBoronganNips())
             ->sum('total_akhir');
 
         return response()->json([
@@ -1413,7 +1411,6 @@ class BoronganController extends Controller
             ->pluck('id');
 
         $rekaps = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
-            ->whereIn('nip', $this->getVisibleBoronganNips())
             ->selectRaw('MIN(id) as rekap_id, nip, nama, SUM(total_gram) as total_gram, SUM(total_upah) as total_upah, SUM(potongan_bpjs) as potongan_bpjs, SUM(potongan_lain) as potongan_lain, SUM(tambahan) as tambahan, SUM(komplain) as komplain, SUM(total_akhir) as total_akhir')
             ->groupBy('nip', 'nama')
             ->orderBy('nama')
@@ -1440,14 +1437,14 @@ class BoronganController extends Controller
             ->where('jenis', $import->jenis)
             ->pluck('id');
 
-        $harianGrouped = $this->getVisibleBoronganRows(BoronganHarian::query()->whereIn('borongan_import_id', $siblingImportIds)->where('nip', $nip))
+        $harianGrouped = BoronganHarian::whereIn('borongan_import_id', $siblingImportIds)
+            ->where('nip', $nip)
             ->orderBy('tanggal')
             ->get()
             ->groupBy(fn($h) => \Carbon\Carbon::parse($h->tanggal)->format('Y-m-d'));
 
         $rekapRows = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
             ->where('nip', $nip)
-            ->whereIn('nip', $this->getVisibleBoronganNips())
             ->get();
 
         $rekapTotal = [

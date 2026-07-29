@@ -66,6 +66,31 @@ class BoronganHelper
     }
 
     /**
+     * Get per-employee gram totals from ALL borongan_harian rows for a given import,
+     * regardless of employee active status or tl_id.
+     * Used for rekap sync so mutasi/moved employees are still included.
+     * Returns a collection keyed by NIP with total_gram & total_upah.
+     */
+    public static function getPerEmployeeGramAll(int $importId): \Illuminate\Support\Collection
+    {
+        return BoronganHarian::where('borongan_import_id', $importId)
+            ->whereNotNull('nip')
+            ->where('nip', '<>', '')
+            ->get()
+            ->groupBy('nip')
+            ->map(function ($rows) {
+                $first = $rows->first();
+                return [
+                    'nip'         => $first->nip,
+                    'nama'        => $first->nama,
+                    'pin'         => $first->pin,
+                    'total_gram'  => $rows->sum('berat_gram'),
+                    'total_upah'  => $rows->sum('upah_sistem'),
+                ];
+            });
+    }
+
+    /**
      * Get tambahan gram (rows with null/empty NIP) for a given import.
      * These are "extra" gram rows not linked to any specific employee.
      */
@@ -103,7 +128,7 @@ class BoronganHelper
      */
     public static function getTotalGramForImport(int $importId): int
     {
-        $perEmployee = self::getPerEmployeeGram($importId);
+        $perEmployee = self::getPerEmployeeGramAll($importId);
         $tambahan = self::getTambahanGram($importId);
         return $perEmployee->sum('total_gram') + $tambahan;
     }
@@ -128,8 +153,9 @@ class BoronganHelper
         $import->tambahan_gram_notes = !empty($tambahanNotes) ? implode('; ', $tambahanNotes) : null;
         $import->saveQuietly();
 
-        // 2. Per-employee data
-        $perEmployee = self::getPerEmployeeGram($importId);
+        // 2. Per-employee data — include ALL employees from borongan_harian,
+        //    regardless of active status or tl_id (so mutasi employees are included)
+        $perEmployee = self::getPerEmployeeGramAll($importId);
         $currentNips = $perEmployee->keys()->all();
 
         // 3. Delete rekap entries for employees no longer in the data
