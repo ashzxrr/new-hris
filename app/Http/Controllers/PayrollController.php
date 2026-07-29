@@ -289,19 +289,25 @@ class PayrollController extends Controller
             ->where('jenis', 'moulding')
             ->latest()
             ->first();
-        
+
+        $nkkImport = BoronganImport::where('payroll_id', $id)
+            ->where('jenis', 'nkk')
+            ->latest()
+            ->first();
+
         $harianDetailCount = PayrollDetail::where('payroll_id', $id)->count();
 
         $cabutOk = !$cabutImport || $cabutImport->status === 'approved';
         $hcrOk = !$hcrImport || $hcrImport->status === 'approved';
         $mouldingOk = !$mouldingImport || $mouldingImport->status === 'approved';
-        $adaData = boolval($cabutImport || $hcrImport || $mouldingImport || $harianDetailCount > 0);
-        $bisaGenerateGrandTotal = $cabutOk && $hcrOk && $mouldingOk && $payroll->status === 'final' && $adaData;
-        
+        $nkkOk = !$nkkImport || $nkkImport->status === 'approved';
+        $adaData = boolval($cabutImport || $hcrImport || $mouldingImport || $nkkImport || $harianDetailCount > 0);
+        $bisaGenerateGrandTotal = $cabutOk && $hcrOk && $mouldingOk && $nkkOk && $payroll->status === 'final' && $adaData;
+
         $grandTotals = PayrollGrandTotal::where('payroll_id', $id)->orderBy('nama')->get();
         $sudahAdaPengajuan = PayrollPengajuan::where('payroll_id', $id)->exists();
 
-        return view('payroll.show', compact('payroll', 'cabutImport', 'hcrImport', 'mouldingImport', 'harianDetailCount', 'bisaGenerateGrandTotal', 'grandTotals', 'sudahAdaPengajuan', 'periodeTanggal'));
+        return view('payroll.show', compact('payroll', 'cabutImport', 'hcrImport', 'mouldingImport', 'nkkImport', 'harianDetailCount', 'bisaGenerateGrandTotal', 'grandTotals', 'sudahAdaPengajuan', 'periodeTanggal'));
     }
 
     // ========================

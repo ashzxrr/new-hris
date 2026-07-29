@@ -38,6 +38,7 @@
             'cetak' => 'HCR',
             'moulding' => 'Moulding/Cetak',
             'cabut' => 'Cabut',
+            'nkk' => 'NKK',
         ];
     @endphp
     <div class="bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden">

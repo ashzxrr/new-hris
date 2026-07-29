@@ -25,6 +25,7 @@
                     <option value="hcr" {{ request('jenis') === 'hcr' ? 'selected' : '' }}>HCR</option>
                     <option value="cabut" {{ request('jenis') === 'cabut' ? 'selected' : '' }}>Cabut</option>
                     <option value="moulding" {{ request('jenis') === 'moulding' ? 'selected' : '' }}>Moulding/Cetak</option>
+                    <option value="nkk" {{ request('jenis') === 'nkk' ? 'selected' : '' }}>NKK</option>
                 </select>
             </div>
 
@@ -239,7 +240,7 @@ function initializeForm() {
         e.preventDefault();
         console.log('preventDefault called, defaultPrevented:', e.defaultPrevented);
         const jenis = document.querySelector('select[name="jenis"]').value;
-        const jenisLabel = { 'hcr': 'HCR', 'cabut': 'CABUT', 'moulding': 'MOULDING' };
+        const jenisLabel = { 'hcr': 'HCR', 'cabut': 'CABUT', 'moulding': 'MOULDING', 'nkk': 'NKK' };
         const confirm_msg = `⚠️ PERHATIAN!\n\nYakin mau upload jenis: ${jenisLabel[jenis]}?\n\nData ini TERPISAH dari jenis lainnya dan tidak bisa dicampur.\n\nJika salah, gunakan Undo Upload di halaman review.`;
         if (!confirm(confirm_msg)) return;
         submitUploadForm(this, false);

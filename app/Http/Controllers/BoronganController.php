@@ -85,11 +85,11 @@ class BoronganController extends Controller
         }
 
         $request->validate([
-            'jenis'         => 'required|in:hcr,cabut,moulding',
+            'jenis'         => 'required|in:hcr,cabut,moulding,nkk',
             'payroll_id'    => 'nullable|exists:payrolls,id',
             'tanggal_dari'  => 'required|date',
             'tanggal_sampai'=> 'required|date|after_or_equal:tanggal_dari',
-            'file'          => 'required_if:jenis,hcr,cabut|file|mimes:xlsx,xls',
+            'file'          => 'required_if:jenis,hcr,cabut,nkk|file|mimes:xlsx,xls',
             'file_kategori' => 'required_if:jenis,moulding|file|mimes:xlsx,xls',
         ]);
 
@@ -134,6 +134,7 @@ class BoronganController extends Controller
                     'cabut'    => 'Borongan Cabut',
                     'moulding' => 'borongan cetak',
                     'hcr'      => 'Borongan Titil',
+                    'nkk'      => 'Borongan NKK',
                 ];
                 $kategoriGajiTarget = $kategoriGajiMap[$request->jenis] ?? null;
 
@@ -213,8 +214,8 @@ class BoronganController extends Controller
             }
         };
 
-        // HCR / CABUT: single uploaded file may contain many sheets (one sheet = one tanggal)
-        if ($request->jenis === 'hcr' || $request->jenis === 'cabut') {
+        // HCR / CABUT / NKK: single uploaded file may contain many sheets (one sheet = one tanggal)
+        if ($request->jenis === 'hcr' || $request->jenis === 'cabut' || $request->jenis === 'nkk') {
             $file = $request->file('file');
             $spreadsheet = IOFactory::load($file->getRealPath());
             $sheetNames = $spreadsheet->getSheetNames();
@@ -639,6 +640,110 @@ class BoronganController extends Controller
                             'kategori'    => $request->jenis,
                             'berat_gram'  => (int) $totalGram,
                             'upah_sistem' => (int) ($totalGram * $defaultRate),
+                            'upah_file'   => (int) $totalUpah,
+                            'selisih'     => $selisih,
+                            'is_flagged'  => $isFlagged,
+                            'flag_reason' => $flagReason,
+                        ];
+
+                        $totalBarisSheet++;
+                        if ($isFlagged) $totalFlaggedSheet++;
+                    }
+                } elseif ($request->jenis === 'nkk') {
+                    // --- NKK parsing (similar to HCR pattern) ---
+                    $nipCol = null;
+                    $namaCol = null;
+                    $totalUpahCol = null;
+                    $totalGramCol = null;
+                    $headerRowFound = null;
+
+                    $scanHeaderRows = min(4, $highestRow);
+                    for ($r = 1; $r <= $scanHeaderRows; $r++) {
+                        for ($c = 1; $c <= $highestColIndex; $c++) {
+                            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
+                            $val = trim((string) $sheet->getCell($colLetter . $r)->getValue());
+                            $low = strtolower($val);
+
+                            if ($nipCol === null && stripos($low, 'nip') !== false) {
+                                $nipCol = $c;
+                                $headerRowFound = $r;
+                            }
+                            if ($namaCol === null && stripos($low, 'nama') !== false) {
+                                $namaCol = $c;
+                                $headerRowFound = $headerRowFound ?? $r;
+                            }
+                            if ($totalUpahCol === null && (stripos($low, 'total upah') !== false || stripos($low, 'upah') !== false)) {
+                                $totalUpahCol = $c;
+                                $headerRowFound = $headerRowFound ?? $r;
+                            }
+                            if ($totalGramCol === null && (trim($low) === 'total' || stripos($low, 'gram') !== false)) {
+                                $totalGramCol = $c;
+                                $headerRowFound = $headerRowFound ?? $r;
+                            }
+                        }
+                    }
+
+                    $nipCol = $nipCol ?? 2;
+                    $namaCol = $namaCol ?? 3;
+                    $dataStart = $headerRowFound ? $headerRowFound + 1 : 3;
+
+                    if (!$totalUpahCol) {
+                        for ($c = 1; $c <= $highestColIndex; $c++) {
+                            for ($r = 1; $r <= $scanHeaderRows; $r++) {
+                                $val = trim((string) $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c) . $r)->getValue());
+                                if (stripos($val, 'upah') !== false) {
+                                    $totalUpahCol = $c;
+                                    break 2;
+                                }
+                            }
+                        }
+                    }
+
+                    $defaultRate = $rates->first()?->rate_per_gram ?? 20;
+
+                    for ($row = $dataStart; $row <= $highestRow; $row++) {
+                        $nip = trim((string) $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($nipCol) . $row)->getValue());
+                        if ($nip === '' || !preg_match('/^[A-Z0-9\-]+$/i', $nip)) {
+                            $totalSkippedInvalidNip++;
+                            continue;
+                        }
+                        if (strtolower($nip) === 'total') continue;
+
+                        $nama = trim((string) $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($namaCol) . $row)->getValue());
+
+                        $totalUpah = 0;
+                        if ($totalUpahCol) {
+                            $totalUpah = (float) $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalUpahCol) . $row)->getCalculatedValue();
+                        }
+
+                        $totalGram = 0;
+                        if ($totalGramCol) {
+                            $totalGram = (float) $sheet->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalGramCol) . $row)->getCalculatedValue();
+                        }
+
+                        $user = $usersByNip[strtoupper($nip)] ?? null;
+                        $isFlagged = false;
+                        $flagReason = null;
+                        if (!$user) {
+                            $isFlagged = true;
+                            $flagReason = 'NIP tidak ditemukan di master karyawan';
+                        }
+
+                        $upahSistem = (int) ($totalGram * $defaultRate);
+                        $selisih = (int) ($totalUpah - $upahSistem);
+                        if (!$isFlagged && abs($selisih) > 1000) {
+                            $isFlagged = true;
+                            $flagReason = 'Selisih upah: sistem Rp ' . number_format($upahSistem) . ' vs file Rp ' . number_format($totalUpah);
+                        }
+
+                        $parsedDataSheet[] = [
+                            'pin'         => $user->pin ?? null,
+                            'nip'         => $nip,
+                            'nama'        => $user->nama ?? $nama,
+                            'tanggal'     => $tanggalFinal,
+                            'kategori'    => $request->jenis,
+                            'berat_gram'  => (int) $totalGram,
+                            'upah_sistem' => $upahSistem,
                             'upah_file'   => (int) $totalUpah,
                             'selisih'     => $selisih,
                             'is_flagged'  => $isFlagged,

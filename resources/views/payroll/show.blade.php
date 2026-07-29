@@ -208,6 +208,66 @@
             @endif
         </div>
 
+        {{-- Kartu NKK --}}
+        <div class="bg-white rounded-2xl border border-[#E5E7EB] p-5">
+            <h3 class="font-semibold text-slate-800 mb-4">NKK</h3>
+            
+            @if($nkkImport === null)
+                <div class="text-center py-6">
+                    <p class="text-sm text-slate-400 mb-3">Belum ada data</p>
+                    <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'nkk']) }}"
+                        class="pbtn pbtn-primary pbtn-sm">
+                        <span class="pbtn-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                        </span>
+                        <span>Upload</span>
+                    </a>
+                </div>
+            @else
+                <div class="space-y-3">
+                    <div>
+                        <p class="text-xs text-slate-500 mb-1">File</p>
+                        <p class="text-sm font-medium text-slate-700 truncate">{{ $nkkImport->filename }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 mb-1">Status</p>
+                        <div class="flex items-center gap-2">
+                            @if($nkkImport->status === 'approved')
+                                <span class="inline-block bg-[#22C55E]/10 text-[#22C55E] px-2 py-1 rounded-full text-xs font-medium">Approved</span>
+                            @elseif($nkkImport->status === 'reviewed')
+                                <span class="inline-block bg-[#F59E0B]/10 text-[#F59E0B] px-2 py-1 rounded-full text-xs font-medium">Reviewed</span>
+                            @else
+                                <span class="inline-block bg-slate-100 text-slate-600 px-2 py-1 rounded-full text-xs font-medium">Pending</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 pt-3">
+                        <a href="{{ route('borongan.review', $nkkImport->id) }}"
+                            class="flex-1 pbtn pbtn-secondary pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </span>
+                            <span>Review</span>
+                        </a>
+                        <a href="{{ route('borongan.rekapIndex', $nkkImport->id) }}"
+                            class="flex-1 pbtn pbtn-secondary pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                            </span>
+                            <span>Rekap</span>
+                        </a>
+                        <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'nkk', 'revisi' => 1]) }}"
+                            class="flex-1 pbtn pbtn-warning pbtn-sm">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            </span>
+                            <span>Upload Revisi</span>
+                        </a>
+                    </div>
+                </div>
+            @endif
+        </div>
+
         {{-- Kartu Harian --}}
         <div class="bg-white rounded-2xl border border-[#E5E7EB] p-5">
             <h3 class="font-semibold text-slate-800 mb-4">Harian</h3>

@@ -10,6 +10,7 @@
                 'cetak' => 'HCR',
                 'moulding' => 'Moulding/Cetak',
                 'cabut' => 'Cabut',
+                'nkk' => 'NKK',
             ];
         @endphp
         <h1 class="text-xl font-semibold text-slate-800">Review Import — {{ $import->filename }}</h1>

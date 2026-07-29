@@ -8,6 +8,7 @@
                 'cetak' => 'HCR',
                 'moulding' => 'Moulding/Cetak',
                 'cabut' => 'Cabut',
+                'nkk' => 'NKK',
             ];
         @endphp
         <h1 class="text-xl font-semibold text-slate-800">Rekap Borongan — {{ $jenisLabels[$import->jenis] ?? ucfirst($import->jenis) }}</h1>
