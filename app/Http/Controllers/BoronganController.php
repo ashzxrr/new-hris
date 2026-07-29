@@ -1354,20 +1354,53 @@ class BoronganController extends Controller
             'keterangan'    => 'nullable|string|max:255',
         ]);
 
-        $rekap->potongan_bpjs = $request->potongan_bpjs ?? 0;
-        $rekap->potongan_lain = $request->potongan_lain ?? 0;
-        $rekap->tambahan = $request->tambahan ?? 0;
-        $rekap->keterangan = $request->keterangan;
-        $rekap->total_akhir = $rekap->total_upah
-            + $rekap->tambahan
-            - $rekap->potongan_bpjs
-            - $rekap->potongan_lain;
-        $rekap->updated_by = Auth::guard('admin')->id();
-        $rekap->save();
+        $potonganBpjs = $request->potongan_bpjs ?? 0;
+        $potonganLain = $request->potongan_lain ?? 0;
+        $tambahan     = $request->tambahan ?? 0;
+        $keterangan   = $request->keterangan;
+
+        // Find sibling imports (same payroll, same jenis)
+        $import = BoronganImport::find($rekap->borongan_import_id);
+        $siblingImportIds = $import
+            ? BoronganImport::where('payroll_id', $import->payroll_id)
+                ->where('jenis', $import->jenis)
+                ->pluck('id')
+            : collect([$rekap->borongan_import_id]);
+
+        // Update the targeted rekap row with potongan/tambahan values
+        $rekap->potongan_bpjs = $potonganBpjs;
+        $rekap->potongan_lain = $potonganLain;
+        $rekap->tambahan      = $tambahan;
+        $rekap->keterangan    = $keterangan;
+        $rekap->total_akhir   = $rekap->total_upah + $tambahan - $potonganBpjs - $potonganLain;
+        $rekap->updated_by    = Auth::guard('admin')->id();
+        $rekap->saveQuietly();
+
+        // Reset potongan/tambahan on OTHER rows for the same NIP to avoid double-counting
+        $otherRows = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
+            ->where('nip', $rekap->nip)
+            ->where('id', '!=', $rekap->id)
+            ->whereIn('nip', $this->getVisibleBoronganNips())
+            ->get();
+
+        foreach ($otherRows as $row) {
+            $row->potongan_bpjs = 0;
+            $row->potongan_lain = 0;
+            $row->tambahan      = 0;
+            $row->total_akhir   = $row->total_upah;
+            $row->updated_by    = Auth::guard('admin')->id();
+            $row->saveQuietly();
+        }
+
+        // Return the SUM of total_akhir across all rows for this NIP
+        $totalAkhir = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
+            ->where('nip', $rekap->nip)
+            ->whereIn('nip', $this->getVisibleBoronganNips())
+            ->sum('total_akhir');
 
         return response()->json([
             'success'     => true,
-            'total_akhir' => $rekap->total_akhir,
+            'total_akhir' => $totalAkhir,
         ]);
     }
 
