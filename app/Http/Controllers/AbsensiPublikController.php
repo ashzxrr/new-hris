@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AttendanceShiftTrait;
 use App\Models\User;
 use App\Models\AttendanceLog;
 use Illuminate\Http\Request;
 
 class AbsensiPublikController extends Controller
 {
+    use AttendanceShiftTrait;
     public function index()
     {
         $bagianList = User::where('is_active', 1)
@@ -55,7 +57,7 @@ class AbsensiPublikController extends Controller
             ->whereBetween('tanggal', [$tanggalDari, $tanggalSampai])
             ->orderBy('datetime')
             ->get()
-            ->groupBy(fn($l) => $l->pin . '_' . $l->tanggal);
+            ->groupBy(fn($l) => $l->pin . '_' . substr((string) $l->tanggal, 0, 10));
 
         // Generate periode
         $periode = [];
@@ -95,22 +97,30 @@ class AbsensiPublikController extends Controller
                 $key = $user->pin . '_' . $tgl;
                 $dayLogs = $logs[$key] ?? collect();
 
+                // Cross-day shift (security) — logika sama persis dengan absensi index
+                $result = $this->getInOutForDay($user->pin, $tgl, $logs, $user);
+                if ($result['skip'] ?? false) {
+                    continue; // OUT sudah dipakai shift malam hari sebelumnya
+                }
+
+                $inTs = $result['in_ts'] ?? null;
+                $outTs = $result['out_ts'] ?? null;
+                $hasChecklok = $dayLogs->isNotEmpty() || $inTs || $outTs;
+
                 // Minggu tanpa data absensi → tampilkan label libur
-                if ($isSunday && $dayLogs->isEmpty()) {
+                if ($isSunday && !$hasChecklok) {
                     $html .= '<tr class="border-t border-slate-100 bg-yellow-50">';
                     $html .= '<td class="px-3 py-2 text-slate-500">' . $tglDisplay . '</td>';
                     $html .= '<td class="px-3 py-2 text-slate-400" colspan="3"><span class="text-amber-600 font-medium">Minggu / Libur</span></td></tr>';
                     continue;
                 }
 
-                if ($dayLogs->isNotEmpty()) {
+                if ($hasChecklok) {
                     $totalHadir++;
                 }
 
-                $inLog = $dayLogs->first();
-                $outLog = $dayLogs->last();
-                $inTime = $inLog ? date('H:i', strtotime($inLog->datetime)) : '-';
-                $outTime = $outLog ? date('H:i', strtotime($outLog->datetime)) : '-';
+                $inTime = $inTs ? date('H:i', $inTs) : '-';
+                $outTime = $outTs ? date('H:i', $outTs) : '-';
 
                 // Sunday dengan data absensi → tampilkan data, tanpa warna merah
                 if ($isSunday) {
@@ -124,7 +134,7 @@ class AbsensiPublikController extends Controller
                 }
 
                 // Hari biasa tanpa data
-                if ($dayLogs->isEmpty()) {
+                if (!$hasChecklok) {
                     $html .= '<tr class="border-t border-slate-100">';
                     $html .= '<td class="px-3 py-2 text-slate-600">' . $tglDisplay . '</td>';
                     $html .= '<td class="px-3 py-2 text-slate-300">-</td>';
