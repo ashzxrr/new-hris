@@ -86,7 +86,7 @@ class AbsensiPublikController extends Controller
             $html .= '<th class="px-3 py-2 text-left">Status</th>';
             $html .= '</tr></thead><tbody>';
 
-            $hasData = false;
+            $totalHadir = 0;
             foreach ($periode as $tgl) {
                 $dayName = $namaHari[date('l', strtotime($tgl))] ?? '';
                 $tglDisplay = $dayName . ', ' . date('d/m/Y', strtotime($tgl));
@@ -95,22 +95,44 @@ class AbsensiPublikController extends Controller
                 $key = $user->pin . '_' . $tgl;
                 $dayLogs = $logs[$key] ?? collect();
 
-                if ($dayLogs->isEmpty() && !$isSunday) {
-                    continue;
-                }
-                $hasData = true;
-
-                if ($isSunday) {
+                // Minggu tanpa data absensi → tampilkan label libur
+                if ($isSunday && $dayLogs->isEmpty()) {
                     $html .= '<tr class="border-t border-slate-100 bg-yellow-50">';
                     $html .= '<td class="px-3 py-2 text-slate-500">' . $tglDisplay . '</td>';
                     $html .= '<td class="px-3 py-2 text-slate-400" colspan="3"><span class="text-amber-600 font-medium">Minggu / Libur</span></td></tr>';
                     continue;
                 }
 
+                if ($dayLogs->isNotEmpty()) {
+                    $totalHadir++;
+                }
+
                 $inLog = $dayLogs->first();
                 $outLog = $dayLogs->last();
                 $inTime = $inLog ? date('H:i', strtotime($inLog->datetime)) : '-';
                 $outTime = $outLog ? date('H:i', strtotime($outLog->datetime)) : '-';
+
+                // Sunday dengan data absensi → tampilkan data, tanpa warna merah
+                if ($isSunday) {
+                    $html .= '<tr class="border-t border-slate-100 hover:bg-[#F9FBFD]">';
+                    $html .= '<td class="px-3 py-2 text-slate-600">' . $tglDisplay . '</td>';
+                    $html .= '<td class="px-3 py-2 font-semibold text-emerald-600">' . $inTime . '</td>';
+                    $html .= '<td class="px-3 py-2 font-semibold text-slate-600">' . $outTime . '</td>';
+                    $html .= '<td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5">Minggu</span></td>';
+                    $html .= '</tr>';
+                    continue;
+                }
+
+                // Hari biasa tanpa data
+                if ($dayLogs->isEmpty()) {
+                    $html .= '<tr class="border-t border-slate-100">';
+                    $html .= '<td class="px-3 py-2 text-slate-600">' . $tglDisplay . '</td>';
+                    $html .= '<td class="px-3 py-2 text-slate-300">-</td>';
+                    $html .= '<td class="px-3 py-2 text-slate-300">-</td>';
+                    $html .= '<td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-0.5">Tidak Ada</span></td>';
+                    $html .= '</tr>';
+                    continue;
+                }
 
                 $html .= '<tr class="border-t border-slate-100 hover:bg-[#F9FBFD]">';
                 $html .= '<td class="px-3 py-2 text-slate-600">' . $tglDisplay . '</td>';
@@ -120,11 +142,14 @@ class AbsensiPublikController extends Controller
                 $html .= '</tr>';
             }
 
-            if (!$hasData) {
-                $html .= '<tr><td colspan="4" class="px-3 py-6 text-center text-slate-400">Tidak ada data absensi di periode ini.</td></tr>';
-            }
+            $html .= '</tbody></table></div>';
 
-            $html .= '</tbody></table></div></div>';
+            // Total hari masuk
+            $html .= '<div class="px-4 py-2 bg-[#F8FAFC] border-t border-[#E5E7EB] text-xs text-slate-500 flex items-center gap-2">';
+            $html .= '<svg class="w-4 h-4 text-[#567C8D]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+            $html .= 'Total <strong class="text-[#2F4156]">' . $totalHadir . '</strong> hari masuk dari ' . count($periode) . ' hari';
+            $html .= '</div>';
+            $html .= '</div>';
         }
 
         return response()->json(['html' => $html]);

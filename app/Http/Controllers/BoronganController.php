@@ -1785,6 +1785,12 @@ class BoronganController extends Controller
     private function normalizeBuluCategory(string $bulu): string
     {
         $value = strtoupper(trim($bulu));
+
+        // N-KK harus dicek sebelum stripping karakter spesial (hyphen)
+        if (str_contains($value, 'N-KK') || str_contains($value, 'N_KK') || str_contains($value, 'N KK')) {
+            return 'N_KK';
+        }
+
         $value = preg_replace('/[^A-Z0-9 ]+/', '', $value);
 
         if (str_contains($value, 'VIP')) {
@@ -1798,6 +1804,9 @@ class BoronganController extends Controller
         }
         if (str_contains($value, 'BS C') || str_contains($value, 'BSC')) {
             return 'BS_C';
+        }
+        if (str_contains($value, 'NKK')) {
+            return 'NKK';
         }
 
         return 'UNKNOWN';
