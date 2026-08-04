@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\AttendanceShiftTrait;
 use App\Models\AbsenceNote;
 use App\Models\User;
+use App\Services\AttendanceDetailFormatter;
 use App\Services\FingerprintService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -194,10 +196,25 @@ class AbsensiController extends Controller
             }
         }
 
+        $formatter = new AttendanceDetailFormatter();
+        $dayDetailData = [];
+        foreach ($selectedUsers as $pin) {
+            foreach ($periode as $tgl) {
+                $dayKey = $pin . '_' . $tgl;
+                $dayLogs = $logs[$dayKey] ?? collect();
+                $result = $displayData[$dayKey] ?? [];
+                $dayDetailData[$dayKey] = $formatter->buildDayDetail(
+                    $dayLogs,
+                    $result['in_ts'] ?? null,
+                    $result['out_ts'] ?? null
+                );
+            }
+        }
+
         return view('absensi.detail', compact(
             'logs', 'absenceNotes', 'nipData', 'tlMap',
             'selectedUsers', 'tanggalDari', 'tanggalSampai',
-            'periode', 'summary', 'displayData'
+            'periode', 'summary', 'displayData', 'dayDetailData'
         ));
     }
 

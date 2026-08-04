@@ -68,6 +68,7 @@
                         <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">L/P</th>
                         <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Jabatan</th>
                         <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Tanggal</th>
+                        <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Sumber</th>
                         <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">In</th>
                         <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Out</th>
                         <th class="px-4 py-3 text-left text-[11px] font-medium text-[#567C8D] uppercase tracking-wide">Overtime</th>
@@ -109,6 +110,8 @@
                                 $outTs = $result['out_ts'] ?? null;
 
                                 $dayLogs = $logs[$pin . '_' . $tgl] ?? collect();
+                                $dayDetail = $dayDetailData[$pin . '_' . $tgl] ?? [];
+                                $sourceSummary = $dayDetail['source_summary'] ?? '-';
 
                                 $inDisplay = $inTs ? date('H.i', $inTs) : '-';
                                 $outDisplay = $outTs ? date('H.i', $outTs) : '-';
@@ -153,6 +156,7 @@
 
                             <tr class="border-b border-[#EAF1F6] last:border-0 hover:bg-[#F9FBFD] transition-colors detail-row {{ $rowClass }}"
                                 data-pin="{{ $pin }}"
+                                data-date="{{ $tgl }}"
                                 data-nama="{{ strtolower($karyawan->nama ?? '') }}"
                                 data-nip="{{ strtolower($karyawan->nip ?? '') }}"
                                 data-search="{{ strtolower(($karyawan->nama ?? '') . ' ' . ($karyawan->nip ?? '') . ' ' . $pin) }}">
@@ -162,6 +166,16 @@
                                 <td class="px-4 py-3 text-center text-[12px]">{{ $karyawan->jk ?? '-' }}</td>
                                 <td class="px-4 py-3 text-[12px]">{{ $jabatan }}</td>
                                 <td class="px-4 py-3 text-[12px] text-[#567C8D]">{{ $tglDisplay }}</td>
+                                <td class="px-4 py-3 text-[12px]">
+                                    @php
+                                        $sourceBadgeClasses = 'inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium';
+                                        $isMobileSource = str_contains(strtolower($sourceSummary), 'mobile app');
+                                        $sourceBadgeClass = $isMobileSource
+                                            ? $sourceBadgeClasses . ' border-emerald-200 bg-emerald-50 text-emerald-700'
+                                            : $sourceBadgeClasses . ' border-slate-200 bg-slate-50 text-slate-600';
+                                    @endphp
+                                    <span class="{{ $sourceBadgeClass }}">{{ $sourceSummary === '-' ? '—' : $sourceSummary }}</span>
+                                </td>
                                 <td class="px-4 py-3">
                                     @if($inDisplay !== '-')
                                         <span class="text-[#1B7A4A] font-medium">{{ $inDisplay }}</span>
@@ -181,7 +195,7 @@
                                 <td class="px-4 py-3 text-[12px] text-[#8BAFC4]">{{ $tlName }}</td>
                                 <td class="px-4 py-3">
                                     <button type="button" 
-                                        onclick="openSummaryModal('{{ $pin }}')"
+                                        onclick="openSummaryModal('{{ $pin }}', '{{ $tgl }}')"
                                         class="pbtn pbtn-secondary pbtn-sm">
                                         Detail
                                     </button>
@@ -200,7 +214,7 @@
     </div>
 
     <div id="summaryModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[85vh] overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-6xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between mb-5">
                 <h3 class="font-semibold text-slate-800">📋 Ringkasan Absensi Karyawan</h3>
                 <button onclick="closeSummaryModal()" class="text-slate-400 hover:text-slate-600">✕</button>
@@ -224,6 +238,7 @@
     <script>
         const summaryData = @json($summary);
         const nipData = @json($nipJsonData);
+        const dayDetailData = @json($dayDetailData);
         const periodeFrom = '{{ \Carbon\Carbon::parse($tanggalDari)->format("d M Y") }}';
         const periodeTo   = '{{ \Carbon\Carbon::parse($tanggalSampai)->format("d M Y") }}';
 
@@ -321,63 +336,139 @@
             container.appendChild(next);
         }
 
-        function openSummaryModal(pin) {
+        function openSummaryModal(pin, date) {
             const s = summaryData[pin];
             const k = nipData[pin];
             if (!s || !k) return;
 
+            const detail = dayDetailData[pin + '_' + date] || {};
             const content = document.getElementById('summaryContent');
             content.innerHTML = `
-                <div class="bg-slate-50 rounded-xl p-4 mb-4">
-                    <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">👤 Informasi Karyawan</h4>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between"><span class="text-slate-500">PIN</span><span class="font-medium font-mono">${pin}</span></div>
-                        <div class="flex justify-between"><span class="text-slate-500">NIP</span><span class="font-medium">${k.nip || '-'}</span></div>
-                        <div class="flex justify-between"><span class="text-slate-500">Nama</span><span class="font-medium">${k.nama || '-'}</span></div>
-                        <div class="flex justify-between"><span class="text-slate-500">Jenis Kelamin</span><span class="font-medium">${k.jk || '-'}</span></div>
-                        <div class="flex justify-between"><span class="text-slate-500">Jabatan</span><span class="font-medium">${k.job_title || '-'} (${k.job_level || '-'})</span></div>
-                        <div class="flex justify-between"><span class="text-slate-500">Kategori Gaji</span><span class="font-medium">${k.kategori_gaji || '-'}</span></div>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <div class="bg-slate-50 rounded-xl p-4 h-full">
+                            <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">👤 Informasi Karyawan</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between"><span class="text-slate-500">PIN</span><span class="font-medium font-mono">${pin}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">NIP</span><span class="font-medium">${k.nip || '-'}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Nama</span><span class="font-medium">${k.nama || '-'}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Jenis Kelamin</span><span class="font-medium">${k.jk || '-'}</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Jabatan</span><span class="font-medium">${k.job_title || '-'} (${k.job_level || '-'})</span></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Kategori Gaji</span><span class="font-medium">${k.kategori_gaji || '-'}</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                            <div class="font-medium text-slate-700 mb-1">📷 Sumber Absensi</div>
+                            <div>${detail.source_summary || '-'}</div>
+                        </div>
+
+                        ${(() => {
+                            const photoSections = [];
+
+                            const renderPhotoCard = (label, event, isOut = false) => {
+                                const photoUrl = (event && event.photo_url ? event.photo_url : '').trim();
+                                if (!photoUrl) {
+                                    return `
+                                        <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                                            <div class="font-medium text-slate-600 mb-1">${label}</div>
+                                            <div class="text-xs">Tidak ada foto tersedia untuk ${isOut ? 'pulang' : 'masuk'}.</div>
+                                        </div>
+                                    `;
+                                }
+
+                                const fullUrl = photoUrl.startsWith('http://') || photoUrl.startsWith('https://') ? photoUrl : `/${photoUrl.replace(/^\//, '')}`;
+                                return `
+                                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                        <div class="font-medium text-slate-600 mb-2">${label}</div>
+                                        <a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex flex-col gap-2">
+                                            <img src="${fullUrl}" alt="${label} ${k.nama || pin}" class="h-32 w-full rounded-lg object-cover border border-slate-200">
+                                            <span class="text-xs font-medium text-indigo-600">Lihat foto penuh</span>
+                                        </a>
+                                    </div>
+                                `;
+                            };
+
+                            if (detail.in && detail.in.is_mobile_app) {
+                                photoSections.push(renderPhotoCard('Foto Absen Masuk', detail.in, false));
+                            } else if (detail.in && !detail.in.is_mobile_app) {
+                                photoSections.push(`
+                                    <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                                        <div class="font-medium text-slate-600 mb-1">Foto Absen Masuk</div>
+                                        <div class="text-xs">Sumber absensi: ${detail.in.source || '-'}</div>
+                                    </div>
+                                `);
+                            }
+
+                            if (detail.out && detail.out.is_mobile_app) {
+                                photoSections.push(renderPhotoCard('Foto Absen Pulang', detail.out, true));
+                            } else if (detail.out && !detail.out.is_mobile_app) {
+                                photoSections.push(`
+                                    <div class="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                                        <div class="font-medium text-slate-600 mb-1">Foto Absen Pulang</div>
+                                        <div class="text-xs">Sumber absensi: ${detail.out.source || '-'}</div>
+                                    </div>
+                                `);
+                            }
+
+                            if (!photoSections.length) {
+                                return `
+                                    <div class="flex items-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="w-5 h-5">
+                                            <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                                            <circle cx="8.5" cy="10" r="1.6"></circle>
+                                            <path d="M20 18l-4.5-5.5-3 3.5-2.5-3-4 5"></path>
+                                        </svg>
+                                        <span>Tidak ada foto tercatat untuk absensi ini.</span>
+                                    </div>
+                                `;
+                            }
+
+                            return `${photoSections.join('')}`;
+                        })()}
                     </div>
                 </div>
 
-                <div class="mb-4">
-                    <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">📊 Ringkasan Kehadiran</h4>
-                    <p class="text-xs text-slate-400 mb-3">Periode: ${periodeFrom} — ${periodeTo}</p>
-                    <div class="grid grid-cols-4 gap-2">
-                        <div class="bg-green-50 border border-green-100 rounded-xl p-3 text-center">
+                <div class="mt-6 text-center">
+                    <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">📊 Ringkasan Kehadiran</h4>
+                    <p class="text-xs text-slate-400 mb-4">Periode: ${periodeFrom} — ${periodeTo}</p>
+                    <div class="grid grid-cols-3 gap-2 max-w-lg mx-auto">
+                        <div class="bg-green-50 border border-green-100 rounded-lg p-3 text-center">
                             <div class="text-2xl font-bold text-green-600">${s.hadir}</div>
-                            <div class="text-xs text-slate-500 mt-1">Total Hadir</div>
+                            <div class="text-xs text-slate-500 mt-1">Hadir</div>
                         </div>
-                        <div class="bg-amber-50 border border-amber-100 rounded-xl p-3 text-center">
+                        <div class="bg-amber-50 border border-amber-100 rounded-lg p-3 text-center">
                             <div class="text-2xl font-bold text-amber-500">${s.tidak_hadir}</div>
                             <div class="text-xs text-slate-500 mt-1">Tidak Hadir</div>
                         </div>
-                        <div class="bg-red-50 border border-red-100 rounded-xl p-3 text-center">
-                            <div class="text-2xl font-bold text-red-500">${s.codes.A}</div>
-                            <div class="text-xs text-slate-500 mt-1">Alpha (A)</div>
+                        <div class="bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-red-500">${s.codes.A}</div>
+                            <div class="text-xs text-slate-500 mt-1">Alpha</div>
                         </div>
-                        <div class="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
-                            <div class="text-2xl font-bold text-blue-500">${s.codes.S}</div>
-                            <div class="text-xs text-slate-500 mt-1">Sakit (S)</div>
+                        <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-blue-500">${s.codes.S}</div>
+                            <div class="text-xs text-slate-500 mt-1">Sakit</div>
                         </div>
-                        <div class="bg-purple-50 border border-purple-100 rounded-xl p-3 text-center">
-                            <div class="text-2xl font-bold text-purple-500">${s.codes.I}</div>
-                            <div class="text-xs text-slate-500 mt-1">Izin (I)</div>
+                        <div class="bg-purple-50 border border-purple-100 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-purple-500">${s.codes.I}</div>
+                            <div class="text-xs text-slate-500 mt-1">Izin</div>
                         </div>
-                        <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
-                            <div class="text-2xl font-bold text-indigo-500">${s.codes.SSD}</div>
+                        <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-indigo-500">${s.codes.SSD}</div>
                             <div class="text-xs text-slate-500 mt-1">SSD</div>
                         </div>
-                        <div class="bg-teal-50 border border-teal-100 rounded-xl p-3 text-center">
-                            <div class="text-2xl font-bold text-teal-500">${s.codes.Cuti}</div>
+                        <div class="bg-teal-50 border border-teal-100 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-teal-500">${s.codes.Cuti}</div>
                             <div class="text-xs text-slate-500 mt-1">Cuti</div>
                         </div>
-                        <div class="bg-orange-50 border border-orange-100 rounded-xl p-3 text-center">
-                            <div class="text-2xl font-bold text-orange-500">${s.codes.GL}</div>
+                        <div class="bg-orange-50 border border-orange-100 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-orange-500">${s.codes.GL}</div>
                             <div class="text-xs text-slate-500 mt-1">GL</div>
                         </div>
-                        <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center">
-                            <div class="text-2xl font-bold text-slate-500">${s.codes.DLL}</div>
+                        <div class="bg-slate-50 border border-slate-100 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-slate-500">${s.codes.DLL}</div>
                             <div class="text-xs text-slate-500 mt-1">DLL</div>
                         </div>
                     </div>
