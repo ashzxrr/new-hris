@@ -9,39 +9,7 @@
 <div class="mb-4">
     <form method="GET" action="{{ route('id-card.index') }}" id="filterForm">
         <div class="grid grid-cols-3 gap-4">
-            <div class="flex flex-col">
-                <label class="text-xs text-slate-400 uppercase tracking-wide font-semibold block mb-1">Bagian</label>
-                <div class="flex items-center gap-2">
-                    <div class="relative flex-1 max-w-xs">
-                        <input
-                            id="filterBagian"
-                            name="bagian"
-                            list="bagianList"
-                            value="{{ request('bagian') }}"
-                            placeholder="Ketik atau pilih bagian..."
-                            autocomplete="off"
-                            class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition"
-                        >
-                        <datalist id="bagianList">
-                            @foreach($bagianList as $b)
-                                <option value="{{ $b }}">
-                            @endforeach
-                        </datalist>
-                    </div>
-                    <button type="submit"
-                        class="pbtn pbtn-primary pbtn-sm">
-                        <span class="pbtn-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        </span>
-                        <span>Cari</span>
-                    </button>
-                    @if(request('bagian') || request('status_cetak') || request('baru'))
-                        <a href="{{ route('id-card.index') }}" class="pbtn pbtn-ghost pbtn-sm">
-                            <span>Reset</span>
-                        </a>
-                    @endif
-                </div>
-            </div>
+
             <div class="flex flex-col">
                 <label class="text-xs text-slate-400 uppercase tracking-wide font-semibold block mb-1">Status ID Card</label>
                 <select name="status_cetak" onchange="this.form.submit()"
@@ -64,6 +32,12 @@
             </div>
         </div>
     </form>
+</div>
+
+<div class="mb-4">
+    <input id="searchInput" type="text" placeholder="Cari nama, NIP, atau bagian..."
+        class="w-full bg-[#F8FAFC] border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm text-slate-700"
+    />
 </div>
 
 {{-- Form Export --}}
@@ -136,82 +110,121 @@
 
 @push('scripts')
 <script>
+    const searchInput = document.getElementById('searchInput');
     const selectAll = document.getElementById('selectAll');
-    const checkboxes = document.querySelectorAll('.row-checkbox');
-    const rows = document.querySelectorAll('.idcard-row');
+    const checkboxes = Array.from(document.querySelectorAll('.row-checkbox'));
+    const rows = Array.from(document.querySelectorAll('.idcard-row'));
     const selectedCount = document.getElementById('selectedCount');
-    let lastCheckedIndex = null;
+    const selectedIds = new Set();
+    let lastCheckedRow = null;
 
-    function syncUI() {
-        let checkedCount = 0;
-        let allChecked = true;
-        checkboxes.forEach((cb, i) => {
-            if (cb.checked) {
-                checkedCount++;
-                rows[i].classList.add('checked');
-            } else {
-                allChecked = false;
-                rows[i].classList.remove('checked');
-            }
-        });
-        selectAll.checked = allChecked && checkboxes.length > 0;
-        selectedCount.textContent = checkedCount + ' karyawan dipilih';
+    function getVisibleRows() {
+        return rows.filter(row => row.style.display !== 'none');
     }
 
-    function toggleCheck(cb, state) {
-        if (state === undefined) state = !cb.checked;
+    function getVisibleCheckboxes() {
+        return getVisibleRows().map(row => row.querySelector('.row-checkbox')).filter(Boolean);
+    }
+
+    function updateSelectAllState() {
+        const visible = getVisibleCheckboxes();
+        const checkedVisible = visible.filter(cb => cb.checked).length;
+        selectAll.checked = visible.length > 0 && checkedVisible === visible.length;
+        selectAll.indeterminate = checkedVisible > 0 && checkedVisible < visible.length;
+    }
+
+    function updateSelectedCount() {
+        selectedCount.textContent = selectedIds.size + ' karyawan dipilih';
+        updateSelectAllState();
+    }
+
+    function setCheckboxState(cb, state) {
         cb.checked = state;
-        syncUI();
+        const row = cb.closest('.idcard-row');
+        if (row) row.classList.toggle('checked', state);
+        if (state) {
+            selectedIds.add(cb.value);
+        } else {
+            selectedIds.delete(cb.value);
+        }
     }
 
-    // Select All
-    selectAll.addEventListener('change', function() {
-        checkboxes.forEach(cb => cb.checked = this.checked);
-        syncUI();
+    function syncSelectionFromState() {
+        checkboxes.forEach(cb => {
+            const state = selectedIds.has(cb.value);
+            cb.checked = state;
+            const row = cb.closest('.idcard-row');
+            if (row) row.classList.toggle('checked', state);
+        });
+        updateSelectAllState();
+    }
+
+    function filterRows() {
+        const q = searchInput?.value.toLowerCase().trim() || '';
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = q === '' || text.includes(q) ? '' : 'none';
+        });
+        syncSelectionFromState();
+    }
+
+    function toggleSelectAllVisible() {
+        const visible = getVisibleCheckboxes();
+        const allChecked = visible.length > 0 && visible.every(cb => cb.checked);
+        visible.forEach(cb => setCheckboxState(cb, !allChecked));
+    }
+
+    selectAll?.addEventListener('change', function() {
+        getVisibleCheckboxes().forEach(cb => setCheckboxState(cb, this.checked));
     });
 
-    // Checkbox change
-    checkboxes.forEach((cb, i) => {
+    checkboxes.forEach(cb => {
         cb.addEventListener('change', function(e) {
             e.stopPropagation();
-            syncUI();
+            setCheckboxState(this, this.checked);
+            updateSelectAllState();
         });
     });
 
-    // Click row = toggle checkbox
-    rows.forEach((row, i) => {
+    rows.forEach(row => {
         row.addEventListener('click', function(e) {
-            // Abaikan jika klik di dalam checkbox itu sendiri
             if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') return;
+            const cb = row.querySelector('.row-checkbox');
+            if (!cb) return;
 
-            const cb = checkboxes[i];
-
-            // Shift-click: range select
-            if (e.shiftKey && lastCheckedIndex !== null && lastCheckedIndex !== i) {
-                const start = Math.min(lastCheckedIndex, i);
-                const end = Math.max(lastCheckedIndex, i);
-                const targetState = checkboxes[lastCheckedIndex].checked;
-                for (let j = start; j <= end; j++) {
-                    checkboxes[j].checked = targetState;
+            if (e.shiftKey && lastCheckedRow && lastCheckedRow !== row) {
+                const visible = getVisibleRows();
+                const start = visible.indexOf(lastCheckedRow);
+                const end = visible.indexOf(row);
+                if (start !== -1 && end !== -1) {
+                    const targetState = lastCheckedRow.querySelector('.row-checkbox')?.checked || false;
+                    const [from, to] = start < end ? [start, end] : [end, start];
+                    for (let i = from; i <= to; i++) {
+                        const rangeCb = visible[i].querySelector('.row-checkbox');
+                        if (rangeCb) setCheckboxState(rangeCb, targetState);
+                    }
+                    lastCheckedRow = row;
+                    return;
                 }
-                syncUI();
-                return;
             }
 
-            // Normal click: toggle
-            toggleCheck(cb);
-            lastCheckedIndex = i;
+            setCheckboxState(cb, !cb.checked);
+            lastCheckedRow = row;
         });
     });
 
-    // Auto-submit filter on Enter
-    document.getElementById('filterBagian').addEventListener('keydown', function(e) {
+    searchInput?.addEventListener('input', filterRows);
+
+    document.getElementById('filterBagian')?.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             this.form.submit();
         }
     });
 
-    syncUI();
+    window.addEventListener('load', function() {
+        syncSelectionFromState();
+        filterRows();
+    });
 </script>
 @endpush
