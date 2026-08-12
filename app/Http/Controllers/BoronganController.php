@@ -449,7 +449,7 @@ class BoronganController extends Controller
                         if ($gramStr === '-' || $gramStr === '' || strtolower($gramStr) === 'null') {
                             $totalGram = 0;
                         } else {
-                            $totalGram = is_numeric($gramRaw) ? (int) $gramRaw : (int) preg_replace('/[^0-9.-]/', '', $gramStr);
+                            $totalGram = is_numeric($gramRaw) ? (float) $gramRaw : (float) preg_replace('/[^0-9.-]/', '', $gramStr);
                         }
 
                         $upahStr = trim((string) $upahRaw);
@@ -638,7 +638,7 @@ class BoronganController extends Controller
                             'nama'        => $user->nama ?? $nama,
                             'tanggal'     => $tanggalFinal,
                             'kategori'    => $request->jenis,
-                            'berat_gram'  => (int) $totalGram,
+                            'berat_gram'  => $totalGram,
                             'upah_sistem' => (int) ($totalGram * $defaultRate),
                             'upah_file'   => (int) $totalUpah,
                             'selisih'     => $selisih,
@@ -742,7 +742,7 @@ class BoronganController extends Controller
                             'nama'        => $user->nama ?? $nama,
                             'tanggal'     => $tanggalFinal,
                             'kategori'    => $request->jenis,
-                            'berat_gram'  => (int) $totalGram,
+                            'berat_gram'  => $totalGram,
                             'upah_sistem' => $upahSistem,
                             'upah_file'   => (int) $totalUpah,
                             'selisih'     => $selisih,
@@ -903,10 +903,15 @@ class BoronganController extends Controller
 
                 for ($c = 1; $c <= $highestColIndex1; $c++) {
                     $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
-                    $headerValRow3 = trim((string) $sheet1->getCell($col . $headerRow3)->getValue());
-                    $headerValRow1 = trim((string) $sheet1->getCell($col . '1')->getValue());
+                    $useHeader = '';
+                    for ($hr = $headerRow3; $hr >= 1; $hr--) {
+                        $value = trim((string) $sheet1->getCell($col . $hr)->getValue());
+                        if ($value !== '') {
+                            $useHeader = $value;
+                            break;
+                        }
+                    }
 
-                    $useHeader = $headerValRow3 !== '' ? $headerValRow3 : $headerValRow1;
                     $headerLower = trim(strtolower(preg_replace('/\s+/', ' ', $useHeader)));
                     $headerKey = preg_replace('/[^a-z0-9\s]/', ' ', $headerLower);
                     $headerKey = trim(preg_replace('/\s+/', ' ', $headerKey));
@@ -922,6 +927,10 @@ class BoronganController extends Controller
 
                     if (isset($categoryAliases[$headerKey])) {
                         $categoryColumns[$categoryAliases[$headerKey]] = $c;
+                    } elseif (str_contains($headerKey, 'gpu') && str_contains($headerKey, 'rendaman')) {
+                        $categoryColumns['gpu rendaman'] = $c;
+                    } elseif (str_contains($headerKey, 'gpu') && str_contains($headerKey, 'normal')) {
+                        $categoryColumns['gpu normal'] = $c;
                     }
                 }
 
@@ -944,7 +953,7 @@ class BoronganController extends Controller
                     $categoriesGram = [];
                     $totalGramRow = 0;
                     foreach ($categoryColumns as $catName => $colIdx) {
-                        $gramVal = (int) $sheet1->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx) . $row)->getCalculatedValue();
+                        $gramVal = (float) $sheet1->getCell(\PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx) . $row)->getCalculatedValue();
                         if ($gramVal > 0) {
                             $categoriesGram[$catName] = $gramVal;
                             $totalGramRow += $gramVal;
@@ -1055,7 +1064,7 @@ class BoronganController extends Controller
         $rows = $this->getVisibleBoronganRows(BoronganHarian::query()->where('borongan_import_id', $id))->get();
 
         $allKategori = $rows->pluck('kategori')->unique()->sort()->values();
-        $grouped = $rows->groupBy('nip');
+        $grouped = $rows->groupBy(fn($item) => strtoupper(trim((string) $item->nip)));
 
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -1111,11 +1120,11 @@ class BoronganController extends Controller
             ->whereNotNull('nip')
             ->where('nip', '<>', '')
             ->get()
-            ->groupBy('nip')
-            ->map(function ($rows) {
+            ->groupBy(fn($item) => strtoupper(trim((string) $item->nip)))
+            ->map(function ($rows, $nip) {
                 $first = $rows->first();
                 return [
-                    'nip'         => $first->nip,
+                    'nip'         => $nip,
                     'nama'        => $first->nama,
                     'total_gram'  => $rows->sum('berat_gram'),
                     'total_upah'  => $rows->sum('upah_sistem'),
@@ -1185,7 +1194,7 @@ class BoronganController extends Controller
         $import = BoronganImport::findOrFail($id);
 
         $rows = BoronganHarian::where('borongan_import_id', $id)
-            ->where('nip', $nip)
+            ->whereRaw('TRIM(UPPER(nip)) = ?', [trim(strtoupper($nip))])
             ->orderBy('tanggal')
             ->orderBy('kategori')
             ->get();
@@ -1232,6 +1241,16 @@ class BoronganController extends Controller
         ]);
 
         $harian = BoronganHarian::findOrFail($request->harian_id);
+        $emptyFlagReasons = [
+            'Tidak ada data pada tanggal ini',
+            'User aktif di bagian Moulding, tidak ditemukan di file',
+        ];
+        if ($harian->berat_gram == 0 && $harian->upah_file == 0 && in_array($harian->flag_reason, $emptyFlagReasons, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak dapat mengubah upah untuk karyawan tanpa transaksi. Gunakan hapus atau konfirmasi kosong.',
+            ], 422);
+        }
         $upahSistem = intval($request->upah_sistem);
         $potongan = max(0, intval($harian->upah_file - $upahSistem));
 
@@ -1274,7 +1293,7 @@ class BoronganController extends Controller
     {
         $request->validate([
             'tanggal' => 'required|date',
-            'berat_gram' => 'required|integer|min:1',
+            'berat_gram' => 'required|numeric|min:0.01',
             'gram_note' => 'nullable|string|max:255',
         ]);
 
@@ -1287,7 +1306,7 @@ class BoronganController extends Controller
             'nama' => null,
             'tanggal' => $request->tanggal,
             'kategori' => 'Tambahan',
-            'berat_gram' => intval($request->berat_gram),
+            'berat_gram' => (float) $request->berat_gram,
             'gram_note' => $request->gram_note,
             'upah_sistem' => 0,
             'upah_file' => 0,
@@ -1366,10 +1385,21 @@ class BoronganController extends Controller
         $skipped = [];
 
         foreach ($request->nips as $nip) {
-            $rows = BoronganHarian::where('borongan_import_id', $id)->where('nip', $nip)->get();
+            $rows = BoronganHarian::where('borongan_import_id', $id)
+                ->whereRaw('TRIM(UPPER(nip)) = ?', [trim(strtoupper($nip))])
+                ->get();
 
             if ($rows->count() !== 1) {
                 $skipped[] = $nip; // multi-kategori, jangan sentuh
+                continue;
+            }
+            $harian = $rows->first();
+            $emptyFlagReasons = [
+                'Tidak ada data pada tanggal ini',
+                'User aktif di bagian Moulding, tidak ditemukan di file',
+            ];
+            if ($harian->berat_gram == 0 && $harian->upah_file == 0 && in_array($harian->flag_reason, $emptyFlagReasons, true)) {
+                $skipped[] = $nip;
                 continue;
             }
 

@@ -113,10 +113,10 @@
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Total Gram</div>
-            <div class="text-xl font-bold text-slate-800">{{ number_format($items->sum('total_gram') + ($additionalGram ?? 0)) }}</div>
+            <div class="text-xl font-bold text-slate-800">{{ \App\Helpers\BoronganHelper::formatGram($items->sum('total_gram') + ($additionalGram ?? 0)) }}</div>
             <div class="text-xs text-slate-500 mt-1 additional-gram-note">
                 @if(!empty($additionalGram))
-                    Termasuk {{ number_format($additionalGram) }} gram tambahan
+                    Termasuk {{ \App\Helpers\BoronganHelper::formatGram($additionalGram) }} gram tambahan
                     @php
                         $tambahanNotes = \App\Helpers\BoronganHelper::getTambahanGramNotes($import->id);
                     @endphp
@@ -214,7 +214,7 @@
                             {{ $item['nama'] }}
                         </button>
                     </td>
-                    <td class="px-4 py-3 text-right text-slate-600">{{ number_format($item['total_gram']) }}</td>
+                    <td class="px-4 py-3 text-right text-slate-600">{{ \App\Helpers\BoronganHelper::formatGram($item['total_gram']) }}</td>
                     <td class="px-4 py-3 text-right font-medium text-slate-800">Rp {{ number_format($item['total_upah'], 0, ',', '.') }}</td>
                     <td class="px-4 py-3 text-center">
                         @php
@@ -327,7 +327,7 @@
             </div>
             <div>
                 <label class="text-xs text-slate-500 mb-1 block">Gram Tambahan</label>
-                <input id="addGramBerat" type="number" min="1" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm" placeholder="Mis. 100" required />
+                <input id="addGramBerat" type="number" step="0.01" min="0.01" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm" placeholder="Mis. 100" required />
             </div>
             <div class="flex justify-end gap-2 pt-2">
                 <button type="button" onclick="closeAddGramModal()" class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">Batal</button>
@@ -568,7 +568,14 @@ function updateUpahSistem(harianId, newUpahSistem, importId) {
 let sortAscending = null; // null = default order, true = ascending, false = descending
 
 function parseIdNumber(value) {
-    return parseInt(value.toString().replace(/[^0-9-]/g, '')) || 0;
+    const stringValue = value.toString().trim();
+    const cleaned = stringValue.replace(/[^0-9,\.\-]/g, '');
+    if (!cleaned) {
+        return 0;
+    }
+    const normalized = cleaned.replace(/\./g, '').replace(/,/g, '.');
+    const parsed = parseFloat(normalized);
+    return Number.isNaN(parsed) ? 0 : parsed;
 }
 
 function showToast(message, type = 'success') {
@@ -730,7 +737,7 @@ function submitAddGramForm(event) {
     if (!importId) return;
 
     const tanggal = document.getElementById('addGramTanggal').value;
-    const beratGram = parseInt(document.getElementById('addGramBerat').value) || 0;
+    const beratGram = parseFloat(document.getElementById('addGramBerat').value) || 0;
     const gramNote = document.getElementById('addGramNote').value || null;
 
     if (!tanggal || beratGram <= 0) {

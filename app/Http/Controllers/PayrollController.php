@@ -1083,7 +1083,7 @@ class PayrollController extends Controller
                 $tambahanGram = BoronganImport::whereIn('id', $importIdsForSection)
                     ->sum('tambahan_gram');
                 $totalGram = $totalGramRekap + $tambahanGram;
-                $qtyText = 'QTY ' . strtoupper($label) . ' ' . number_format($totalGram, 0, ',', '.');
+                $qtyText = 'QTY ' . strtoupper($label) . ' ' . \App\Helpers\BoronganHelper::formatGram($totalGram);
             }
             $nominal = $members->sum('total_akhir');
 
@@ -1115,7 +1115,7 @@ class PayrollController extends Controller
                 $tambahanGram = BoronganImport::whereIn('id', $importIdsForSection)
                     ->sum('tambahan_gram');
                 $totalGram = $totalGramRekap + $tambahanGram;
-                $qtyText = 'QTY ' . strtoupper($label) . ' ' . number_format($totalGram, 0, ',', '.');
+                $qtyText = 'QTY ' . strtoupper($label) . ' ' . \App\Helpers\BoronganHelper::formatGram($totalGram);
             }
             $nominal = $members->sum('total_akhir');
 
@@ -1691,7 +1691,7 @@ class PayrollController extends Controller
             $allTambahanNotes = array_unique($allTambahanNotes);
 
             // Build nama: include total gram and notes
-            $namaTambahan = 'Gram Tambahan: ' . number_format($totalTambahanGram) . ' gram';
+            $namaTambahan = 'Gram Tambahan: ' . \App\Helpers\BoronganHelper::formatGram($totalTambahanGram) . ' gram';
             if (!empty($allTambahanNotes)) {
                 $namaTambahan .= ' (' . implode(', ', $allTambahanNotes) . ')';
             }

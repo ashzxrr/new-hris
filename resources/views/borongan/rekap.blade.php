@@ -33,10 +33,10 @@
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Total Gram</div>
-            <div class="text-xl font-bold text-slate-800">{{ number_format($rekaps->sum('total_gram') + ($tambahanGram ?? 0)) }}</div>
+            <div class="text-xl font-bold text-slate-800">{{ \App\Helpers\BoronganHelper::formatGram($rekaps->sum('total_gram') + ($tambahanGram ?? 0)) }}</div>
             @if(!empty($tambahanGram))
                 <div class="text-xs text-slate-500 mt-1">
-                    Termasuk {{ number_format($tambahanGram) }} gram tambahan
+                    Termasuk {{ \App\Helpers\BoronganHelper::formatGram($tambahanGram) }} gram tambahan
                     @if(!empty($tambahanGramNotes))
                         <div class="text-xs text-slate-400 mt-0.5">
                             @foreach(explode('; ', $tambahanGramNotes) as $note)
@@ -93,7 +93,7 @@
                             {{ $r->nama }}
                         </button>
                     </td>
-                    <td class="px-4 py-3 text-right text-slate-600">{{ number_format($r->total_gram) }}</td>
+                    <td class="px-4 py-3 text-right text-slate-600">{{ \App\Helpers\BoronganHelper::formatGram($r->total_gram) }}</td>
                     <td class="px-4 py-3 text-right text-slate-700">Rp {{ number_format($r->total_upah, 0, ',', '.') }}</td>
                     <td class="px-4 py-3 text-right text-red-500" id="bpjs-{{ $r->rekap_id }}">
                         {{ $r->potongan_bpjs > 0 ? 'Rp ' . number_format($r->potongan_bpjs, 0, ',', '.') : '-' }}

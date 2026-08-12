@@ -27,7 +27,7 @@ class BoronganHelper
         }
 
         return $query->pluck('nip')
-            ->map(fn ($nip) => trim((string) $nip))
+            ->map(fn ($nip) => strtoupper(trim((string) $nip)))
             ->filter()
             ->unique()
             ->values()
@@ -52,11 +52,11 @@ class BoronganHelper
             ->whereNotNull('nip')
             ->where('nip', '<>', '')
             ->get()
-            ->groupBy('nip')
-            ->map(function ($rows) {
+            ->groupBy(fn ($item) => strtoupper(trim((string) $item->nip)))
+            ->map(function ($rows, $nip) {
                 $first = $rows->first();
                 return [
-                    'nip'         => $first->nip,
+                    'nip'         => $nip,
                     'nama'        => $first->nama,
                     'pin'         => $first->pin,
                     'total_gram'  => $rows->sum('berat_gram'),
@@ -77,11 +77,11 @@ class BoronganHelper
             ->whereNotNull('nip')
             ->where('nip', '<>', '')
             ->get()
-            ->groupBy('nip')
-            ->map(function ($rows) {
+            ->groupBy(fn ($item) => strtoupper(trim((string) $item->nip)))
+            ->map(function ($rows, $nip) {
                 $first = $rows->first();
                 return [
-                    'nip'         => $first->nip,
+                    'nip'         => $nip,
                     'nama'        => $first->nama,
                     'pin'         => $first->pin,
                     'total_gram'  => $rows->sum('berat_gram'),
@@ -94,7 +94,7 @@ class BoronganHelper
      * Get tambahan gram (rows with null/empty NIP) for a given import.
      * These are "extra" gram rows not linked to any specific employee.
      */
-    public static function getTambahanGram(int $importId): int
+    public static function getTambahanGram(int $importId): float
     {
         return BoronganHarian::where('borongan_import_id', $importId)
             ->where(function ($q) {
@@ -126,11 +126,17 @@ class BoronganHelper
     /**
      * Get total gram for an import including both per-employee and tambahan rows.
      */
-    public static function getTotalGramForImport(int $importId): int
+    public static function getTotalGramForImport(int $importId): float
     {
         $perEmployee = self::getPerEmployeeGramAll($importId);
         $tambahan = self::getTambahanGram($importId);
         return $perEmployee->sum('total_gram') + $tambahan;
+    }
+
+    public static function formatGram(mixed $gram): string
+    {
+        $value = (float) $gram;
+        return rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',');
     }
 
     /**
@@ -201,7 +207,7 @@ class BoronganHelper
     /**
      * Get payroll-level total gram (rekap + tambahan) for a set of import IDs.
      */
-    public static function getTotalGramForImports(array $importIds): int
+    public static function getTotalGramForImports(array $importIds): float
     {
         $rekapGram = BoronganRekap::whereIn('borongan_import_id', $importIds)
             ->sum('total_gram');

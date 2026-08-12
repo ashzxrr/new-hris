@@ -188,7 +188,7 @@ class KaryawanController extends Controller
                 'bagian'        => $fields['bagian'] ?? $user->bagian,
                 'departemen'    => $fields['departemen'] ?? $user->departemen,
                 'kategori_gaji' => $fields['kategori_gaji'] ?? $user->kategori_gaji,
-                'tl_id'         => !empty($fields['tl_id']) ? $fields['tl_id'] : $user->tl_id,
+                'tl_id'         => isset($fields['tl_id']) && $fields['tl_id'] !== '' ? $fields['tl_id'] : null,
             ]);
         }
 

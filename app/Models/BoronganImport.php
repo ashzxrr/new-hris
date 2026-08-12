@@ -13,6 +13,7 @@ class BoronganImport extends Model
     protected $casts = [
         'tanggal_dari'   => 'date',
         'tanggal_sampai' => 'date',
+        'tambahan_gram'  => 'float',
     ];
     
     public function payroll()

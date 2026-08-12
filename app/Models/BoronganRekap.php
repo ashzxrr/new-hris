@@ -19,6 +19,7 @@ class BoronganRekap extends Model
     protected $casts = [
         'periode_dari'   => 'date',
         'periode_sampai' => 'date',
+        'total_gram'     => 'float',
     ];
 
     public function import()

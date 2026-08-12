@@ -12,6 +12,7 @@ class BoronganHarian extends Model
     ];
     protected $casts = [
         'tanggal'    => 'date',
+        'berat_gram' => 'float',
         'is_flagged' => 'boolean',
     ];
     public function import()
