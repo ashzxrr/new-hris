@@ -113,7 +113,7 @@
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Total Gram</div>
-            <div class="text-xl font-bold text-slate-800">{{ \App\Helpers\BoronganHelper::formatGram($items->sum('total_gram') + ($additionalGram ?? 0)) }}</div>
+            <div class="text-xl font-bold text-slate-800">{{ \App\Helpers\BoronganHelper::formatGram($totalGramForImport) }}</div>
             <div class="text-xs text-slate-500 mt-1 additional-gram-note">
                 @if(!empty($additionalGram))
                     Termasuk {{ \App\Helpers\BoronganHelper::formatGram($additionalGram) }} gram tambahan

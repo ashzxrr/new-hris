@@ -135,6 +135,31 @@ class BoronganHelper
 
     public static function formatGram(mixed $gram): string
     {
+        if ($gram === null || $gram === '') {
+            return '0';
+        }
+
+        // Prefer bc math to avoid floating-point rounding issues when summing many decimals.
+        $s = is_string($gram) ? $gram : (string) $gram;
+
+        if (function_exists('bcadd')) {
+            // Normalize and produce a string with exactly 2 decimal digits (no rounding surprises)
+            $normalized = bcadd($s, '0', 2);
+            // Trim trailing zeros and trailing dot
+            $normalized = rtrim(rtrim($normalized, '0'), '.');
+
+            // Split integer and decimals for Indonesian formatting
+            if (strpos($normalized, '.') !== false) {
+                [$int, $dec] = explode('.', $normalized, 2);
+            } else {
+                $int = $normalized;
+                $dec = null;
+            }
+
+            $intFormatted = number_format((int) $int, 0, ',', '.');
+            return $dec ? $intFormatted . ',' . $dec : $intFormatted;
+        }
+
         $value = (float) $gram;
         return rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',');
     }
@@ -209,12 +234,9 @@ class BoronganHelper
      */
     public static function getTotalGramForImports(array $importIds): float
     {
-        $rekapGram = BoronganRekap::whereIn('borongan_import_id', $importIds)
-            ->sum('total_gram');
-
-        $tambahanGram = BoronganImport::whereIn('id', $importIds)
-            ->sum('tambahan_gram');
-
-        return $rekapGram + $tambahanGram;
+        // Compute total gram directly from borongan_harian (raw berat_gram decimals)
+        // This ensures displayed totals use the original decimal grams (same as upah calculation)
+        return (float) BoronganHarian::whereIn('borongan_import_id', $importIds)
+            ->sum('berat_gram');
     }
 }

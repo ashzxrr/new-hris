@@ -1115,29 +1115,27 @@ class BoronganController extends Controller
             ->get();
         $pendingMutasi = $this->detectMutasi($import->payroll_id);
         
-        // Group by NIP, aggregate total gram & upah, flag jika ada yg flagged
-        $items = BoronganHarian::where('borongan_import_id', $id)
+        // Group by NIP — perform aggregation in the database to avoid PHP float rounding
+        $agg = BoronganHarian::selectRaw(
+            "UPPER(TRIM(nip)) as nip_key, MAX(nama) as nama, SUM(berat_gram) as total_gram, SUM(upah_sistem) as total_upah, SUM(CASE WHEN is_flagged = 1 THEN 1 ELSE 0 END) as flag_count, SUM(CASE WHEN flag_reason IN ('Tidak ada data pada tanggal ini','User aktif di bagian Moulding, tidak ditemukan di file') THEN 1 ELSE 0 END) as kosong_count"
+        )
+            ->where('borongan_import_id', $id)
             ->whereNotNull('nip')
             ->where('nip', '<>', '')
-            ->get()
-            ->groupBy(fn($item) => strtoupper(trim((string) $item->nip)))
-            ->map(function ($rows, $nip) {
-                $first = $rows->first();
-                return [
-                    'nip'         => $nip,
-                    'nama'        => $first->nama,
-                    'total_gram'  => $rows->sum('berat_gram'),
-                    'total_upah'  => $rows->sum('upah_sistem'),
-                    'is_flagged'  => $rows->contains('is_flagged', true),
-                    'flag_count'  => $rows->where('is_flagged', true)->count(),
-                    'is_kosong'   => $rows->contains(fn($r) => in_array($r->flag_reason, [
-                    'Tidak ada data pada tanggal ini',
-                    'User aktif di bagian Moulding, tidak ditemukan di file',
-                ])),
-                ];
-            })
-            ->sortBy('nama')
-            ->values();
+            ->groupBy('nip_key')
+            ->get();
+
+        $items = $agg->map(function ($row) {
+            return [
+                'nip'         => $row->nip_key,
+                'nama'        => $row->nama,
+                'total_gram'  => (float) $row->total_gram,
+                'total_upah'  => (int) $row->total_upah,
+                'is_flagged'  => ((int) $row->flag_count) > 0,
+                'flag_count'  => (int) $row->flag_count,
+                'is_kosong'   => ((int) $row->kosong_count) > 0,
+            ];
+        })->sortBy('nama')->values();
 
         $additionalGram = BoronganHarian::where('borongan_import_id', $id)
             ->where(function ($q) {
@@ -1146,8 +1144,12 @@ class BoronganController extends Controller
             })
             ->sum('berat_gram');
 
+        // Compute total gram for this import directly from borongan_harian to avoid
+        // any previously-rounded rekap values.
+        $totalGramForImport = \App\Helpers\BoronganHelper::getTotalGramForImport($id);
+
         $payrollId = $import->payroll_id;
-        return view('borongan.review', compact('import', 'items', 'payrollId', 'pendingMutasi', 'siblingImports', 'additionalGram'));
+        return view('borongan.review', compact('import', 'items', 'payrollId', 'pendingMutasi', 'siblingImports', 'additionalGram', 'totalGramForImport'));
     }
 
     public function bulkHapusKosong(Request $request, $id)
@@ -1551,6 +1553,14 @@ class BoronganController extends Controller
             ->orderBy('nama')
             ->get();
 
+        // Ensure total_gram reflects the raw decimal grams from borongan_harian
+        // (some historical BoronganRekap rows may have been stored rounded).
+        foreach ($rekaps as $r) {
+            $r->total_gram = (float) BoronganHarian::whereIn('borongan_import_id', $siblingImportIds)
+                ->where('nip', $r->nip)
+                ->sum('berat_gram');
+        }
+
         // Include tambahan gram and notes from imports (rows without NIP)
         $tambahanGram = BoronganImport::whereIn('id', $siblingImportIds)
             ->sum('tambahan_gram');
@@ -1561,7 +1571,9 @@ class BoronganController extends Controller
             ->implode('; ');
 
         $payrollId = $import->payroll_id;
-        return view('borongan.rekap', compact('import', 'rekaps', 'payrollId', 'tambahanGram', 'tambahanGramNotes'));
+        // Compute total gram across sibling imports from borongan_harian to ensure decimals
+        $totalGram = \App\Helpers\BoronganHelper::getTotalGramForImports($siblingImportIds->toArray());
+        return view('borongan.rekap', compact('import', 'rekaps', 'payrollId', 'tambahanGram', 'tambahanGramNotes', 'totalGram'));
     }
 
     public function getDetail(Request $request, $id, $nip)
@@ -1583,7 +1595,10 @@ class BoronganController extends Controller
             ->get();
 
         $rekapTotal = [
-            'total_gram' => $rekapRows->sum('total_gram'),
+            // Use raw borongan_harian sums for gram so decimals are preserved
+            'total_gram' => (float) BoronganHarian::whereIn('borongan_import_id', $siblingImportIds)
+                ->where('nip', $nip)
+                ->sum('berat_gram'),
             'total_upah' => $rekapRows->sum('total_upah'),
             'potongan_bpjs' => $rekapRows->sum('potongan_bpjs'),
             'potongan_lain' => $rekapRows->sum('potongan_lain'),

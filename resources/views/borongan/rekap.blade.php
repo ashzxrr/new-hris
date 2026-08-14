@@ -33,7 +33,7 @@
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Total Gram</div>
-            <div class="text-xl font-bold text-slate-800">{{ \App\Helpers\BoronganHelper::formatGram($rekaps->sum('total_gram') + ($tambahanGram ?? 0)) }}</div>
+            <div class="text-xl font-bold text-slate-800">{{ \App\Helpers\BoronganHelper::formatGram($totalGram) }}</div>
             @if(!empty($tambahanGram))
                 <div class="text-xs text-slate-500 mt-1">
                     Termasuk {{ \App\Helpers\BoronganHelper::formatGram($tambahanGram) }} gram tambahan

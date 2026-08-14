@@ -1076,13 +1076,8 @@ class PayrollController extends Controller
                 $importIdsForSection = BoronganImport::where('payroll_id', $payroll->id)
                     ->where('jenis', $g['section'])
                     ->pluck('id');
-                $totalGramRekap = BoronganRekap::whereIn('borongan_import_id', $importIdsForSection)
-                    ->whereIn('nip', $nips)
-                    ->sum('total_gram');
-                // Tambahan gram from import-level (rows without NIP)
-                $tambahanGram = BoronganImport::whereIn('id', $importIdsForSection)
-                    ->sum('tambahan_gram');
-                $totalGram = $totalGramRekap + $tambahanGram;
+                // Compute total gram from raw borongan_harian data (includes tambahan rows)
+                $totalGram = \App\Helpers\BoronganHelper::getTotalGramForImports($importIdsForSection->toArray());
                 $qtyText = 'QTY ' . strtoupper($label) . ' ' . \App\Helpers\BoronganHelper::formatGram($totalGram);
             }
             $nominal = $members->sum('total_akhir');
@@ -1108,13 +1103,8 @@ class PayrollController extends Controller
                 $importIdsForSection = BoronganImport::where('payroll_id', $payroll->id)
                     ->where('jenis', $g['section'])
                     ->pluck('id');
-                $totalGramRekap = BoronganRekap::whereIn('borongan_import_id', $importIdsForSection)
-                    ->whereIn('nip', $nips)
-                    ->sum('total_gram');
-                // Tambahan gram from import-level (rows without NIP)
-                $tambahanGram = BoronganImport::whereIn('id', $importIdsForSection)
-                    ->sum('tambahan_gram');
-                $totalGram = $totalGramRekap + $tambahanGram;
+                // Compute total gram from raw borongan_harian data (includes tambahan rows)
+                $totalGram = \App\Helpers\BoronganHelper::getTotalGramForImports($importIdsForSection->toArray());
                 $qtyText = 'QTY ' . strtoupper($label) . ' ' . \App\Helpers\BoronganHelper::formatGram($totalGram);
             }
             $nominal = $members->sum('total_akhir');
