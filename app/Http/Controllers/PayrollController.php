@@ -43,13 +43,52 @@ class PayrollController extends Controller
     // ========================
     public function index()
     {
-        $payrolls = Payroll::withCount(['details', 'boronganRekaps', 'grandTotals', 'pengajuans'])
+        $payrolls = Payroll::with([
+                'details',
+                'boronganRekaps.import',
+                'grandTotals',
+                'pengajuans',
+            ])
+            ->withCount(['details', 'boronganRekaps', 'grandTotals', 'pengajuans'])
             ->withSum('details', 'total_gaji')
             ->withSum('boronganRekaps', 'total_akhir')
             ->withSum('grandTotals', 'total_akhir')
             ->withSum('pengajuans', 'total_akhir')
             ->orderByDesc('tanggal_dari')
             ->get();
+
+        foreach ($payrolls as $payroll) {
+            $grandTotals = $payroll->grandTotals;
+            $pengajuans = $payroll->pengajuans;
+
+            $sectionTotal = function (string $section) use ($grandTotals, $pengajuans, $payroll): int {
+                if ($grandTotals->isNotEmpty()) {
+                    return (int) $grandTotals->where('section', $section)->sum('total_akhir');
+                }
+
+                if ($pengajuans->isNotEmpty()) {
+                    return (int) $pengajuans->where('section', $section)->sum('total_akhir');
+                }
+
+                if ($section === 'harian') {
+                    return (int) $payroll->details->sum('total_gaji');
+                }
+
+                return (int) $payroll->boronganRekaps
+                    ->filter(fn ($rekap) => $rekap->import?->jenis === $section)
+                    ->sum('total_akhir');
+            };
+
+            $payroll->total_harian = $sectionTotal('harian');
+            $payroll->total_cabut = $sectionTotal('cabut');
+            $payroll->total_hcr = $sectionTotal('hcr');
+            $payroll->total_moulding = $sectionTotal('moulding');
+            $payroll->total_gaji_gabungan = $payroll->grandTotals->isNotEmpty()
+                ? (int) $payroll->grandTotals->sum('total_akhir')
+                : ($payroll->pengajuans->isNotEmpty()
+                    ? (int) $payroll->pengajuans->sum('total_akhir')
+                    : $payroll->total_harian + $payroll->total_cabut + $payroll->total_hcr + $payroll->total_moulding);
+        }
 
         return view('payroll.index', compact('payrolls'));
     }
@@ -174,7 +213,7 @@ class PayrollController extends Controller
                     $outTs    = strtotime($tgl . ' ' . $jamOut);
                     $threshold = strtotime($tgl . ' 16:30:00');
                     if ($outTs > $threshold) {
-                        $lemburMenitHari = floor(($outTs - $threshold) / 60);
+                        $lemburMenitHari = $this->bulatkanLemburMenit(floor(($outTs - $threshold) / 60));
                     }
                 }
 
@@ -1245,7 +1284,9 @@ class PayrollController extends Controller
             $jamIn = $correction->jam_in;
             $jamOut = $correction->jam_out;
             $status = $correction->status;
-            $lemburMenit = $correction->lembur_approved ? intval($correction->lembur_menit ?? 0) : 0;
+            $lemburMenit = $correction->lembur_approved
+                ? $this->bulatkanLemburMenit((int) ($correction->lembur_menit ?? 0))
+                : 0;
 
             $hasLemburData = ($lemburMenit > 0) || (!empty($correction->lembur_approved)) || (($correction->lembur_menit ?? 0) > 0);
             $isBlankHCorrection = !$jamIn && !$jamOut && $status === 'H' && empty($correction->keterangan) && !$hasLemburData;
@@ -1352,7 +1393,7 @@ class PayrollController extends Controller
                     $outTs = strtotime($tgl . ' ' . $jamOut);
                     $threshold = strtotime($tgl . ' 16:30:00');
                     if ($outTs > $threshold) {
-                        $lemburMenit += floor(($outTs - $threshold) / 60);
+                        $lemburMenit += $this->bulatkanLemburMenit(floor(($outTs - $threshold) / 60));
                     }
                 }
 
@@ -1368,11 +1409,11 @@ class PayrollController extends Controller
             $gajiPokok = ($hadir + $setengahHari) * $nominal;
             $potonganSt = $setengahHari * ($nominal / 2);
             // For payroll pay, use approved overtime minutes from OvertimeRequest
-            $approvedMinutes = (int) OvertimeRequest::where('pin', $pin)
+            $approvedOvertime = OvertimeRequest::where('pin', $pin)
                 ->whereBetween('tanggal', [$dari, $sampai])
-                ->sum('lembur_menit');
-            $totalJamLemburDibulatkan = $this->bulatkanLemburJam($approvedMinutes);
-            $gajiLembur = $approvedMinutes > 0 ? floor(($nominal / 8) * 1.5 * $totalJamLemburDibulatkan) : 0;
+                ->get(['lembur_menit']);
+            $totalJamLemburDibulatkan = $approvedOvertime->sum(fn ($overtime) => $this->bulatkanLemburJam((int) $overtime->lembur_menit));
+            $gajiLembur = $totalJamLemburDibulatkan > 0 ? floor(($nominal / 8) * 1.5 * $totalJamLemburDibulatkan) : 0;
             $totalGaji = $gajiPokok + $gajiLembur + $tambahan - $potongan - $potonganSt;
 
             PayrollDetail::updateOrCreate(
@@ -1781,7 +1822,7 @@ class PayrollController extends Controller
                     $outTs = strtotime($tgl . ' ' . $jamOut);
                     $threshold = strtotime($tgl . ' 16:30:00');
                     if ($outTs > $threshold) {
-                        $lemburMenit += floor(($outTs - $threshold) / 60);
+                        $lemburMenit += $this->bulatkanLemburMenit(floor(($outTs - $threshold) / 60));
                     }
                 }
 
@@ -1795,9 +1836,10 @@ class PayrollController extends Controller
             }
 
             // For payroll pay, use approved overtime minutes from OvertimeRequest as single source of truth
-            $lemburMenit = (int) \App\Models\OvertimeRequest::where('pin', $pin)
+            $approvedOvertime = \App\Models\OvertimeRequest::where('pin', $pin)
                 ->whereBetween('tanggal', [$dari, $sampai])
-                ->sum('lembur_menit');
+                ->get(['lembur_menit']);
+            $lemburMenit = (int) $approvedOvertime->sum(fn ($overtime) => $this->bulatkanLemburMenit((int) $overtime->lembur_menit));
 
             $nominal = $payrollDetail->nominal_harian;
             $gajiPokok = ($hadir + $setengahHari) * $nominal;
@@ -2235,12 +2277,16 @@ class PayrollController extends Controller
 
             if ($effectiveOutTs && !$isSunday) {
                 $threshold = strtotime($tgl . ' 16:30:00');
-                $lemburMenitAuto = $effectiveOutTs > $threshold ? floor(($effectiveOutTs - $threshold) / 60) : 0;
+                $lemburMenitAuto = $effectiveOutTs > $threshold
+                    ? $this->bulatkanLemburMenit(floor(($effectiveOutTs - $threshold) / 60))
+                    : 0;
             } else {
                 $lemburMenitAuto = 0;
             }
 
-            $lemburMenitFinal = $correction ? ($correction->lembur_menit ?? $lemburMenitAuto) : $lemburMenitAuto;
+            $lemburMenitFinal = $correction
+                ? $this->bulatkanLemburMenit((int) ($correction->lembur_menit ?? $lemburMenitAuto))
+                : $lemburMenitAuto;
 
             $rows[] = [
                 'tgl'             => $tgl,
@@ -2314,7 +2360,7 @@ class PayrollController extends Controller
                     'status'       => $status,
                     'keterangan'   => $ket,
                     'edited_by'    => $userId,
-                    'lembur_menit' => $row['lembur_menit'] ?? null,
+                    'lembur_menit' => $this->bulatkanLemburMenit((int) ($row['lembur_menit'] ?? 0)) ?: null,
                 ];
 
                 if (isset($row['lembur_approved'])) {
@@ -2409,9 +2455,10 @@ class PayrollController extends Controller
             }
 
             // Sum approved overtime minutes from OvertimeRequest table for this period
-            $lemburMenit = (int) OvertimeRequest::where('pin', $pin)
+            $approvedOvertime = OvertimeRequest::where('pin', $pin)
                 ->whereBetween('tanggal', [$dari, $sampai])
-                ->sum('lembur_menit');
+                ->get(['lembur_menit']);
+            $lemburMenit = (int) $approvedOvertime->sum(fn ($overtime) => $this->bulatkanLemburMenit((int) $overtime->lembur_menit));
 
             $nominal    = $detail->nominal_harian;
             $gajiPokok  = ($hadir + $setengahHari) * $nominal;
@@ -2445,6 +2492,11 @@ class PayrollController extends Controller
     {
         if ($menit <= 0) return 0;
         return round($menit / 30) * 0.5;
+    }
+
+    private function bulatkanLemburMenit(int $menit): int
+    {
+        return (int) round($this->bulatkanLemburJam($menit) * 60);
     }
 
 }

@@ -400,7 +400,12 @@ public function exportDetail(Request $request)
             $isSundayRow = false;
             $hasChecklok = $dayLogs->isNotEmpty() || $result['in_ts'] || $result['out_ts'];
 
-            if ($isSunday && !$hasChecklok) {
+            if ($absenceNote) {
+                $keterangan = $absenceCode ? strtoupper($absenceCode) : '-';
+                if ($absenceText !== '') {
+                    $keterangan .= ' — ' . $absenceText;
+                }
+            } elseif ($isSunday && !$hasChecklok) {
                 $keterangan = 'Minggu';
                 $isSundayRow = true;
             } elseif (!$hasChecklok) {

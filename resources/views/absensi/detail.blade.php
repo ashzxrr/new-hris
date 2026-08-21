@@ -136,7 +136,13 @@
                                     'Dll' => 'Dll (Lainnya)',
                                 ];
 
-                                if ($isSunday) {
+                                if ($absenceNote) {
+                                    $keterangan = $absenceCode ? ($codeLabels[$absenceCode] ?? $absenceCode) : '-';
+                                    if ($absenceText) {
+                                        $keterangan .= ' — ' . $absenceText;
+                                    }
+                                    $rowClass = $inTs || $outTs ? 'bg-[#EFF6FF]' : 'bg-[#FFF3DC]';
+                                } elseif ($isSunday) {
                                     $keterangan = 'Minggu';
                                     $rowClass = 'bg-[#F9FBFD]';
                                 } elseif (!$inTs && !$outTs) {
