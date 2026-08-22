@@ -31,79 +31,63 @@
     </div>
     @else
     {{-- Cards Grid --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         @foreach($payrolls as $p)
-        <div class="bg-white rounded-lg border border-[#C8D9E6] overflow-hidden shadow-[0_1px_4px_rgba(47,65,86,.06)] hover:shadow-[0_4px_12px_rgba(47,65,86,.12)] transition-shadow flex flex-col">
+        <div class="bg-white rounded-[10px] border border-[#C8D9E6] px-3 py-3 flex flex-col">
             {{-- Card Header with Status --}}
-            <div class="px-3 py-2 bg-[#EAF1F6] border-b border-[#C8D9E6] flex items-center justify-between">
-                <h3 class="text-xs font-medium text-[#2F4156]">{{ $p->periode }}</h3>
+            <div class="flex items-center justify-between gap-2">
+                <h3 class="text-[12px] font-medium text-[#2F4156] truncate">{{ $p->periode }}</h3>
                 @if($p->status === 'final')
-                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#E0F2EA] text-[#1B7A4A] font-medium">Final</span>
+                    <span class="shrink-0 rounded-full bg-[#E0F2EA] px-2 py-0.5 text-[10px] font-medium text-[#1B7A4A]">Final</span>
                 @else
-                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FFF3DC] text-[#9A6200] font-medium">Draft</span>
+                    <span class="shrink-0 rounded-full bg-[#FFF3DC] px-2 py-0.5 text-[10px] font-medium text-[#9A6200]">Draft</span>
                 @endif
             </div>
 
-            {{-- Card Content --}}
-            <div class="px-3 py-3 flex-1">
-                {{-- Tanggal --}}
-                <div class="mb-3">
-                    <p class="text-[10px] text-[#567C8D] mb-0.5">Periode Tanggal</p>
-                    <p class="text-xs text-[#2F4156] font-medium">
-                        {{ \Carbon\Carbon::parse($p->tanggal_dari)->format('d M Y') }} —
-                        {{ \Carbon\Carbon::parse($p->tanggal_sampai)->format('d M Y') }}
-                    </p>
-                </div>
+            @php
+                $totalKaryawan = $p->grand_totals_count ?: $p->pengajuans_count ?: ($p->details_count ?? 0);
+                $totalGaji = $p->total_gaji_gabungan;
+                $formatSingkat = function ($nominal) {
+                    $nominal = (float) $nominal;
+                    if ($nominal >= 1000000) {
+                        $angka = $nominal / 1000000;
+                        return rtrim(rtrim(number_format($angka, 1, ',', '.'), '0'), ',') . 'jt';
+                    }
+                    if ($nominal >= 1000) {
+                        $angka = $nominal / 1000;
+                        return rtrim(rtrim(number_format($angka, 1, ',', '.'), '0'), ',') . 'rb';
+                    }
+                    return number_format($nominal, 0, ',', '.');
+                };
+            @endphp
 
-                {{-- Total Karyawan --}}
-                <div class="mb-3 pb-3 border-b border-[#EAF1F6]">
-                    @php
-                        $totalKaryawan = $p->grand_totals_count ?: $p->pengajuans_count ?: ($p->details_count ?? 0);
-                        $totalGaji = $p->total_gaji_gabungan;
-                    @endphp
-                    <p class="text-[10px] text-[#567C8D] mb-0.5">Total Karyawan</p>
-                    <p class="text-base font-semibold text-[#2F4156]">{{ $totalKaryawan }}</p>
-                </div>
+            {{-- Hero Metric --}}
+            <div class="mt-2 flex items-baseline justify-between gap-2">
+                <span class="text-[18px] font-bold leading-none text-[#2F4156]">{{ $totalKaryawan }}</span>
+                <span class="truncate text-right text-[13px] font-medium leading-none text-[#2F4156]">Rp {{ $formatSingkat($totalGaji) }}</span>
+            </div>
+            <div class="mt-1 text-[10px] leading-none text-[#8BAFC4]">karyawan · total gaji</div>
 
-                {{-- Total Gaji --}}
-                <div>
-                    <p class="text-[10px] text-[#567C8D] mb-0.5">Total Gaji</p>
-                    <p class="text-sm font-semibold text-[#2F4156]">
-                        Rp {{ number_format($totalGaji, 0, ',', '.') }}
-                    </p>
-                </div>
-
-                <div class="mt-3 pt-3 border-t border-[#EAF1F6] space-y-1">
-                    <div class="flex items-center justify-between text-[10px]">
-                        <span class="text-[#567C8D]">Harian</span>
-                        <span class="font-medium text-[#2F4156]">Rp {{ number_format($p->total_harian, 0, ',', '.') }}</span>
-                    </div>
-                    <div class="flex items-center justify-between text-[10px]">
-                        <span class="text-[#567C8D]">Cabut</span>
-                        <span class="font-medium text-[#2F4156]">Rp {{ number_format($p->total_cabut, 0, ',', '.') }}</span>
-                    </div>
-                    <div class="flex items-center justify-between text-[10px]">
-                        <span class="text-[#567C8D]">HCR</span>
-                        <span class="font-medium text-[#2F4156]">Rp {{ number_format($p->total_hcr, 0, ',', '.') }}</span>
-                    </div>
-                    <div class="flex items-center justify-between text-[10px]">
-                        <span class="text-[#567C8D]">Moulding</span>
-                        <span class="font-medium text-[#2F4156]">Rp {{ number_format($p->total_moulding, 0, ',', '.') }}</span>
-                    </div>
-                </div>
+            {{-- Category Breakdown --}}
+            <div class="mt-2 flex gap-1">
+                <span class="min-w-0 flex-1 truncate rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center text-[9px] leading-tight text-[#8BAFC4]">H {{ $formatSingkat($p->total_harian) }}</span>
+                <span class="min-w-0 flex-1 truncate rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center text-[9px] leading-tight text-[#8BAFC4]">C {{ $formatSingkat($p->total_cabut) }}</span>
+                <span class="min-w-0 flex-1 truncate rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center text-[9px] leading-tight text-[#8BAFC4]">HCR {{ $formatSingkat($p->total_hcr) }}</span>
+                <span class="min-w-0 flex-1 truncate rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center text-[9px] leading-tight text-[#8BAFC4]">M {{ $formatSingkat($p->total_moulding) }}</span>
             </div>
 
             {{-- Card Footer with Actions --}}
-            <div class="px-3 py-2 bg-[#F9FBFD] border-t border-[#EAF1F6] flex items-center gap-2">
+            <div class="mt-3 flex items-center gap-2">
                 <a href="{{ route('payroll.show', $p->id) }}"
-                    class="flex-1 text-center pbtn pbtn-secondary pbtn-sm">
-                    Lihat Detail
+                    class="flex-1 justify-center pbtn pbtn-secondary !h-[28px] !min-h-0 !rounded-[6px] !px-3 !text-[11px] !leading-none">
+                    {{ $p->status === 'final' ? 'Lihat detail' : 'Detail' }}
                 </a>
                 @if($p->status === 'draft')
-                <form method="POST" action="{{ route('payroll.destroy', $p->id) }}" class="flex-1"
+                <form method="POST" action="{{ route('payroll.destroy', $p->id) }}" class="min-w-0 flex-1"
                     onsubmit="return confirm('Hapus payroll ini?')">
                     @csrf @method('DELETE')
-                    <button type="submit" class="w-full pbtn pbtn-danger pbtn-sm text-[12px]">
+                    <button type="submit"
+                        class="w-full pbtn pbtn-danger">
                         Hapus
                     </button>
                 </form>

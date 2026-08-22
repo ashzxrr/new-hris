@@ -47,7 +47,7 @@
 /* Danger Variant */
 .pbtn-danger {
   background: var(--btn-danger-bg);
-  @apply hover:shadow-lg hover:scale-[1.02];
+  @apply h-[28px] min-h-0 px-3 py-0 text-[11px] leading-none hover:shadow-lg hover:scale-[1.02];
 }
 
 .pbtn-danger:hover:not(:disabled) {
