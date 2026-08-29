@@ -280,7 +280,7 @@ class PayrollController extends Controller
         $dari = $request->tanggal_dari;
         $sampai = $request->tanggal_sampai;
 
-        $periode = \Carbon\Carbon::parse($dari)->format('Y-m') . '-' . (\Carbon\Carbon::parse($dari)->day <= 15 ? '1' : '2');
+        $periode = \Carbon\Carbon::parse($dari)->format('Y-m') . '-' . (\Carbon\Carbon::parse($dari)->day <= 13 ? '1' : '2');
 
         $exists = Payroll::where('tanggal_dari', $dari)->where('tanggal_sampai', $sampai)->first();
         if ($exists) {

@@ -36,4 +36,37 @@ class AttendanceDetailFormatterTest extends TestCase
         $this->assertTrue($result['in']['is_mobile_app']);
         $this->assertTrue($result['out']['is_mobile_app']);
     }
+
+    public function test_it_keeps_cuti_day_visible_even_when_previous_shift_out_is_detected(): void
+    {
+        $obj = new class {
+            use \App\Http\Controllers\Concerns\AttendanceShiftTrait;
+
+            public function callGetInOutForDay($pin, $tgl, $logs, $karyawan, $absenceNote = null)
+            {
+                return $this->getInOutForDay($pin, $tgl, $logs, $karyawan, $absenceNote);
+            }
+        };
+
+        $karyawan = (object) [
+            'job_title' => 'Security',
+            'job_level' => 'Security',
+            'nip' => 'LMG-2024-1039',
+        ];
+
+        $logs = collect([
+            'LMG-2024-1039_2026-08-14' => collect([
+                (object) ['status' => 'IN', 'datetime' => '2026-08-14 22:48:00'],
+            ]),
+            'LMG-2024-1039_2026-08-15' => collect([
+                (object) ['status' => 'OUT', 'datetime' => '2026-08-15 07:02:00'],
+            ]),
+        ]);
+
+        $result = $obj->callGetInOutForDay('LMG-2024-1039', '2026-08-15', $logs, $karyawan, (object) ['code' => 'Cuti']);
+
+        $this->assertFalse($result['skip']);
+        $this->assertNull($result['in_ts']);
+        $this->assertNull($result['out_ts']);
+    }
 }

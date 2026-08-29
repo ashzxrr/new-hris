@@ -20,11 +20,11 @@
                 <div class="grid grid-cols-2 gap-3 mb-3">
                     <button type="button" data-half="1" onclick="setPeriode('1')"
                         class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left">
-                        📅 Periode 1 (1–15)
+                        📅 Periode 1 (1–13)
                     </button>
                     <button type="button" data-half="2" onclick="setPeriode('2')"
                         class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left">
-                        📅 Periode 2 (16–akhir)
+                        📅 Periode 2 (14–akhir)
                     </button>
                 </div>
                 <input type="hidden" name="tanggal_dari" id="tanggal_dari" required>
@@ -66,10 +66,10 @@ function setPeriode(half) {
 
     if (half === '1') {
         dari = `${year}-${month}-01`;
-        sampai = `${year}-${month}-15`;
+        sampai = `${year}-${month}-13`;
     } else {
         const lastDay = new Date(year, Number(month), 0).getDate();
-        dari = `${year}-${month}-16`;
+        dari = `${year}-${month}-14`;
         sampai = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
     }
 

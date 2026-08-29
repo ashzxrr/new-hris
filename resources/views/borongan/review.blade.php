@@ -113,7 +113,7 @@
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Total Gram</div>
-            <div class="text-xl font-bold text-slate-800">{{ \App\Helpers\BoronganHelper::formatGram($totalGramForImport) }}</div>
+            <div class="text-xl font-bold text-slate-800">{{ number_format(round((float) $totalGramForImport), 0, ',', '.') }}</div>
             <div class="text-xs text-slate-500 mt-1 additional-gram-note">
                 @if(!empty($additionalGram))
                     Termasuk {{ \App\Helpers\BoronganHelper::formatGram($additionalGram) }} gram tambahan
@@ -146,7 +146,7 @@
                 <option value="ada">Yang Ada Data</option>
                 <option value="kosong">Yang Kosong (Tidak Ada Data)</option>
             </select>
-            <input type="text" id="searchReview" placeholder="Cari NIP atau Nama..."
+            <input type="text" id="searchReview" placeholder="Cari NIP, Nama, atau Upah..."
                 class="w-full md:w-[360px] border border-[#E5E7EB] rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
         </div>
     </div>
@@ -836,9 +836,14 @@ document.getElementById('reviewModal').addEventListener('click', function(e) {
 });
 
 document.getElementById('searchReview').addEventListener('input', function() {
-    const q = this.value.toLowerCase();
+    const q = this.value.toLowerCase().trim();
+    const qUpah = q.replace(/[^0-9]/g, '');
+    const isUpahSearch = q !== '' && /^[\d\s.,rp]+$/i.test(q);
+    const batasUpah = isUpahSearch ? Number(qUpah) : 0;
     document.querySelectorAll('.review-row').forEach(row => {
-        const match = (row.dataset.nip + row.dataset.nama).includes(q);
+        const upah = row.dataset.upah || '0';
+        const match = (row.dataset.nip + row.dataset.nama).includes(q)
+            || (isUpahSearch && Number(upah) <= batasUpah);
         row.style.display = match ? '' : 'none';
     });
 });

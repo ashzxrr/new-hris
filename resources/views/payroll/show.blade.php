@@ -95,7 +95,7 @@
             @if($hcrImport === null)
                 <div class="text-center py-6">
                     <p class="text-sm text-slate-400 mb-3">Belum ada data</p>
-                    <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'cetak']) }}"
+                    <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'hcr']) }}"
                         class="pbtn pbtn-primary pbtn-sm">
                         <span class="pbtn-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
@@ -136,7 +136,7 @@
                             </span>
                             <span>Rekap</span>
                         </a>
-                        <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'cetak', 'revisi' => 1]) }}"
+                        <a href="{{ route('borongan.create', ['payroll_id' => $payroll->id, 'jenis' => 'hcr', 'revisi' => 1]) }}"
                             class="flex-1 pbtn pbtn-warning pbtn-sm">
                             <span class="pbtn-icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>

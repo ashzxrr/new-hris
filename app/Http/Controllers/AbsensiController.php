@@ -157,7 +157,8 @@ class AbsensiController extends Controller
                 $dayKey = $pin . '_' . $tgl;
                 $dayLogs = $logs[$dayKey] ?? collect();
 
-                $result = $this->getInOutForDay($pin, $tgl, $logs, $karyawan);
+                $absenceNote = $absenceNotes[$pin][$tgl] ?? null;
+                $result = $this->getInOutForDay($pin, $tgl, $logs, $karyawan, $absenceNote);
 
                 if ($result['skip']) {
                     // row belongs to previous night's shift, skip counting
@@ -191,7 +192,8 @@ class AbsensiController extends Controller
         foreach ($selectedUsers as $pin) {
             $karyawan = $nipData[$pin] ?? null;
             foreach ($periode as $tgl) {
-                $result = $this->getInOutForDay($pin, $tgl, $logs, $karyawan);
+                $absenceNote = $absenceNotes[$pin][$tgl] ?? null;
+                $result = $this->getInOutForDay($pin, $tgl, $logs, $karyawan, $absenceNote);
                 $displayData[$pin . '_' . $tgl] = $result;
             }
         }
@@ -346,7 +348,8 @@ public function exportDetail(Request $request)
             $absenceNote = $absenceNotes[$pin][$tgl] ?? null;
             $absenceCode = $absenceNote->code ?? null;
 
-            $result = $this->getInOutForDay($pin, $tgl, $logs, $karyawan);
+            $absenceNote = $absenceNotes[$pin][$tgl] ?? null;
+            $result = $this->getInOutForDay($pin, $tgl, $logs, $karyawan, $absenceNote);
             if ($result['skip']) {
                 continue;
             }
@@ -372,7 +375,8 @@ public function exportDetail(Request $request)
             $dayKey = $pin . '_' . $tgl;
             $dayLogs = $logs[$dayKey] ?? collect();
 
-            $result = $this->getInOutForDay($pin, $tgl, $logs, $karyawan);
+            $absenceNote = $absenceNotes[$pin][$tgl] ?? null;
+            $result = $this->getInOutForDay($pin, $tgl, $logs, $karyawan, $absenceNote);
 
             if ($result['skip']) {
                 // skip row because it is an OUT for previous night's shift

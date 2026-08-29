@@ -8,7 +8,7 @@ trait AttendanceShiftTrait
      * Determine in/out timestamps for a given pin and date with security cross-day rules.
      * Returns ['in_ts'=>..., 'out_ts'=>..., 'skip'=>bool]
      */
-    private function getInOutForDay($pin, $tgl, $logs, $karyawan)
+    private function getInOutForDay($pin, $tgl, $logs, $karyawan, $absenceNote = null)
     {
         $dayKey = $pin . '_' . $tgl;
         $dayLogs = $logs[$dayKey] ?? collect();
@@ -18,6 +18,14 @@ trait AttendanceShiftTrait
 
         $inTs  = $inTimes->isNotEmpty()  ? $inTimes->min()  : null;
         $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
+
+        if ($absenceNote && $dayLogs->isEmpty()) {
+            return [
+                'in_ts' => null,
+                'out_ts' => null,
+                'skip' => false,
+            ];
+        }
 
         $skipRow = false;
 
@@ -57,6 +65,14 @@ trait AttendanceShiftTrait
         if ($minJamShiftMalam !== null && !$inTs && $outTs) {
             $jamOut = (int) date('H', $outTs);
             if ($jamOut >= 0 && $jamOut <= 11) {
+                if ($absenceNote) {
+                    return [
+                        'in_ts' => null,
+                        'out_ts' => null,
+                        'skip' => false,
+                    ];
+                }
+
                 $kemarin = date('Y-m-d', strtotime($tgl . ' -1 day'));
                 $kemarinKey = $pin . '_' . $kemarin;
                 $kemarinLogs = $logs[$kemarinKey] ?? collect();

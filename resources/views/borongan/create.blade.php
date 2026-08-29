@@ -39,11 +39,11 @@
                 <div class="grid grid-cols-2 gap-3 mb-3">
                     <button type="button" data-half="1" onclick="setPeriode('1')"
                         class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left {{ ($defaultHalf ?? '') === '1' ? 'selected bg-[#4F46E5]/10 border-[#4F46E5]' : '' }}">
-                        📅 Periode 1 (1–15)
+                        📅 Periode 1 (1–13)
                     </button>
                     <button type="button" data-half="2" onclick="setPeriode('2')"
                         class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left {{ ($defaultHalf ?? '') === '2' ? 'selected bg-[#4F46E5]/10 border-[#4F46E5]' : '' }}">
-                        📅 Periode 2 (16–akhir)
+                        📅 Periode 2 (14–akhir)
                     </button>
                 </div>
                 <input type="hidden" name="tanggal_dari" id="tanggal_dari" value="{{ old('tanggal_dari', $defaultTanggalDari ?? '') }}" required>
@@ -60,7 +60,7 @@
                 <div id="fileInputSingle">
                     <input type="file" name="file" accept=".xlsx,.xls"
                         class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
-                    <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
+                    <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "14", "15", "16").</p>
                 </div>
                 
                 <!-- Single file input for moulding -->
@@ -69,7 +69,7 @@
                         <label class="text-xs text-slate-500 mb-1 block">File Excel</label>
                         <input type="file" name="file_kategori" accept=".xlsx,.xls" required
                             class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
-                        <p class="text-[11px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
+                        <p class="text-[11px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "14", "15", "16").</p>
                     </div>
                 </div>
             </div>
@@ -154,10 +154,10 @@ function setPeriode(half) {
 
     if (half === '1') {
         dari = `${year}-${month}-01`;
-        sampai = `${year}-${month}-15`;
+        sampai = `${year}-${month}-13`;
     } else {
         const lastDay = new Date(year, Number(month), 0).getDate();
-        dari = `${year}-${month}-16`;
+        dari = `${year}-${month}-14`;
         sampai = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
     }
 
