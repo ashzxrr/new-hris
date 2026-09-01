@@ -1589,6 +1589,96 @@ class BoronganController extends Controller
         return view('borongan.rekap', compact('import', 'rekaps', 'payrollId', 'tambahanGram', 'tambahanGramNotes', 'totalGram'));
     }
 
+    public function exportRekap($id)
+    {
+        $import = BoronganImport::findOrFail($id);
+
+        $siblingImportIds = BoronganImport::where('payroll_id', $import->payroll_id)
+            ->where('jenis', $import->jenis)
+            ->pluck('id');
+
+        $rekaps = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
+            ->selectRaw('MIN(id) as rekap_id, nip, nama, SUM(total_gram) as total_gram, SUM(total_upah) as total_upah, SUM(potongan_bpjs) as potongan_bpjs, SUM(potongan_lain) as potongan_lain, SUM(tambahan) as tambahan, SUM(komplain) as komplain, SUM(total_akhir) as total_akhir')
+            ->groupBy('nip', 'nama')
+            ->orderBy('nama')
+            ->get()
+            ->map(function ($row) use ($siblingImportIds) {
+                $row->total_gram = (float) BoronganHarian::whereIn('borongan_import_id', $siblingImportIds)
+                    ->where('nip', $row->nip)
+                    ->sum('berat_gram');
+                return $row;
+            });
+
+        $jenisLabels = [
+            'cetak' => 'HCR',
+            'moulding' => 'Moulding/Cetak',
+            'cabut' => 'Cabut',
+            'nkk' => 'NKK',
+        ];
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Rekap Borongan');
+
+        $sheet->mergeCells('A1:H1');
+        $sheet->setCellValue('A1', 'Rekap Borongan - ' . ($jenisLabels[$import->jenis] ?? ucfirst($import->jenis)));
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+
+        $sheet->setCellValue('A2', 'Periode');
+        $sheet->setCellValue('B2', \Carbon\Carbon::parse($import->tanggal_dari)->format('d M Y') . ' - ' . \Carbon\Carbon::parse($import->tanggal_sampai)->format('d M Y'));
+        $sheet->setCellValue('A3', 'Total Karyawan');
+        $sheet->setCellValue('B3', $rekaps->count());
+        $sheet->setCellValue('D2', 'Total Gram');
+        $sheet->setCellValue('E2', BoronganHelper::formatGram($rekaps->sum('total_gram')) . ' gram');
+        $sheet->setCellValue('D3', 'Total Upah');
+        $sheet->setCellValue('E3', 'Rp ' . number_format($rekaps->sum('total_upah'), 0, ',', '.'));
+        $sheet->setCellValue('D4', 'Total Akhir');
+        $sheet->setCellValue('E4', 'Rp ' . number_format($rekaps->sum('total_akhir'), 0, ',', '.'));
+
+        $headers = ['NIP', 'Nama', 'Total Gram', 'Total Upah', 'Potongan BPJS', 'Potongan Lain', 'Tambahan', 'Total Akhir'];
+        $rowStart = 6;
+        $sheet->fromArray($headers, null, 'A' . $rowStart);
+        $sheet->getStyle('A' . $rowStart . ':H' . $rowStart)->getFont()->setBold(true);
+
+        $r = $rowStart + 1;
+        foreach ($rekaps as $row) {
+            $sheet->fromArray([
+                $row->nip,
+                $row->nama,
+                BoronganHelper::formatGram($row->total_gram),
+                $row->total_upah,
+                $row->potongan_bpjs,
+                $row->potongan_lain,
+                $row->tambahan,
+                $row->total_akhir,
+            ], null, 'A' . $r);
+            $r++;
+        }
+
+        $sheet->getStyle('A' . ($rowStart + 1) . ':H' . ($r - 1))
+            ->getAlignment()->setVertical('center');
+
+        $sheet->getColumnDimension('A')->setAutoSize(true);
+        $sheet->getColumnDimension('B')->setAutoSize(true);
+        $sheet->getColumnDimension('C')->setAutoSize(true);
+        $sheet->getColumnDimension('D')->setAutoSize(true);
+        $sheet->getColumnDimension('E')->setAutoSize(true);
+        $sheet->getColumnDimension('F')->setAutoSize(true);
+        $sheet->getColumnDimension('G')->setAutoSize(true);
+        $sheet->getColumnDimension('H')->setAutoSize(true);
+
+        $filename = 'Rekap_' . str_replace(' ', '_', $import->jenis) . '_' . $import->tanggal_dari . '.xlsx';
+
+        $writer = new Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), 'export');
+        $writer->save($tempFile);
+
+        $response = response()->download($tempFile, $filename)->deleteFileAfterSend(true);
+        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate');
+
+        return $response;
+    }
+
     public function getDetail(Request $request, $id, $nip)
     {
         $import = BoronganImport::findOrFail($id);

@@ -20,6 +20,13 @@
         <div class="flex gap-3">
             <a href="{{ route('borongan.review', $import->id) }}"
                 class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">← Review</a>
+            <a href="{{ route('borongan.exportRekap', $import->id) }}"
+                class="pbtn pbtn-secondary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                </span>
+                <span>Export Excel</span>
+            </a>
             <a href="{{ $payrollId ? route('payroll.show', $payrollId) : route('borongan.index') }}"
                 class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">List Import</a>
         </div>

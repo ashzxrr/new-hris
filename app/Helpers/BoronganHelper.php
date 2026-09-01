@@ -139,29 +139,42 @@ class BoronganHelper
             return '0';
         }
 
-        // Prefer bc math to avoid floating-point rounding issues when summing many decimals.
-        $s = is_string($gram) ? $gram : (string) $gram;
+        $value = is_string($gram) ? trim($gram) : (string) $gram;
 
-        if (function_exists('bcadd')) {
-            // Normalize and produce a string with exactly 2 decimal digits (no rounding surprises)
-            $normalized = bcadd($s, '0', 2);
-            // Trim trailing zeros and trailing dot
-            $normalized = rtrim(rtrim($normalized, '0'), '.');
-
-            // Split integer and decimals for Indonesian formatting
-            if (strpos($normalized, '.') !== false) {
-                [$int, $dec] = explode('.', $normalized, 2);
-            } else {
-                $int = $normalized;
-                $dec = null;
-            }
-
-            $intFormatted = number_format((int) $int, 0, ',', '.');
-            return $dec ? $intFormatted . ',' . $dec : $intFormatted;
+        // Apply "half-up" rounding to whole grams, because 0.5 and above should round up.
+        if (function_exists('bcadd') && function_exists('bccomp') && function_exists('bcmul')) {
+            $rounded = bcadd($value, '0', 2);
+            $rounded = self::roundHalfUpToWhole($rounded);
+            return number_format((int) $rounded, 0, ',', '.');
         }
 
-        $value = (float) $gram;
-        return rtrim(rtrim(number_format($value, 2, ',', '.'), '0'), ',');
+        $rounded = round((float) $value, 0, PHP_ROUND_HALF_UP);
+        return number_format((float) $rounded, 0, ',', '.');
+    }
+
+    private static function roundHalfUpToWhole(string $value): string
+    {
+        if (strpos($value, '.') === false) {
+            return $value;
+        }
+
+        [$intPart, $decimalPart] = explode('.', $value, 2);
+        $decimalPart = substr($decimalPart . '00', 0, 2);
+
+        if ($decimalPart === '') {
+            return $intPart;
+        }
+
+        $fraction = (int) $decimalPart;
+        if ($fraction >= 50) {
+            if (function_exists('bcadd')) {
+                return bcadd($intPart, '1', 0);
+            }
+
+            return (string) ((int) $intPart + 1);
+        }
+
+        return $intPart;
     }
 
     /**

@@ -119,6 +119,7 @@ Route::middleware('auth:admin')->group(function () {
             Route::put('/{id}/approve', [BoronganController::class, 'approve'])->name('approve');
             Route::delete('/{id}/undo', [BoronganController::class, 'undo'])->name('undo');
             Route::get('/{id}/rekap',   [BoronganController::class, 'rekapIndex'])->name('rekapIndex');
+            Route::get('/{id}/export-rekap', [BoronganController::class, 'exportRekap'])->name('exportRekap');
             Route::get('/{id}/detail/{nip}', [BoronganController::class, 'getDetail'])->name('getDetail');
             Route::put('/rekap/{rekapId}', [BoronganController::class, 'updateRekap'])->name('updateRekap');
             Route::delete('/{id}',      [BoronganController::class, 'destroy'])->name('destroy');
