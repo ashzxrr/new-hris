@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AttendanceShiftTrait;
+use App\Models\AbsenceNote;
 use App\Models\User;
 use App\Models\AttendanceLog;
 use Illuminate\Http\Request;
@@ -59,6 +60,12 @@ class AbsensiPublikController extends Controller
             ->get()
             ->groupBy(fn($l) => $l->pin . '_' . substr((string) $l->tanggal, 0, 10));
 
+        $absenceNotes = AbsenceNote::whereIn('pin', $pins)
+            ->whereBetween('date', [$tanggalDari, $tanggalSampai])
+            ->get()
+            ->groupBy('pin')
+            ->map(fn($n) => $n->keyBy(fn($item) => $item->date->format('Y-m-d')));
+
         // Generate periode
         $periode = [];
         $start = \Carbon\Carbon::parse($tanggalDari);
@@ -96,9 +103,22 @@ class AbsensiPublikController extends Controller
 
                 $key = $user->pin . '_' . $tgl;
                 $dayLogs = $logs[$key] ?? collect();
+                $absenceNote = $absenceNotes[$user->pin][$tgl] ?? null;
+                $absenceCode = $absenceNote->code ?? null;
+                $absenceText = trim((string) ($absenceNote->note ?? ''));
+                $codeLabels = [
+                    'S' => 'S (Sakit)',
+                    'A' => 'A (Alpha)',
+                    'I' => 'I (Izin)',
+                    'SSD' => 'SSD (Sakit Surat Dokter)',
+                    'Cuti' => 'Cuti',
+                    'GL' => 'GL (Ganti Libur)',
+                    'Dll' => 'Dll (Lainnya)',
+                    'DLL' => 'DLL (Lainnya)',
+                ];
 
                 // Cross-day shift (security) — logika sama persis dengan absensi index
-                $result = $this->getInOutForDay($user->pin, $tgl, $logs, $user);
+                $result = $this->getInOutForDay($user->pin, $tgl, $logs, $user, $absenceNote);
                 if ($result['skip'] ?? false) {
                     continue; // OUT sudah dipakai shift malam hari sebelumnya
                 }
@@ -133,13 +153,25 @@ class AbsensiPublikController extends Controller
                     continue;
                 }
 
-                // Hari biasa tanpa data
+                // Hari biasa tanpa data / keterangan manual
                 if (!$hasChecklok) {
+                    $statusText = 'Tidak Ada';
+                    $statusClass = 'text-slate-400 bg-slate-50 border-slate-200';
+
+                    if ($absenceNote) {
+                        $resolvedCode = strtoupper((string) $absenceCode);
+                        $statusText = $codeLabels[$resolvedCode] ?? ($absenceCode ?? 'Tidak Ada');
+                        if ($absenceText !== '') {
+                            $statusText .= ' — ' . $absenceText;
+                        }
+                        $statusClass = 'text-amber-700 bg-amber-50 border-amber-200';
+                    }
+
                     $html .= '<tr class="border-t border-slate-100">';
                     $html .= '<td class="px-3 py-2 text-slate-600">' . $tglDisplay . '</td>';
                     $html .= '<td class="px-3 py-2 text-slate-300">-</td>';
                     $html .= '<td class="px-3 py-2 text-slate-300">-</td>';
-                    $html .= '<td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-0.5">Tidak Ada</span></td>';
+                    $html .= '<td class="px-3 py-2"><span class="inline-flex items-center gap-1 text-[11px] font-medium ' . $statusClass . ' border rounded-full px-2.5 py-0.5">' . e($statusText) . '</span></td>';
                     $html .= '</tr>';
                     continue;
                 }
