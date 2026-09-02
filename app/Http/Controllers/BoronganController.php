@@ -1561,8 +1561,8 @@ class BoronganController extends Controller
             ->pluck('id');
 
         $rekaps = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
-            ->selectRaw('MIN(id) as rekap_id, nip, nama, SUM(total_gram) as total_gram, SUM(total_upah) as total_upah, SUM(potongan_bpjs) as potongan_bpjs, SUM(potongan_lain) as potongan_lain, SUM(tambahan) as tambahan, SUM(komplain) as komplain, SUM(total_akhir) as total_akhir')
-            ->groupBy('nip', 'nama')
+            ->selectRaw('MIN(id) as rekap_id, UPPER(TRIM(nip)) as nip, MAX(nama) as nama, SUM(total_gram) as total_gram, SUM(total_upah) as total_upah, SUM(potongan_bpjs) as potongan_bpjs, SUM(potongan_lain) as potongan_lain, SUM(tambahan) as tambahan, SUM(komplain) as komplain, SUM(total_akhir) as total_akhir')
+            ->groupByRaw('UPPER(TRIM(nip))')
             ->orderBy('nama')
             ->get();
 
@@ -1570,7 +1570,7 @@ class BoronganController extends Controller
         // (some historical BoronganRekap rows may have been stored rounded).
         foreach ($rekaps as $r) {
             $r->total_gram = (float) BoronganHarian::whereIn('borongan_import_id', $siblingImportIds)
-                ->where('nip', $r->nip)
+                ->whereRaw('UPPER(TRIM(nip)) = ?', [trim(strtoupper((string) $r->nip))])
                 ->sum('berat_gram');
         }
 
@@ -1598,13 +1598,13 @@ class BoronganController extends Controller
             ->pluck('id');
 
         $rekaps = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
-            ->selectRaw('MIN(id) as rekap_id, nip, nama, SUM(total_gram) as total_gram, SUM(total_upah) as total_upah, SUM(potongan_bpjs) as potongan_bpjs, SUM(potongan_lain) as potongan_lain, SUM(tambahan) as tambahan, SUM(komplain) as komplain, SUM(total_akhir) as total_akhir')
-            ->groupBy('nip', 'nama')
+            ->selectRaw('MIN(id) as rekap_id, UPPER(TRIM(nip)) as nip, MAX(nama) as nama, SUM(total_gram) as total_gram, SUM(total_upah) as total_upah, SUM(potongan_bpjs) as potongan_bpjs, SUM(potongan_lain) as potongan_lain, SUM(tambahan) as tambahan, SUM(komplain) as komplain, SUM(total_akhir) as total_akhir')
+            ->groupByRaw('UPPER(TRIM(nip))')
             ->orderBy('nama')
             ->get()
             ->map(function ($row) use ($siblingImportIds) {
                 $row->total_gram = (float) BoronganHarian::whereIn('borongan_import_id', $siblingImportIds)
-                    ->where('nip', $row->nip)
+                    ->whereRaw('UPPER(TRIM(nip)) = ?', [trim(strtoupper((string) $row->nip))])
                     ->sum('berat_gram');
                 return $row;
             });
