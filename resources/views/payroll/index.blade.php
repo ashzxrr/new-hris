@@ -47,33 +47,36 @@
             @php
                 $totalKaryawan = $p->grand_totals_count ?: $p->pengajuans_count ?: ($p->details_count ?? 0);
                 $totalGaji = $p->total_gaji_gabungan;
-                $formatSingkat = function ($nominal) {
-                    $nominal = (float) $nominal;
-                    if ($nominal >= 1000000) {
-                        $angka = $nominal / 1000000;
-                        return rtrim(rtrim(number_format($angka, 1, ',', '.'), '0'), ',') . 'jt';
-                    }
-                    if ($nominal >= 1000) {
-                        $angka = $nominal / 1000;
-                        return rtrim(rtrim(number_format($angka, 1, ',', '.'), '0'), ',') . 'rb';
-                    }
-                    return number_format($nominal, 0, ',', '.');
+                $formatRupiah = function ($nominal) {
+                    return 'Rp ' . number_format((float) $nominal, 0, ',', '.');
                 };
             @endphp
 
             {{-- Hero Metric --}}
             <div class="mt-2 flex items-baseline justify-between gap-2">
                 <span class="text-[18px] font-bold leading-none text-[#2F4156]">{{ $totalKaryawan }}</span>
-                <span class="truncate text-right text-[13px] font-medium leading-none text-[#2F4156]">Rp {{ $formatSingkat($totalGaji) }}</span>
+                <span class="truncate text-right text-[13px] font-medium leading-none text-[#2F4156]">{{ $formatRupiah($totalGaji) }}</span>
             </div>
             <div class="mt-1 text-[10px] leading-none text-[#8BAFC4]">karyawan · total gaji</div>
 
             {{-- Category Breakdown --}}
-            <div class="mt-2 flex gap-1">
-                <span class="min-w-0 flex-1 truncate rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center text-[9px] leading-tight text-[#8BAFC4]">H {{ $formatSingkat($p->total_harian) }}</span>
-                <span class="min-w-0 flex-1 truncate rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center text-[9px] leading-tight text-[#8BAFC4]">C {{ $formatSingkat($p->total_cabut) }}</span>
-                <span class="min-w-0 flex-1 truncate rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center text-[9px] leading-tight text-[#8BAFC4]">HCR {{ $formatSingkat($p->total_hcr) }}</span>
-                <span class="min-w-0 flex-1 truncate rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center text-[9px] leading-tight text-[#8BAFC4]">M {{ $formatSingkat($p->total_moulding) }}</span>
+            <div class="mt-2 grid grid-cols-4 gap-1">
+                <div class="min-w-0 rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center">
+                    <div class="text-[7px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">Harian</div>
+                    <div class="mt-0.5 text-[8px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_harian) }}</div>
+                </div>
+                <div class="min-w-0 rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center">
+                    <div class="text-[7px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">Cabut</div>
+                    <div class="mt-0.5 text-[8px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_cabut) }}</div>
+                </div>
+                <div class="min-w-0 rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center">
+                    <div class="text-[7px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">HCR</div>
+                    <div class="mt-0.5 text-[8px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_hcr) }}</div>
+                </div>
+                <div class="min-w-0 rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center">
+                    <div class="text-[7px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">Moulding</div>
+                    <div class="mt-0.5 text-[8px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_moulding) }}</div>
+                </div>
             </div>
 
             {{-- Card Footer with Actions --}}
