@@ -37,11 +37,8 @@ class BoronganController extends Controller
             if ($payroll) {
                 $defaultTanggalDari = $payroll->tanggal_dari;
                 $defaultTanggalSampai = $payroll->tanggal_sampai;
-                if (\Carbon\Carbon::parse($defaultTanggalDari)->day === 16) {
-                    $defaultTanggalDari = \Carbon\Carbon::parse($defaultTanggalDari)->subDays(2)->startOfDay();
-                }
                 $defaultMonth = \Carbon\Carbon::parse($defaultTanggalDari)->format('Y-m');
-                $defaultHalf = \Carbon\Carbon::parse($defaultTanggalDari)->day <= 13 ? '1' : '2';
+                $defaultHalf = \Carbon\Carbon::parse($defaultTanggalDari)->day <= 15 ? '1' : '2';
             }
         }
 
@@ -81,19 +78,10 @@ class BoronganController extends Controller
                 if ($payroll) {
                     $tanggalDariPayroll = \Carbon\Carbon::parse($payroll->tanggal_dari);
                     $request->merge([
-                        'tanggal_dari' => $tanggalDariPayroll->day === 16
-                            ? $tanggalDariPayroll->subDays(2)->format('Y-m-d')
-                            : $payroll->tanggal_dari,
+                        'tanggal_dari' => $payroll->tanggal_dari,
                         'tanggal_sampai' => $payroll->tanggal_sampai,
                     ]);
                 }
-            }
-        }
-
-        if ($request->filled('payroll_id') && $request->filled('tanggal_dari')) {
-            $tanggalDari = \Carbon\Carbon::parse($request->tanggal_dari);
-            if ($tanggalDari->day === 16) {
-                $request->merge(['tanggal_dari' => $tanggalDari->subDays(2)->format('Y-m-d')]);
             }
         }
 

@@ -30,13 +30,14 @@
         </a>
     </div>
     @else
-    {{-- Cards Grid --}}
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+    {{-- Cards Grid: 3 kolom agar setiap kartu lebih lega --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         @foreach($payrolls as $p)
-        <div class="bg-white rounded-[10px] border border-[#C8D9E6] px-3 py-3 flex flex-col">
+        <div class="bg-white rounded-[10px] border border-[#C8D9E6] px-4 py-4 flex flex-col
+            {{ $p->status === 'final' ? 'ring-1 ring-[#1B7A4A]/30' : '' }}">
             {{-- Card Header with Status --}}
             <div class="flex items-center justify-between gap-2">
-                <h3 class="text-[12px] font-medium text-[#2F4156] truncate">{{ $p->periode }}</h3>
+                <h3 class="text-[13px] font-medium text-[#2F4156] truncate">{{ $p->periode }}</h3>
                 @if($p->status === 'final')
                     <span class="shrink-0 rounded-full bg-[#E0F2EA] px-2 py-0.5 text-[10px] font-medium text-[#1B7A4A]">Final</span>
                 @else
@@ -47,6 +48,7 @@
             @php
                 $totalKaryawan = $p->grand_totals_count ?: $p->pengajuans_count ?: ($p->details_count ?? 0);
                 $totalGaji = $p->total_gaji_gabungan;
+                $belumDiproses = $totalKaryawan > 0 && (float) $totalGaji === 0.0;
                 $formatRupiah = function ($nominal) {
                     return 'Rp ' . number_format((float) $nominal, 0, ',', '.');
                 };
@@ -54,35 +56,39 @@
 
             {{-- Hero Metric --}}
             <div class="mt-2 flex items-baseline justify-between gap-2">
-                <span class="text-[18px] font-bold leading-none text-[#2F4156]">{{ $totalKaryawan }}</span>
-                <span class="truncate text-right text-[13px] font-medium leading-none text-[#2F4156]">{{ $formatRupiah($totalGaji) }}</span>
+                <span class="text-[20px] font-bold leading-none text-[#2F4156]">{{ $totalKaryawan }}</span>
+                @if($belumDiproses)
+                    <span class="text-[11px] font-medium italic text-[#8BAFC4]">Belum diproses</span>
+                @else
+                    <span class="truncate text-right text-[14px] font-semibold leading-none text-[#2F4156]">{{ $formatRupiah($totalGaji) }}</span>
+                @endif
             </div>
             <div class="mt-1 text-[10px] leading-none text-[#8BAFC4]">karyawan · total gaji</div>
 
             {{-- Category Breakdown --}}
-            <div class="mt-2 grid grid-cols-4 gap-1">
-                <div class="min-w-0 rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center">
-                    <div class="text-[7px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">Harian</div>
-                    <div class="mt-0.5 text-[8px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_harian) }}</div>
+            <div class="mt-3 grid grid-cols-2 gap-1.5">
+                <div class="rounded-[5px] bg-[#F9FBFD] px-2 py-1.5">
+                    <div class="text-[9px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">Harian</div>
+                    <div class="mt-0.5 truncate text-[11px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_harian) }}</div>
                 </div>
-                <div class="min-w-0 rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center">
-                    <div class="text-[7px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">Cabut</div>
-                    <div class="mt-0.5 text-[8px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_cabut) }}</div>
+                <div class="rounded-[5px] bg-[#F9FBFD] px-2 py-1.5">
+                    <div class="text-[9px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">Cabut</div>
+                    <div class="mt-0.5 truncate text-[11px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_cabut) }}</div>
                 </div>
-                <div class="min-w-0 rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center">
-                    <div class="text-[7px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">HCR</div>
-                    <div class="mt-0.5 text-[8px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_hcr) }}</div>
+                <div class="rounded-[5px] bg-[#F9FBFD] px-2 py-1.5">
+                    <div class="text-[9px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">HCR</div>
+                    <div class="mt-0.5 truncate text-[11px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_hcr) }}</div>
                 </div>
-                <div class="min-w-0 rounded-[4px] bg-[#F9FBFD] px-1 py-1 text-center">
-                    <div class="text-[7px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">Moulding</div>
-                    <div class="mt-0.5 text-[8px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_moulding) }}</div>
+                <div class="rounded-[5px] bg-[#F9FBFD] px-2 py-1.5">
+                    <div class="text-[9px] font-medium uppercase tracking-[0.04em] text-[#8BAFC4]">Moulding</div>
+                    <div class="mt-0.5 truncate text-[11px] font-semibold leading-tight text-[#2F4156]">{{ $formatRupiah($p->total_moulding) }}</div>
                 </div>
             </div>
 
             {{-- Card Footer with Actions --}}
             <div class="mt-3 flex items-center gap-2">
                 <a href="{{ route('payroll.show', $p->id) }}"
-                    class="flex-1 justify-center pbtn pbtn-secondary !h-[28px] !min-h-0 !rounded-[6px] !px-3 !text-[11px] !leading-none">
+                    class="flex-1 justify-center pbtn pbtn-secondary !h-[30px] !min-h-0 !rounded-[6px] !px-3 !text-[11px] !leading-none">
                     {{ $p->status === 'final' ? 'Lihat detail' : 'Detail' }}
                 </a>
                 @if($p->status === 'draft')
@@ -90,7 +96,7 @@
                     onsubmit="return confirm('Hapus payroll ini?')">
                     @csrf @method('DELETE')
                     <button type="submit"
-                        class="w-full pbtn pbtn-danger">
+                        class="w-full pbtn pbtn-danger !h-[30px] !min-h-0 !rounded-[6px] !text-[11px]">
                         Hapus
                     </button>
                 </form>
