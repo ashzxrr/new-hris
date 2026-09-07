@@ -268,7 +268,7 @@
 </div>
 
 <div id="reviewModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-white rounded-t-2xl border-b border-[#E5E7EB] px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
                 <h3 class="font-semibold text-slate-800" id="reviewModalNama"></h3>
@@ -284,7 +284,8 @@
                 <div id="reviewModalTotalUpah" class="mb-4 text-sm font-semibold text-slate-700 hidden">
                     Total Upah (NIP ini): Rp 0
                 </div>
-                <table class="w-full text-xs">
+                <div class="overflow-x-auto">
+                <table class="w-full min-w-[980px] text-xs">
                     <thead class="bg-[#F8FAFC] border-b border-[#E5E7EB]">
                         <tr>
                             <th class="px-3 py-2 text-left text-slate-400">Tanggal</th>
@@ -300,6 +301,7 @@
                     </thead>
                     <tbody id="reviewModalBody"></tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
@@ -425,7 +427,7 @@ function openReviewModal(importId, nip, nama) {
                 const specialFlag = ['Tidak ada data pada tanggal ini', 'User aktif di bagian Moulding, tidak ditemukan di file'].includes(job.flag_reason || '');
                 const actionCell = specialFlag
                     ? `<div class="flex flex-col items-center gap-1 mt-1">
-                        <button type="button" onclick="konfirmasiKosong(${job.id})" class="pbtn pbtn-success pbtn-sm">
+                        <button type="button" onclick="konfirmasiKosong(${job.id}, this)" class="pbtn pbtn-success pbtn-sm">
                             <span class="pbtn-icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><polyline points="20 6 9 17 4 12"/></svg>
                             </span>
@@ -797,16 +799,30 @@ function submitAddGramForm(event) {
     });
 }
 
-function konfirmasiKosong(harianId) {
+function konfirmasiKosong(harianId, button) {
+    const row = button?.closest('tr');
+    const input = row?.querySelector('input[data-field="upah_sistem"]');
+    const upahSistem = input ? parseInt(input.value || 0, 10) : 0;
+
+    button.disabled = true;
     fetch(`{{ url('borongan/harian') }}/${harianId}/konfirmasi-kosong`, {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-            'Accept': 'application/json'
-        }
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ upah_sistem: upahSistem })
     })
-    .then(r => r.json())
-    .then(() => location.reload());
+    .then(r => r.json().then(data => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+        if (!ok || !data.success) throw new Error(data.message || 'Gagal mengonfirmasi data.');
+        location.reload();
+    })
+    .catch(error => {
+        button.disabled = false;
+        alert(error.message);
+    });
 }
 
 function hapusDariDaftar(harianId) {

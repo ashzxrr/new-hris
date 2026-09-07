@@ -94,6 +94,19 @@ class BoronganController extends Controller
             'file_kategori' => 'required_if:jenis,moulding|file|mimes:xlsx,xls',
         ]);
 
+        if ($request->filled('payroll_id')) {
+            $payroll = \App\Models\Payroll::findOrFail($request->payroll_id);
+            $payrollTanggalDari = \Carbon\Carbon::parse($payroll->tanggal_dari)->format('Y-m-d');
+            $payrollTanggalSampai = \Carbon\Carbon::parse($payroll->tanggal_sampai)->format('Y-m-d');
+            if ($request->tanggal_dari !== $payrollTanggalDari
+                || $request->tanggal_sampai !== $payrollTanggalSampai) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tanggal import harus sama dengan periode payroll yang dipilih.',
+                ], 422);
+            }
+        }
+
         $tanggalDari  = $request->tanggal_dari;
         $tanggalSampai= $request->tanggal_sampai;
 
@@ -1244,16 +1257,6 @@ class BoronganController extends Controller
         ]);
 
         $harian = BoronganHarian::findOrFail($request->harian_id);
-        $emptyFlagReasons = [
-            'Tidak ada data pada tanggal ini',
-            'User aktif di bagian Moulding, tidak ditemukan di file',
-        ];
-        if ($harian->berat_gram == 0 && $harian->upah_file == 0 && in_array($harian->flag_reason, $emptyFlagReasons, true)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Tidak dapat mengubah upah untuk karyawan tanpa transaksi. Gunakan hapus atau konfirmasi kosong.',
-            ], 422);
-        }
         $upahSistem = intval($request->upah_sistem);
         $potongan = max(0, intval($harian->upah_file - $upahSistem));
 
@@ -1425,12 +1428,42 @@ class BoronganController extends Controller
         return response()->json(['success' => true, 'updated' => $updated, 'skipped' => $skipped]);
     }
 
-    public function konfirmasiTidakMasuk($harianId)
+    public function konfirmasiTidakMasuk(Request $request, $harianId)
     {
-        $harian = BoronganHarian::findOrFail($harianId);
-        $harian->update(['is_flagged' => false, 'flag_reason' => null]);
+        $request->validate([
+            'upah_sistem' => 'nullable|integer|min:0',
+        ]);
 
-        return response()->json(['success' => true]);
+        $harian = BoronganHarian::findOrFail($harianId);
+        $updates = ['is_flagged' => false, 'flag_reason' => null];
+
+        if ($request->has('upah_sistem')) {
+            $upahSistem = (int) $request->input('upah_sistem');
+            $updates['upah_sistem'] = $upahSistem;
+            $updates['selisih'] = (int) $harian->upah_file - $upahSistem;
+        }
+
+        $harian->update($updates);
+
+        if ($request->has('upah_sistem')) {
+            $totalUpah = BoronganHarian::where('borongan_import_id', $harian->borongan_import_id)
+                ->where('nip', $harian->nip)
+                ->sum('upah_sistem');
+            $rekap = BoronganRekap::where('borongan_import_id', $harian->borongan_import_id)
+                ->where('nip', $harian->nip)
+                ->first();
+
+            if ($rekap) {
+                $rekap->total_upah = $totalUpah;
+                $rekap->total_akhir = $totalUpah + $rekap->tambahan - $rekap->potongan_bpjs - $rekap->potongan_lain;
+                $rekap->save();
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'upah_sistem' => $harian->upah_sistem,
+        ]);
     }
 
     public function hapusDariDaftar($harianId)
@@ -1515,8 +1548,9 @@ class BoronganController extends Controller
         $rekap->saveQuietly();
 
         // Reset potongan/tambahan on OTHER rows for the same NIP to avoid double-counting
+        $normalizedNip = $this->normalizeNip($rekap->nip);
         $otherRows = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
-            ->where('nip', $rekap->nip)
+            ->whereRaw('UPPER(TRIM(nip)) = ?', [$normalizedNip])
             ->where('id', '!=', $rekap->id)
             ->get();
 
@@ -1531,7 +1565,7 @@ class BoronganController extends Controller
 
         // Return the SUM of total_akhir across all rows for this NIP
         $totalAkhir = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
-            ->where('nip', $rekap->nip)
+            ->whereRaw('UPPER(TRIM(nip)) = ?', [$normalizedNip])
             ->sum('total_akhir');
 
         return response()->json([
@@ -1676,13 +1710,13 @@ class BoronganController extends Controller
             ->pluck('id');
 
         $harianGrouped = BoronganHarian::whereIn('borongan_import_id', $siblingImportIds)
-            ->where('nip', $nip)
+            ->whereRaw('UPPER(TRIM(nip)) = ?', [$this->normalizeNip($nip)])
             ->orderBy('tanggal')
             ->get()
             ->groupBy(fn($h) => \Carbon\Carbon::parse($h->tanggal)->format('Y-m-d'));
 
         $rekapRows = BoronganRekap::whereIn('borongan_import_id', $siblingImportIds)
-            ->where('nip', $nip)
+            ->whereRaw('UPPER(TRIM(nip)) = ?', [$this->normalizeNip($nip)])
             ->get();
 
         $rekapTotal = [
@@ -1710,7 +1744,7 @@ class BoronganController extends Controller
             $tanggalSampai = \Carbon\Carbon::parse($tanggalSampai);
         }
 
-        $user = User::where('nip', $nip)->first();
+        $user = User::whereRaw('UPPER(TRIM(nip)) = ?', [$this->normalizeNip($nip)])->first();
         $attendanceLogs = [];
 
         if ($user) {
@@ -1837,10 +1871,20 @@ class BoronganController extends Controller
                 foreach ($listB as $impB) {
                     if ($impA->id == $impB->id) continue;
 
-                    $nipsA = BoronganRekap::where('borongan_import_id', $impA->id)->pluck('nip')
-                        ->map(fn($v) => trim($v))->filter()->unique()->values()->toArray();
-                    $nipsB = BoronganRekap::where('borongan_import_id', $impB->id)->pluck('nip')
-                        ->map(fn($v) => trim($v))->filter()->unique()->values()->toArray();
+                    $nipsA = BoronganHarian::where('borongan_import_id', $impA->id)
+                        ->where(function ($query) {
+                            $query->where('berat_gram', '>', 0)
+                                ->orWhere('upah_sistem', '>', 0);
+                        })
+                        ->pluck('nip')
+                        ->map(fn($v) => $this->normalizeNip($v))->filter()->unique()->values()->toArray();
+                    $nipsB = BoronganHarian::where('borongan_import_id', $impB->id)
+                        ->where(function ($query) {
+                            $query->where('berat_gram', '>', 0)
+                                ->orWhere('upah_sistem', '>', 0);
+                        })
+                        ->pluck('nip')
+                        ->map(fn($v) => $this->normalizeNip($v))->filter()->unique()->values()->toArray();
 
                     $common = array_intersect($nipsA, $nipsB);
 
@@ -1848,7 +1892,7 @@ class BoronganController extends Controller
                         if (empty($nip)) continue;
 
                         $exists = BoronganMutasiLog::where('payroll_id', $payrollId)
-                            ->where('nip', $nip)
+                            ->whereRaw('UPPER(TRIM(nip)) = ?', [$this->normalizeNip($nip)])
                             ->where(function ($q) use ($jenisA, $jenisB) {
                                 $q->where(function ($q2) use ($jenisA, $jenisB) {
                                     $q2->where('jenis_a', $jenisA)->where('jenis_b', $jenisB);
@@ -1861,7 +1905,7 @@ class BoronganController extends Controller
 
                         BoronganMutasiLog::create([
                             'payroll_id' => $payrollId,
-                            'nip' => $nip,
+                            'nip' => $this->normalizeNip($nip),
                             'jenis_a' => $jenisA,
                             'import_id_a' => $impA->id,
                             'jenis_b' => $jenisB,
@@ -1888,13 +1932,16 @@ class BoronganController extends Controller
 
             if ($request->status === 'rejected') {
                 $wrongImportId = $request->wrong_side === 'a' ? $log->import_id_a : $log->import_id_b;
+                $normalizedNip = $this->normalizeNip($log->nip);
 
                 BoronganHarian::where('borongan_import_id', $wrongImportId)
-                    ->where('nip', $log->nip)
+                    ->whereRaw('UPPER(TRIM(nip)) = ?', [$normalizedNip])
                     ->delete();
                 BoronganRekap::where('borongan_import_id', $wrongImportId)
-                    ->where('nip', $log->nip)
+                    ->whereRaw('UPPER(TRIM(nip)) = ?', [$normalizedNip])
                     ->delete();
+
+                $this->syncImportRekap($wrongImportId);
             }
 
             $log->update([
@@ -1946,6 +1993,21 @@ class BoronganController extends Controller
         }
 
         return 'UNKNOWN';
+    }
+
+    private function normalizeNip($nip): string
+    {
+        return strtoupper(trim((string) $nip));
+    }
+
+    private function syncImportRekap(int $importId): void
+    {
+        $import = BoronganImport::find($importId);
+        if (!$import || $import->status === 'approved') {
+            return;
+        }
+
+        BoronganHelper::syncRekapForImport($importId);
     }
 
     private function findRateForCategory($rates, string $category): int
