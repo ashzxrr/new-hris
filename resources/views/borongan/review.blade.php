@@ -127,6 +127,23 @@
                             @endforeach
                         </div>
                     @endif
+                    <div class="mt-2 space-y-1 border-t border-slate-100 pt-2">
+                        @foreach($additionalRows as $additionalRow)
+                            <div class="flex items-center justify-between gap-2 text-xs text-slate-500">
+                                <span>
+                                    {{ \Carbon\Carbon::parse($additionalRow->tanggal)->format('d M Y') }}:
+                                    {{ \App\Helpers\BoronganHelper::formatGram($additionalRow->berat_gram) }} gram
+                                    @if($additionalRow->gram_note) ({{ $additionalRow->gram_note }}) @endif
+                                </span>
+                                @if($import->status !== 'approved')
+                                    <button type="button" onclick="hapusGramTambahan({{ $additionalRow->id }})"
+                                        class="text-red-500 hover:text-red-700" title="Hapus gram tambahan">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-3.5 w-3.5"><path d="M3 6h18"/><path d="M6 6l1 14h10l1-14"/><path d="M9 6V4h6v2"/></svg>
+                                    </button>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
                 @else
                     Tambahan belum ada
                 @endif
@@ -178,7 +195,26 @@
     @if(!empty($pendingMutasi) && $pendingMutasi->isNotEmpty())
     <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
         <p class="text-sm font-medium text-amber-700">⚠️ Ada {{ $pendingMutasi->count() }} indikasi mutasi karyawan yang belum dikonfirmasi.</p>
-        <p class="text-xs text-amber-600 mt-1">Karyawan berikut terdeteksi muncul di lebih dari satu jenis borongan dalam periode ini. Konfirmasi setiap kasus sebelum bisa approve.</p>
+        <p class="text-xs text-amber-600 mt-1">Karyawan berikut muncul di dua jenis borongan. Pastikan apakah benar mutasi atau salah input.</p>
+        <div class="mt-3 space-y-2">
+            @foreach($pendingMutasi as $mutasi)
+                @php
+                    $mutasiItem = $items->first(fn($item) => strtoupper(trim((string) $item['nip'])) === strtoupper(trim((string) $mutasi->nip)));
+                    $mutasiNama = $mutasiItem['nama'] ?? $mutasi->nip;
+                @endphp
+                <div class="flex flex-col gap-2 rounded-lg border border-amber-200 bg-white/70 px-3 py-2 text-xs sm:flex-row sm:items-center sm:justify-between">
+                    <span class="text-slate-700">
+                        <strong>{{ $mutasiNama }}</strong> ({{ $mutasi->nip }})
+                        <span class="text-amber-700">tercatat di {{ strtoupper($mutasi->jenis_a) }} dan {{ strtoupper($mutasi->jenis_b) }}</span>
+                    </span>
+                    <button type="button"
+                        onclick="openMutasiModal({{ $mutasi->id }}, @js($mutasi->nip), @js($mutasiNama), @js($mutasi->jenis_a), @js($mutasi->jenis_b))"
+                        class="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 font-medium text-white hover:bg-amber-600">
+                        Konfirmasi Mutasi
+                    </button>
+                </div>
+            @endforeach
+        </div>
     </div>
     @endif
 
@@ -218,7 +254,7 @@
                     <td class="px-4 py-3 text-right font-medium text-slate-800">Rp {{ number_format($item['total_upah'], 0, ',', '.') }}</td>
                     <td class="px-4 py-3 text-center">
                         @php
-                            $mutasiForNip = $pendingMutasi->firstWhere('nip', $item['nip'] ?? null) ?? null;
+                            $mutasiForNip = $pendingMutasi->first(fn($mutasi) => strtoupper(trim((string) $mutasi->nip)) === strtoupper(trim((string) ($item['nip'] ?? ''))));
                         @endphp
                         @if($item['is_flagged'])
                             <span class="text-xs bg-[#F59E0B]/10 text-[#F59E0B] px-2 py-0.5 rounded-full font-medium">
@@ -768,35 +804,30 @@ function submitAddGramForm(event) {
 
         closeAddGramModal();
         showToast('Gram tambahan berhasil disimpan.', 'success');
-
-        const addedGram = (data.additional_gram || 0) - previousAdditionalGram;
-        previousAdditionalGram = data.additional_gram || 0;
-
-        const totalGramCard = Array.from(document.querySelectorAll('div.grid.grid-cols-4 > div'))
-            .find(card => card.querySelector('div.text-xs')?.textContent.trim() === 'Total Gram');
-        if (totalGramCard) {
-            const valueEl = totalGramCard.querySelector('div.text-xl, div.text-2xl');
-            if (valueEl) {
-                const currentValue = parseIdNumber(valueEl.textContent || '0');
-                valueEl.textContent = (currentValue + addedGram).toLocaleString('id-ID');
-            }
-            const noteEl = totalGramCard.querySelector('.additional-gram-note');
-            if (noteEl) {
-                let noteHtml = `Termasuk ${previousAdditionalGram.toLocaleString('id-ID')} gram tambahan`;
-                if (data.additional_notes) {
-                    const notes = data.additional_notes.split('; ');
-                    noteHtml += `<div class="text-xs text-slate-400 mt-0.5">`;
-                    notes.forEach(n => { noteHtml += `<div>• ${n}</div>`; });
-                    noteHtml += `</div>`;
-                }
-                noteEl.innerHTML = noteHtml;
-            }
-        }
+        location.reload();
     })
     .catch(e => {
         console.error(e);
         alert('Gagal menambahkan gram tambahan.');
     });
+}
+
+function hapusGramTambahan(gramId) {
+    if (!confirm('Hapus gram tambahan ini?')) return;
+
+    fetch(`${reviewBaseUrl}/${currentReviewImportId}/gram/${gramId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+            'Accept': 'application/json'
+        }
+    })
+    .then(r => r.json().then(data => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+        if (!ok || !data.success) throw new Error(data.message || 'Gagal menghapus gram tambahan.');
+        location.reload();
+    })
+    .catch(error => alert(error.message));
 }
 
 function konfirmasiKosong(harianId, button) {

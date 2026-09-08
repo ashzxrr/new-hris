@@ -1158,12 +1158,21 @@ class BoronganController extends Controller
             })
             ->sum('berat_gram');
 
+        $additionalRows = BoronganHarian::where('borongan_import_id', $id)
+            ->where(function ($q) {
+                $q->whereNull('nip')
+                  ->orWhere('nip', '');
+            })
+            ->orderBy('tanggal')
+            ->orderBy('id')
+            ->get(['id', 'tanggal', 'berat_gram', 'gram_note']);
+
         // Compute total gram for this import directly from borongan_harian to avoid
         // any previously-rounded rekap values.
         $totalGramForImport = \App\Helpers\BoronganHelper::getTotalGramForImport($id);
 
         $payrollId = $import->payroll_id;
-        return view('borongan.review', compact('import', 'items', 'payrollId', 'pendingMutasi', 'siblingImports', 'additionalGram', 'totalGramForImport'));
+        return view('borongan.review', compact('import', 'items', 'payrollId', 'pendingMutasi', 'siblingImports', 'additionalGram', 'additionalRows', 'totalGramForImport'));
     }
 
     public function bulkHapusKosong(Request $request, $id)
@@ -1304,6 +1313,9 @@ class BoronganController extends Controller
         ]);
 
         $import = BoronganImport::findOrFail($id);
+        if ($import->status === 'approved') {
+            return response()->json(['message' => 'Import yang sudah approved tidak dapat diubah.'], 422);
+        }
 
         BoronganHarian::create([
             'borongan_import_id' => $import->id,
@@ -1322,16 +1334,7 @@ class BoronganController extends Controller
             'status' => 'pending',
         ]);
 
-        $additionalGram = BoronganHarian::where('borongan_import_id', $import->id)
-            ->where(function ($q) {
-                $q->whereNull('nip')
-                  ->orWhere('nip', '');
-            })
-            ->sum('berat_gram');
-
-        // Update aggregated notes on the import
-        $tambahanNotes = BoronganHelper::getTambahanGramNotes($import->id);
-        $import->tambahan_gram_notes = !empty($tambahanNotes) ? implode('; ', $tambahanNotes) : null;
+        $additionalGram = $this->syncTambahanGramSummary($import);
         $import->saveQuietly();
 
         return response()->json([
@@ -1340,6 +1343,43 @@ class BoronganController extends Controller
             'additional_gram'  => $additionalGram,
             'additional_notes' => $import->tambahan_gram_notes,
         ]);
+    }
+
+    public function deleteGram($id, $gramId)
+    {
+        $import = BoronganImport::findOrFail($id);
+        if ($import->status === 'approved') {
+            return response()->json(['message' => 'Import yang sudah approved tidak dapat diubah.'], 422);
+        }
+
+        $gram = BoronganHarian::where('id', $gramId)
+            ->where('borongan_import_id', $import->id)
+            ->where(function ($q) {
+                $q->whereNull('nip')
+                  ->orWhere('nip', '');
+            })
+            ->firstOrFail();
+
+        $gram->delete();
+        $additionalGram = $this->syncTambahanGramSummary($import);
+        $import->saveQuietly();
+
+        return response()->json([
+            'success' => true,
+            'deleted' => true,
+            'additional_gram' => $additionalGram,
+            'additional_notes' => $import->tambahan_gram_notes,
+        ]);
+    }
+
+    private function syncTambahanGramSummary(BoronganImport $import): float
+    {
+        $additionalGram = BoronganHelper::getTambahanGram($import->id);
+        $tambahanNotes = BoronganHelper::getTambahanGramNotes($import->id);
+        $import->tambahan_gram = $additionalGram;
+        $import->tambahan_gram_notes = !empty($tambahanNotes) ? implode('; ', $tambahanNotes) : null;
+
+        return (float) $additionalGram;
     }
 
     public function bulkApplyTraining(Request $request, $id)

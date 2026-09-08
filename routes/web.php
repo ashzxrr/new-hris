@@ -111,6 +111,7 @@ Route::middleware('auth:admin')->group(function () {
             Route::get('/{id}/review-detail/{nip}', [BoronganController::class, 'getReviewDetail'])->name('review.detail');
             Route::post('/{id}/update-upah-sistem', [BoronganController::class, 'updateUpahSistem'])->name('update.upah.sistem');
             Route::post('/{id}/add-gram', [BoronganController::class, 'addGram'])->name('add.gram');
+            Route::delete('/{id}/gram/{gramId}', [BoronganController::class, 'deleteGram'])->name('delete.gram');
             Route::post('/{id}/bulk-upah-sistem', [BoronganController::class, 'bulkUpdateUpahSistem'])->name('bulkUpahSistem');
             Route::post('/{id}/bulk-training', [BoronganController::class, 'bulkApplyTraining'])->name('bulkTraining');
             Route::post('/{id}/bulk-hapus-kosong', [BoronganController::class, 'bulkHapusKosong'])->name('bulkHapusKosong');
