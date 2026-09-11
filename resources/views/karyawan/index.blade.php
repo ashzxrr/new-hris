@@ -101,7 +101,7 @@
 
                     <div class="mb-3">
                         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide px-1 mb-1">Cabut</div>
-                        @foreach([['id'=>8,'nama'=>'Karyawati'],['id'=>3,'nama'=>'Sri Utami'],['id'=>2,'nama'=>'ST Nur Farokah'],['id'=>25,'nama'=>'Fhilis Sulestari'],['id'=>22,'nama'=>'Muhammad Regatana Hidayatulloh'],['id'=>119,'nama'=>'Zusita Arsdhia Indrayani'],['id'=>34,'nama'=>'Wahyu Surodo'],['id'=>30,'nama'=>'Deniko Fergian'],['id'=>109,'nama'=>'Ruliatul Fidiah']] as $tl)
+                        @foreach([['id'=>8,'nama'=>'Karyawati'],['id'=>116,'nama'=>'Yuni Indarwati'],['id'=>2,'nama'=>'ST Nur Farokah'],['id'=>25,'nama'=>'Fhilis Sulestari'],['id'=>22,'nama'=>'Muhammad Regatana Hidayatulloh'],['id'=>119,'nama'=>'Zusita Arsdhia Indrayani'],['id'=>34,'nama'=>'Wahyu Surodo'],['id'=>30,'nama'=>'Deniko Fergian'],['id'=>109,'nama'=>'Ruliatul Fidiah']] as $tl)
                         <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-[#F8FAFC] rounded-lg cursor-pointer">
                             <input type="checkbox" class="tl-filter-check accent-[#4F46E5]" value="{{ $tl['id'] }}" data-nama="{{ $tl['nama'] }}">
                             <span class="text-sm text-slate-700">{{ $tl['nama'] }}</span>
@@ -377,7 +377,7 @@
                             <!-- CABUT -->
                             <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-1 bg-[#F8FAFC]">CABUT</div>
                             <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="8" onclick="selectTL('edit', '8', 'Karyawati')">Karyawati</div>
-                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="3" onclick="selectTL('edit', '3', 'Sri Utami')">Sri Utami</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="116" onclick="selectTL('edit', '116', 'Yuni Indarwati')">Yuni Indarwati</div>
                             <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="2" onclick="selectTL('edit', '2', 'ST Nur Farokah')">ST Nur Farokah</div>
                             <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="25" onclick="selectTL('edit', '25', 'Fhilis Sulestari')">Fhilis Sulestari</div>
                             <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="22" onclick="selectTL('edit', '22', 'Muhammad Regatana Hidayatulloh')">Muhammad Regatana Hidayatulloh</div>

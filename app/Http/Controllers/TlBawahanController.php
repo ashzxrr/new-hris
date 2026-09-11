@@ -50,7 +50,7 @@ class TlBawahanController extends Controller
         $groupDefs = [
             'Cabut' => [
                 8   => 'Agung Hermansyah',
-                3   => 'Agus Kurniawan',
+                116 => 'Agus Kurniawan',
                 2   => 'Emanual Arvit Afriza',
                 25  => 'Nita Nurul Aini',
                 22  => 'Umariyah',

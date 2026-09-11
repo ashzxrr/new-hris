@@ -239,7 +239,7 @@
                             <!-- CABUT -->
                             <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-1 bg-[#F8FAFC]">CABUT</div>
                             <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="8" onclick="selectTL('sync', '8', 'Karyawati')">Karyawati</div>
-                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="3" onclick="selectTL('sync', '3', 'Sri Utami')">Sri Utami</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="116" onclick="selectTL('sync', '116', 'Yuni Indarwati')">Yuni Indarwati</div>
                             <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="2" onclick="selectTL('sync', '2', 'ST Nur Farokah')">ST Nur Farokah</div>
                             <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="25" onclick="selectTL('sync', '25', 'Fhilis Sulestari')">Fhilis Sulestari</div>
                             <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="22" onclick="selectTL('sync', '22', 'Muhammad Regatana Hidayatulloh')">Muhammad Regatana Hidayatulloh</div>

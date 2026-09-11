@@ -82,7 +82,7 @@
                                     <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide px-1 mb-1">Cabut</div>
                                     @foreach([
                                         ['id'=>8,   'nama'=>'Karyawati'],
-                                        ['id'=>3,   'nama'=>'Sri Utami'],
+                                        ['id'=>116, 'nama'=>'Yuni Indarwati'],
                                         ['id'=>2,   'nama'=>'ST Nur Farokah'],
                                         ['id'=>25,  'nama'=>'Fhilis Sulestari'],
                                         ['id'=>22,  'nama'=>'Muhammad Regatana Hidayatulloh'],
