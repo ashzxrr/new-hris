@@ -17,10 +17,22 @@ class IdCardController extends Controller
             ->sort()
             ->values();
 
+        $kategoriGajiList = User::where('is_active', 1)
+            ->whereNotNull('kategori_gaji')
+            ->where('kategori_gaji', '<>', '')
+            ->distinct()
+            ->pluck('kategori_gaji')
+            ->sort()
+            ->values();
+
         $query = User::where('is_active', 1);
 
         if ($request->filled('bagian')) {
             $query->where('bagian', $request->bagian);
+        }
+
+        if ($request->filled('kategori_gaji')) {
+            $query->where('kategori_gaji', $request->kategori_gaji);
         }
 
         if ($request->status_cetak == 'belum') {
@@ -36,7 +48,7 @@ class IdCardController extends Controller
 
         $karyawan = $query->orderBy('bagian')->orderBy('nama')->get();
 
-        return view('idcard.index', compact('karyawan', 'bagianList'));
+        return view('idcard.index', compact('karyawan', 'bagianList', 'kategoriGajiList'));
     }
 
     public function export(Request $request)

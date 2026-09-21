@@ -495,6 +495,57 @@ class PayrollTarikAbsensiTest extends TestCase
         $this->assertSame(128125, (int) $detail->total_gaji);
     }
 
+    public function test_sync_all_details_applies_salary_config_from_its_effective_date(): void
+    {
+        $payroll = Payroll::create([
+            'periode' => '2026-09-1',
+            'tanggal_dari' => '2026-09-01',
+            'tanggal_sampai' => '2026-09-15',
+            'status' => 'draft',
+            'created_by' => 1,
+        ]);
+
+        $oldConfig = \App\Models\SalaryConfig::create([
+            'nip' => '400',
+            'nominal' => 80000,
+            'berlaku_dari' => '2026-09-01',
+        ]);
+        \App\Models\SalaryConfig::create([
+            'nip' => '400',
+            'nominal' => 100000,
+            'berlaku_dari' => '2026-09-08',
+        ]);
+
+        $user = User::create([
+            'pin' => '400',
+            'nip' => '400',
+            'nama' => 'Effective Date User',
+            'kategori_gaji' => 'harian',
+        ]);
+        $user->salary_config_id = $oldConfig->id;
+        $user->save();
+
+        foreach (['2026-09-05', '2026-09-08'] as $date) {
+            AttendanceLog::create([
+                'pin' => '400',
+                'tanggal' => $date,
+                'datetime' => $date . ' 07:00:00',
+                'status' => 'IN',
+            ]);
+        }
+
+        $response = app(PayrollController::class)->tarikAbsensi($payroll->id);
+
+        $this->assertTrue($response->getData(true)['success']);
+        $syncResponse = app(PayrollController::class)->syncAllDetails($payroll->id);
+        $this->assertTrue($syncResponse->getData(true)['success']);
+        $detail = PayrollDetail::where('payroll_id', $payroll->id)->where('nip', '400')->first();
+
+        $this->assertNotNull($detail);
+        $this->assertSame(180000, (int) $detail->gaji_pokok);
+        $this->assertSame(100000, (int) $detail->nominal_harian);
+    }
+
     public function test_generate_pengajuan_uses_gaji_pokok_for_harian_and_detail_sum_for_borongan(): void
     {
         $payroll = Payroll::create([

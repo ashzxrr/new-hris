@@ -5,8 +5,8 @@
     <meta charset="utf-8">
     <title>ID Card</title>
     <style>
-        @page { margin: 8mm; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; }
+        @page { margin: 7mm; }
+        body { font-family: 'DejaVu Sans', Arial, sans-serif; margin: 0; padding: 0; color: #17324D; }
 
         .page-break { page-break-after: always; }
 
@@ -17,91 +17,123 @@
         }
         table.grid td {
             width: 33.33%;
-            padding: 6px;
+            padding: 3px;
             vertical-align: top;
             page-break-inside: avoid;
         }
 
         .card {
-            border: 2px solid #F2C200;
-            border-radius: 12px;
-            text-align: center;
-            box-sizing: border-box;
-            overflow: hidden;
-            background: #fff;
+            position: relative;
+            width: 5.5cm;
+            height: 8.5cm;
+            margin: 0 auto;
             page-break-inside: avoid;
         }
-        .card-logo {
-            padding: 10px 0 2px;
+        .card-bg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 5.5cm;
+            height: 8.5cm;
         }
-        .card-logo img {
-            height: 26px;
+
+        /* QR, di dalam kotak putih border gold */
+        .qr-overlay {
+            position: absolute;
+            top: 2.79cm;
+            left: 1.88cm;
+            width: 1.75cm;
+            height: 1.75cm;
         }
-        .card-company {
-            font-size: 7px;
-            font-style: italic;
-            color: #B8960A;
-            margin-bottom: 6px;
-        }
-        .qr-wrap {
-            background: #FFF6D9;
-            border-radius: 10px;
-            padding: 6px;
-            display: inline-block;
-        }
-        .qr-wrap img {
-            width: 110px;
-            height: 110px;
+        .qr-overlay img {
+            width: 1.75cm;
+            height: 1.75cm;
             display: block;
         }
-        .card-body {
-            padding: 6px 8px 10px;
+
+        /* nama karyawan */
+        .nama-overlay {
+            position: absolute;
+            top: 4.72cm;
+            left: 0;
+            width: 5.5cm;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 800;
+            color: #17324D;
+            letter-spacing: .2px;
         }
-        .card-body .bagian {
-            font-size: 7px;
+
+        /* NIP */
+        .nip-overlay {
+            position: absolute;
+            top: 5.23cm;
+            left: 0;
+            width: 5.5cm;
+            text-align: center;
+            font-size: 8px;
             font-weight: 600;
-            color: #B8960A;
+            color: #3A5468;
+        }
+
+        /* jabatan, baris atas di dalam pill */
+        .jabatan-overlay {
+            position: absolute;
+            top: 5.71cm;
+            left: 0;
+            width: 5.5cm;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 800;
+            color: #17324D;
+            letter-spacing: .3px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 2px;
         }
-        .card-body .nama {
-            font-size: 10px;
-            font-weight: 700;
-            color: #1a1a1a;
-            line-height: 1.2;
+
+        /* kelompok bagian, baris bawah di dalam pill */
+        .kelompok-overlay {
+            position: absolute;
+            top: 6.05cm;
+            left: 0;
+            width: 5.5cm;
+            text-align: center;
+            font-size: 7.5px;
+            font-weight: 600;
+            color: #3D2A08;
+            letter-spacing: .2px;
         }
-        .card-body .nip {
-            font-size: 9px;
-            color: #555;
-            margin-top: 3px;
+        .kelompok-overlay b {
+            font-weight: 800;
         }
     </style>
 </head>
 <body>
-    @foreach($karyawan->chunk(12) as $page)
+    @foreach($karyawan->chunk(9) as $page)
         <table class="grid">
             @foreach($page->chunk(3) as $row)
                 <tr>
                     @foreach($row as $k)
                         <td>
                             <div class="card">
-                                <div class="card-logo">
-                                    <img src="{{ public_path('images/logo-waj.png') }}">
-                                </div>
-                                <div class="card-company">Walet Abdillah Jabli</div>
-                                <div class="qr-wrap">
+                                <img class="card-bg" src="{{ public_path('images/card-bg-waj-3.png') }}">
+
+                                <div class="qr-overlay">
                                     <img src="data:image/svg+xml;base64,{{ base64_encode(QrCode::format('svg')->size(200)->generate($k->nip)) }}">
                                 </div>
-                                <div class="card-body">
-                                    <div class="bagian">{{ $k->bagian ?? 'UMUM' }}</div>
-                                    <div class="nama">{{ strtoupper($k->nama) }}</div>
-                                    <div class="nip">NIP. {{ $k->nip }}</div>
-                                </div>
+
+                                <div class="nama-overlay">{{ strtoupper($k->nama) }}</div>
+                                <div class="nip-overlay">NIP. {{ $k->nip }}</div>
+
+                                @php
+                                    $levelJabatan = trim((string) ($k->job_level ?? $k->job_title ?? 'STAFF'));
+                                    if ($levelJabatan === '') {
+                                        $levelJabatan = 'STAFF';
+                                    }
+                                @endphp
+                                <div class="jabatan-overlay">{{ strtoupper($levelJabatan) }}</div>
+                                <div class="kelompok-overlay">Bagian: <b>{{ strtoupper($k->bagian ?? 'UMUM') }}</b></div>
                             </div>
                         </td>
                     @endforeach
-                    {{-- Pad kolom jika kurang dari 3 --}}
                     @for($i = $row->count(); $i < 3; $i++)
                         <td></td>
                     @endfor

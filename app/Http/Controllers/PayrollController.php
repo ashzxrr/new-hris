@@ -123,11 +123,11 @@ class PayrollController extends Controller
 
         // Ambil salary configs
         $salaryConfigs = SalaryConfig::whereIn('nip', $karyawan->pluck('nip'))
-            ->where('berlaku_dari', '<=', $dari)
+            ->where('berlaku_dari', '<=', $sampai)
             ->orderByDesc('berlaku_dari')
             ->get()
             ->groupBy('nip')
-            ->map(fn($g) => $g->first());
+            ->map(fn($g) => $g->values());
 
         // Ambil logs
         $logs = AttendanceLog::whereIn('pin', $karyawan->pluck('pin'))
@@ -164,8 +164,7 @@ class PayrollController extends Controller
         foreach ($karyawan as $k) {
             $pin = (string) intval($k->pin);
             $nip = $k->nip;
-            $config = $salaryConfigs[$nip] ?? null;
-            $nominal = $config ? $config->nominal : 0;
+            $configsForNip = $salaryConfigs[$nip] ?? collect();
 
             $hadir       = 0;
             $alpha       = 0;
@@ -177,6 +176,9 @@ class PayrollController extends Controller
             foreach ($periode as $tgl) {
                 $isSunday = date('N', strtotime($tgl)) == 7;
                 if ($isSunday) continue;
+
+                $config = $configsForNip->first(fn($item) => $item->berlaku_dari->format('Y-m-d') <= $tgl);
+                $nominal = $config ? $config->nominal : 0;
 
                 // Cek koreksi dulu
                 $pinCorrections = $corrections->get($pin);
@@ -238,7 +240,13 @@ class PayrollController extends Controller
             }
 
             // Hitung gaji
-            $gajiPokok      = $hadir * $nominal;
+            $gajiPokok      = collect($detailHarian)->sum(function ($detail) use ($configsForNip) {
+                $config = $configsForNip->first(fn($item) => $item->berlaku_dari->format('Y-m-d') <= $detail['tgl']);
+                $nominal = $config ? $config->nominal : 0;
+
+                return $detail['status'] === 'H' ? $nominal : ($detail['status'] === 'ST' ? $nominal / 2 : 0);
+            });
+            $nominal = $configsForNip->first()?->nominal ?? 0;
             $upahPerJam     = $nominal / 8;
             $potensiLembur  = floor($upahPerJam * 1.5 * ($lemburMenit / 60)); // hanya untuk preview info
             $totalGaji      = $gajiPokok; // total tanpa lembur (karena belum di-approve)
@@ -1327,11 +1335,11 @@ class PayrollController extends Controller
             ->get();
 
         $salaryConfigs = SalaryConfig::whereIn('nip', $karyawan->pluck('nip'))
-            ->where('berlaku_dari', '<=', $dari)
+            ->where('berlaku_dari', '<=', $sampai)
             ->orderByDesc('berlaku_dari')
             ->get()
             ->groupBy('nip')
-            ->map(fn($g) => $g->first());
+            ->map(fn($g) => $g->values());
 
         $logs = AttendanceLog::whereIn('pin', $karyawan->pluck('pin'))
             ->whereBetween('tanggal', [$dari, $sampai])
@@ -1364,10 +1372,11 @@ class PayrollController extends Controller
         foreach ($karyawan as $k) {
             $pin = (string) intval($k->pin);
             $nip = $k->nip;
-            $config = $salaryConfigs[$nip] ?? null;
-            $nominal = $config ? $config->nominal : 0;
+            $configsForNip = $salaryConfigs[$nip] ?? collect();
 
             $hadir = $alpha = $izin = $sakit = $lemburMenit = $setengahHari = 0;
+            $gajiPokok = 0;
+            $potonganSt = 0;
             $existingDetail = PayrollDetail::where('payroll_id', $payroll->id)
                 ->where('pin', $pin)
                 ->first();
@@ -1376,6 +1385,9 @@ class PayrollController extends Controller
 
             foreach ($periode as $tgl) {
                 if (date('N', strtotime($tgl)) == 7) continue;
+
+                $config = $configsForNip->first(fn($item) => $item->berlaku_dari->format('Y-m-d') <= $tgl);
+                $nominalHari = $config ? $config->nominal : 0;
 
                 $pinCorrections = $corrections->get($pin);
                 $correction = $pinCorrections ? ($pinCorrections->get($tgl) ?? null) : null;
@@ -1404,10 +1416,14 @@ class PayrollController extends Controller
                     case 'S': $sakit++; break;
                     case 'ST': $setengahHari++; break;
                 }
+
+                $gajiPokok += in_array($status, ['H', 'ST'], true) ? $nominalHari : 0;
+                if ($status === 'ST') {
+                    $potonganSt += $nominalHari / 2;
+                }
             }
 
-            $gajiPokok = ($hadir + $setengahHari) * $nominal;
-            $potonganSt = $setengahHari * ($nominal / 2);
+            $nominal = $configsForNip->first()?->nominal ?? 0;
             // For payroll pay, use approved overtime minutes from OvertimeRequest
             $approvedOvertime = OvertimeRequest::where('pin', $pin)
                 ->whereBetween('tanggal', [$dari, $sampai])
@@ -1786,6 +1802,11 @@ class PayrollController extends Controller
                 $cur->modify('+1 day');
             }
 
+            $salaryConfigs = SalaryConfig::where('nip', $payrollDetail->nip)
+                ->where('berlaku_dari', '<=', $sampai)
+                ->orderByDesc('berlaku_dari')
+                ->get();
+
             $logs = AttendanceLog::where('pin', $pin)
                 ->whereBetween('tanggal', [$dari, $sampai])
                 ->orderBy('datetime')
@@ -1804,6 +1825,8 @@ class PayrollController extends Controller
 
             $hadir = $alpha = $izin = $sakit = $lemburMenit = 0;
             $setengahHari = 0;
+            $gajiPokok = 0;
+            $potonganSt = 0;
 
             foreach ($periode as $tgl) {
                 if (date('N', strtotime($tgl)) == 7) continue;
@@ -1833,6 +1856,13 @@ class PayrollController extends Controller
                     case 'S': $sakit++; break;
                     case 'ST': $setengahHari++; break;
                 }
+
+                $config = $salaryConfigs->first(fn($item) => $item->berlaku_dari->format('Y-m-d') <= $tgl);
+                $nominalHari = $config ? $config->nominal : 0;
+                $gajiPokok += in_array($status, ['H', 'ST'], true) ? $nominalHari : 0;
+                if ($status === 'ST') {
+                    $potonganSt += $nominalHari / 2;
+                }
             }
 
             // For payroll pay, use approved overtime minutes from OvertimeRequest as single source of truth
@@ -1841,9 +1871,7 @@ class PayrollController extends Controller
                 ->get(['lembur_menit']);
             $lemburMenit = (int) $approvedOvertime->sum(fn ($overtime) => $this->bulatkanLemburMenit((int) $overtime->lembur_menit));
 
-            $nominal = $payrollDetail->nominal_harian;
-            $gajiPokok = ($hadir + $setengahHari) * $nominal;
-            $potonganSt = $setengahHari * ($nominal / 2);
+            $nominal = $salaryConfigs->first()?->nominal ?? $payrollDetail->nominal_harian;
             $totalJamLemburDibulatkan = $this->bulatkanLemburJam($lemburMenit);
             $gajiLembur = floor(($nominal / 8) * 1.5 * $totalJamLemburDibulatkan);
             $totalGaji = $gajiPokok + $gajiLembur + $payrollDetail->tambahan - $payrollDetail->potongan - $potonganSt;

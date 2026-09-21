@@ -30,6 +30,18 @@
                     <option value="90" {{ request('baru') == '90' ? 'selected' : '' }}>90 Hari Terakhir</option>
                 </select>
             </div>
+            <div class="flex flex-col">
+                <label class="text-xs text-slate-400 uppercase tracking-wide font-semibold block mb-1">Kategori Gaji</label>
+                <select name="kategori_gaji" onchange="this.form.submit()"
+                    class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] transition">
+                    <option value="">Semua</option>
+                    @foreach($kategoriGajiList as $kategoriGaji)
+                        <option value="{{ $kategoriGaji }}" {{ request('kategori_gaji') == $kategoriGaji ? 'selected' : '' }}>
+                            {{ ucwords(str_replace('_', ' ', $kategoriGaji)) }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
         </div>
     </form>
 </div>
