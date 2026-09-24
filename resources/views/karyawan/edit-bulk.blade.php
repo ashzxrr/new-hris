@@ -77,7 +77,7 @@
                     <select name="karyawan[{{ $k->id }}][job_title]"
                         class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                         <option value="">- Pilih -</option>
-                        @foreach(['TL Cuci','TL Cabut','TL Kedatangan','Operator','SPV Moulding','TL Moulding','GTL Moulding','GTL Cabut','Driver','Manager Produksi','SPV Kedatangan','Checker Cabut','Admin Produktivitas','Checker Moulding','TL Pengiriman','Admin','TL Packing','Superintenden','Ass. Superintenden','TL Cutter & Flek','SPV Packing','Security','Sanitasi','Purchasing/ Logistic','Maintenance','Finance Accounting','General Affair','HRD','Payroll','GTL Packing'] as $jt)
+                        @foreach(['TL Cuci','TL Cabut','TL Kedatangan','Operator','SPV Moulding','TL Moulding','GTL Moulding','GTL Cabut','Driver','Manager Produksi','SPV Kedatangan','Checker Cabut','Admin Produktivitas','Checker Moulding','TL Pengiriman','Admin','TL Packing','Superintenden','Ass. Superintenden','TL Cutter & Flek','SPV Packing','Security','Sanitasi','Purchasing/ Logistic','Maintenance','Finance Accounting','General Affair','HRD','Payroll','GTL Packing', 'IT Staff'] as $jt)
                         <option value="{{ $jt }}" {{ $k->job_title === $jt ? 'selected' : '' }}>{{ $jt }}</option>
                         @endforeach
                     </select>
@@ -88,7 +88,7 @@
                     <select name="karyawan[{{ $k->id }}][job_level]"
                         class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                         <option value="">- Pilih -</option>
-                        @foreach(['Operator','Team Leader','Supervisor','Group Team Leader','Manager','Checker','Administrasi','Driver','Superintenden','General Manager','Security','Sanitasi','Maintenance','Finance Accounting','General Affair','HRD','Payroll'] as $jl)
+                        @foreach(['Operator','Team Leader','Supervisor','Group Team Leader','Manager','Checker','Administrasi','Driver','Superintenden','General Manager','Security','Sanitasi','Maintenance','Finance Accounting','General Affair','HRD','Payroll', 'IT Staff', 'Purchasing'] as $jl)
                         <option value="{{ $jl }}" {{ $k->job_level === $jl ? 'selected' : '' }}>{{ $jl }}</option>
                         @endforeach
                     </select>
@@ -99,7 +99,7 @@
                     <select name="karyawan[{{ $k->id }}][bagian]"
                         class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                         <option value="">- Pilih -</option>
-                        @foreach(['-','Manager Produksi','Bahan Baku','Cabut','Dry A','Moulding','Cuci Bersih','Cuci Kotor','Admin','Rambang','Cutter & Flek','Cartoning/Logistik','Dry B & HCR','HCR Moulding','Admin Cabut & Bahan Baku','Packing','Admin Drying & Moulding','SPV','TL Pre Cleaning','Checker Moulding','Timbang Indomie','Administrasi','Grading','Final Grading','Titil HCR','Moulding Indomie','CCP 1','Prewash','Driver','Admin Packing','Admin Cabut','Security','Sanitasi','Kasir Perusahaan','Maintenance IT','Finance Accounting','Maintenance','Borongan','Bulanan','Harian'] as $bg)
+                        @foreach(['-','Manager Produksi','Bahan Baku','Cabut','Dry A','Moulding','Cuci Bersih','Cuci Kotor','Admin','Rambang','Cutter & Flek','Cartoning/Logistik','Dry B & HCR','HCR Moulding','Admin Cabut & Bahan Baku','Staff','Packing','Admin Drying & Moulding','SPV','TL Pre Cleaning','Checker Moulding','Timbang Indomie','Administrasi','Grading','Final Grading','Titil HCR','Moulding Indomie','CCP 1','Prewash','Driver','Admin Packing','Admin Cabut','Security','Sanitasi','Kasir Perusahaan','Maintenance IT','Finance Accounting','Maintenance','Borongan','Bulanan','Harian'] as $bg)
                         <option value="{{ $bg }}" {{ $k->bagian === $bg ? 'selected' : '' }}>{{ $bg }}</option>
                         @endforeach
                     </select>
