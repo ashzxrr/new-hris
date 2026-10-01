@@ -62,16 +62,19 @@ class PayrollController extends Controller
             $pengajuans = $payroll->pengajuans;
 
             $sectionTotal = function (string $section) use ($grandTotals, $pengajuans, $payroll): int {
+                // PayrollDetail is the source of truth for daily-paid employees.
+                // Grand total and pengajuan are generated snapshots and can be stale
+                // after an adjustment is made from the Harian page.
+                if ($section === 'harian') {
+                    return (int) $payroll->details->sum('total_gaji');
+                }
+
                 if ($grandTotals->isNotEmpty()) {
                     return (int) $grandTotals->where('section', $section)->sum('total_akhir');
                 }
 
                 if ($pengajuans->isNotEmpty()) {
                     return (int) $pengajuans->where('section', $section)->sum('total_akhir');
-                }
-
-                if ($section === 'harian') {
-                    return (int) $payroll->details->sum('total_gaji');
                 }
 
                 return (int) $payroll->boronganRekaps
@@ -83,11 +86,12 @@ class PayrollController extends Controller
             $payroll->total_cabut = $sectionTotal('cabut');
             $payroll->total_hcr = $sectionTotal('hcr');
             $payroll->total_moulding = $sectionTotal('moulding');
-            $payroll->total_gaji_gabungan = $payroll->grandTotals->isNotEmpty()
-                ? (int) $payroll->grandTotals->sum('total_akhir')
-                : ($payroll->pengajuans->isNotEmpty()
-                    ? (int) $payroll->pengajuans->sum('total_akhir')
-                    : $payroll->total_harian + $payroll->total_cabut + $payroll->total_hcr + $payroll->total_moulding);
+            // Keep the card total consistent with its section breakdown. In
+            // particular, Harian must always come from PayrollDetail.total_gaji.
+            $payroll->total_gaji_gabungan = $payroll->total_harian
+                + $payroll->total_cabut
+                + $payroll->total_hcr
+                + $payroll->total_moulding;
         }
 
         return view('payroll.index', compact('payrolls'));
@@ -1682,11 +1686,17 @@ class PayrollController extends Controller
             }
             $potonganBpjsRekap = $rekapQuery->sum('potongan_bpjs');
             $potonganBpjsMaster = $bpjsMasterByNip[$nip]->nominal ?? 0;
-            $potonganBpjs = $potonganBpjsRekap + $potonganBpjsMaster;
 
-            $totalAkhir = $rekapQuery->exists()
-                ? array_sum($detailHarianGram) + $totalLembur + $insentif + $komplain - $potonganLain - $potonganBpjs
-                : $gajiPokokTotal + $totalLembur + $insentif + $komplain - $potonganLain - $potonganBpjs;
+            if ($rekapQuery->exists()) {
+                $potonganBpjs = $potonganBpjsRekap + $potonganBpjsMaster;
+                $totalAkhir = array_sum($detailHarianGram) + $totalLembur + $insentif + $komplain - $potonganLain - $potonganBpjs;
+            } else {
+                // The Harian page owns all salary adjustments and its
+                // total_gaji is authoritative. Do not deduct BPJS again when
+                // building the recap snapshot.
+                $potonganBpjs = 0;
+                $totalAkhir = (int) ($payrollDetail->total_gaji ?? 0);
+            }
 
             PayrollGrandTotal::create([
                 'payroll_id'   => $id,

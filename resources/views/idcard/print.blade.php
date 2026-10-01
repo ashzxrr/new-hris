@@ -6,7 +6,7 @@
     <title>ID Card</title>
     <style>
         @page { margin: 7mm; }
-        body { font-family: 'DejaVu Sans', Arial, sans-serif; margin: 0; padding: 0; color: #17324D; }
+        body { font-family: 'Times New Roman', Times, serif; margin: 0; padding: 0; color: #17324D; }
 
         .page-break { page-break-after: always; }
 
@@ -53,7 +53,7 @@
         /* nama karyawan */
         .nama-overlay {
             position: absolute;
-            top: 4.72cm;
+            top: 4.82cm;
             left: 0;
             width: 5.5cm;
             text-align: center;
@@ -113,11 +113,20 @@
                 <tr>
                     @foreach($row as $k)
                         <td>
+                            @php
+                                $qrValue = trim((string) $k->nip);
+                                if ($qrValue === '') {
+                                    $qrValue = trim((string) $k->pin);
+                                }
+                                if ($qrValue === '') {
+                                    $qrValue = (string) $k->id;
+                                }
+                            @endphp
                             <div class="card">
                                 <img class="card-bg" src="{{ public_path('images/card-bg-waj-3.png') }}">
 
                                 <div class="qr-overlay">
-                                    <img src="data:image/svg+xml;base64,{{ base64_encode(QrCode::format('svg')->size(200)->generate($k->nip)) }}">
+                                    <img src="data:image/svg+xml;base64,{{ base64_encode(QrCode::format('svg')->size(200)->generate($qrValue)) }}">
                                 </div>
 
                                 <div class="nama-overlay">{{ strtoupper($k->nama) }}</div>

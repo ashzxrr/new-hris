@@ -1,3 +1,4 @@
+@php use SimpleSoftwareIO\QrCode\Facades\QrCode; @endphp
 @extends('layouts.app')
 
 @section('content')
@@ -77,9 +78,23 @@
                 </thead>
                 <tbody class="divide-y divide-slate-200">
                     @forelse($karyawan as $k)
+                        @php
+                            $qrValue = trim((string) $k->nip);
+                            if ($qrValue === '') {
+                                $qrValue = trim((string) $k->pin);
+                            }
+                            if ($qrValue === '') {
+                                $qrValue = (string) $k->id;
+                            }
+                        @endphp
                         <tr class="idcard-row border-t border-slate-50 transition-colors duration-100 cursor-pointer" data-index="{{ $loop->index }}">
                             <td class="px-2 py-1.5 sticky left-0 bg-white z-10 border-r border-[#E5E7EB]">
                                 <input type="checkbox" name="id[]" value="{{ $k->id }}"
+                                    data-nama="{{ $k->nama }}"
+                                    data-nip="{{ $k->nip }}"
+                                    data-bagian="{{ $k->bagian ?? 'UMUM' }}"
+                                    data-jabatan="{{ $k->job_level ?? $k->job_title ?? 'STAFF' }}"
+                                    data-qr="{{ base64_encode(QrCode::format('svg')->size(200)->generate($qrValue)) }}"
                                     class="row-checkbox accent-[#4F46E5]">
                             </td>
                             <td class="px-2 py-1.5 font-medium text-slate-800">{{ $k->nama }}</td>
@@ -110,12 +125,26 @@
 
     <div class="mt-4 flex items-center justify-between">
         <span class="text-xs text-slate-400" id="selectedCount">0 karyawan dipilih</span>
-        <button type="submit" class="pbtn pbtn-primary">
-            <span class="pbtn-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </span>
-            <span>Export ID Card</span>
-        </button>
+        <div class="flex items-center gap-2">
+            <button type="button" id="exportImageButton" class="pbtn pbtn-secondary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                </span>
+                <span>Export PNG</span>
+            </button>
+            <button type="button" id="exportPhotoButton" class="pbtn pbtn-secondary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                </span>
+                <span>PNG Foto</span>
+            </button>
+            <button type="submit" class="pbtn pbtn-primary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </span>
+                <span>Export PDF</span>
+            </button>
+        </div>
     </div>
 </form>
 @endsection
@@ -127,6 +156,9 @@
     const checkboxes = Array.from(document.querySelectorAll('.row-checkbox'));
     const rows = Array.from(document.querySelectorAll('.idcard-row'));
     const selectedCount = document.getElementById('selectedCount');
+    const exportImageButton = document.getElementById('exportImageButton');
+    const exportPhotoButton = document.getElementById('exportPhotoButton');
+    const cardBackgroundUrl = @json(asset('images/card-bg-waj-3.png'));
     const selectedIds = new Set();
     let lastCheckedRow = null;
 
@@ -226,6 +258,124 @@
     });
 
     searchInput?.addEventListener('input', filterRows);
+
+    function loadImage(source) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = reject;
+            image.src = source;
+        });
+    }
+
+    function fitCanvasText(context, text, maxWidth, initialSize, weight = '600') {
+        let size = initialSize;
+        context.font = `${weight} ${size}px 'Times New Roman', Times, serif`;
+        while (size > 10 && context.measureText(text).width > maxWidth) {
+            size -= 1;
+            context.font = `${weight} ${size}px 'Times New Roman', Times, serif`;
+        }
+    }
+
+    async function createIdCardPng(checkbox, background, includeQr = true) {
+        const scale = 120;
+        const canvas = document.createElement('canvas');
+        canvas.width = 5.5 * scale;
+        canvas.height = 8.5 * scale;
+        const context = canvas.getContext('2d');
+
+        context.drawImage(background, 0, 0, canvas.width, canvas.height);
+
+        if (includeQr) {
+            const qr = await loadImage(`data:image/svg+xml;base64,${checkbox.dataset.qr}`);
+            context.drawImage(qr, 1.88 * scale, 2.79 * scale, 1.75 * scale, 1.75 * scale);
+        }
+        context.textAlign = 'center';
+        context.textBaseline = 'top';
+
+        const center = canvas.width / 2;
+        const nama = checkbox.dataset.nama.toUpperCase();
+        fitCanvasText(context, nama, canvas.width * 0.9, 32, '800');
+        context.fillStyle = '#17324D';
+        context.fillText(nama, center, 4.82 * scale);
+
+        context.font = '600 22px "Times New Roman", Times, serif';
+        context.fillStyle = '#3A5468';
+        context.fillText(`NIP. ${checkbox.dataset.nip}`, center, 5.23 * scale);
+
+        const jabatan = checkbox.dataset.jabatan.toUpperCase();
+        fitCanvasText(context, jabatan, canvas.width * 0.9, 31, '800');
+        context.fillStyle = '#17324D';
+        context.fillText(jabatan, center, 5.71 * scale);
+
+        const bagian = checkbox.dataset.bagian.toUpperCase();
+        context.font = '600 21px "Times New Roman", Times, serif';
+        context.fillStyle = '#3D2A08';
+        context.fillText(`Bagian: ${bagian}`, center, 6.05 * scale);
+
+        return canvas.toDataURL('image/png');
+    }
+
+    async function exportSelectedImages(button, includeQr, filenamePrefix) {
+        const selected = checkboxes.filter(checkbox => selectedIds.has(checkbox.value));
+        if (!selected.length) {
+            alert('Pilih minimal satu karyawan terlebih dahulu.');
+            return;
+        }
+
+        const originalLabel = button.querySelector('span:last-child').textContent;
+        button.disabled = true;
+        button.querySelector('span:last-child').textContent = 'Menyiapkan PNG...';
+
+        try {
+            const background = await loadImage(cardBackgroundUrl);
+            const images = [];
+            for (const checkbox of selected) {
+                images.push({
+                    name: checkbox.dataset.nama,
+                    data: await createIdCardPng(checkbox, background, includeQr),
+                });
+            }
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+            const response = await fetch('{{ route('id-card.export-image') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ id: selected.map(checkbox => checkbox.value) }),
+            });
+            if (!response.ok) throw new Error('Gagal menyimpan status export.');
+
+            images.forEach((image, index) => {
+                setTimeout(() => {
+                    const link = document.createElement('a');
+                    link.href = image.data;
+                    link.download = `${filenamePrefix}-${image.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || index + 1}.png`;
+                    link.click();
+                }, index * 150);
+            });
+            selected.forEach(checkbox => {
+                const badge = checkbox.closest('tr')?.querySelector('td:last-child');
+                if (badge) badge.innerHTML = '<span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">Sudah diekspor</span>';
+            });
+        } catch (error) {
+            alert(error.message || 'Export PNG gagal.');
+        } finally {
+            button.disabled = false;
+            button.querySelector('span:last-child').textContent = originalLabel;
+        }
+    }
+
+    exportImageButton?.addEventListener('click', function() {
+        exportSelectedImages(this, true, 'id-card');
+    });
+
+    exportPhotoButton?.addEventListener('click', function() {
+        exportSelectedImages(this, false, 'id-card-foto');
+    });
 
     document.getElementById('filterBagian')?.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {

@@ -75,6 +75,7 @@ Route::middleware('auth:admin')->group(function () {
 
         Route::get('/id-card', [IdCardController::class, 'index'])->name('id-card.index');
         Route::post('/id-card/export', [IdCardController::class, 'export'])->name('id-card.export');
+        Route::post('/id-card/export-image', [IdCardController::class, 'exportImage'])->name('id-card.export-image');
 
         Route::get('/setting', [SettingController::class, 'index'])->name('setting.index');
         Route::post('/setting/profile', [SettingController::class, 'updateProfile'])->name('setting.profile');

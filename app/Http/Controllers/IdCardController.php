@@ -73,4 +73,18 @@ class IdCardController extends Controller
 
         return $pdf->stream('id-card.pdf');
     }
+
+    public function exportImage(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => 'required|array',
+            'id.*' => 'exists:users,id',
+        ]);
+
+        User::whereIn('id', $validated['id'])->update([
+            'id_card_printed_at' => now(),
+        ]);
+
+        return response()->json(['message' => 'ID Card berhasil diekspor sebagai gambar.']);
+    }
 }
