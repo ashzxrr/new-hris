@@ -24,5 +24,8 @@ class DatabaseSeeder extends Seeder
 
         // Seed borongan rates
         $this->call(BoronganRateSeeder::class);
+
+        // Seed counter PKWT awal (nomor_urut=149)
+        $this->call(PkwtCounterSeeder::class);
     }
 }

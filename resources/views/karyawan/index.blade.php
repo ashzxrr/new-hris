@@ -9,35 +9,49 @@
         </span>
         <button type="button" id="btnEdit" onclick="submitEdit()"
             disabled
-            class="text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition">
-            ✏️ Edit
+            class="pbtn pbtn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </span>
+            <span>Edit</span>
         </button>
         <button type="button" id="btnResign" onclick="submitResign()"
             disabled
-            class="text-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] text-slate-400 cursor-not-allowed transition">
-            🚫 Resign
+            class="pbtn pbtn-danger disabled:opacity-50 disabled:cursor-not-allowed">
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </span>
+            <span>Resign</span>
         </button>
         <button type="button" id="btnHapusPermanent" onclick="submitHapusPermanent()"
             disabled
-            class="hidden text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-400 cursor-not-allowed transition">
-            🗑️ Hapus Permanen
+            class="hidden pbtn pbtn-danger disabled:opacity-50 disabled:cursor-not-allowed">
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </span>
+            <span>Hapus Permanen</span>
         </button>
         <a href="{{ route('karyawan.sync') }}"
-            class="text-xs px-3 py-1.5 rounded-lg bg-[#4F46E5] text-white hover:bg-[#4338CA] transition">
-            🔄 Sinkron dari Mesin
+            class="pbtn pbtn-primary">
+            <span class="pbtn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36M20.49 15a9 9 0 0 1-14.85 3.36"/></svg>
+            </span>
+            <span>Sinkron dari Mesin</span>
         </a>
     </div>
 </div>
 
 <div class="flex items-center gap-1 mb-4 border-b border-slate-200">
     <button type="button" id="tabAktif" onclick="switchTab('aktif')"
-        class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-[#4F46E5] text-[#4F46E5] -mb-px">
-        👥 Karyawan Aktif
+        class="tab-btn flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 border-[#4F46E5] text-[#4F46E5] -mb-px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Karyawan Aktif</span>
         <span id="countAktif" class="ml-1 bg-[#4F46E5] text-white text-xs px-2 py-0.5 rounded-full"></span>
     </button>
     <button type="button" id="tabResign" onclick="switchTab('resign')"
-        class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-600 -mb-px">
-        🚫 Karyawan Resign
+        class="tab-btn flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-600 -mb-px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        <span>Karyawan Resign</span>
         <span id="countResign" class="ml-1 bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full"></span>
     </button>
 </div>
@@ -60,7 +74,7 @@
     <div class="grid grid-cols-3 gap-4">
         <div class="flex flex-col">
             <label class="text-xs text-slate-400 uppercase tracking-wide font-semibold block mb-1">Bagian</label>
-            <select id="filterBagian" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300">
+            <select id="filterBagian" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                 <option value="">Semua Bagian</option>
                 @foreach($bagianList as $bagian)
                     <option value="{{ $bagian }}">{{ $bagian }}</option>
@@ -87,7 +101,7 @@
 
                     <div class="mb-3">
                         <div class="text-xs font-semibold text-slate-400 uppercase tracking-wide px-1 mb-1">Cabut</div>
-                        @foreach([['id'=>8,'nama'=>'Karyawati'],['id'=>3,'nama'=>'Sri Utami'],['id'=>2,'nama'=>'ST Nur Farokah'],['id'=>25,'nama'=>'Fhilis Sulestari'],['id'=>22,'nama'=>'Muhammad Regatana Hidayatulloh'],['id'=>119,'nama'=>'Zusita Arsdhia Indrayani'],['id'=>34,'nama'=>'Wahyu Surodo'],['id'=>30,'nama'=>'Deniko Fergian'],['id'=>109,'nama'=>'Ruliatul Fidiah']] as $tl)
+                        @foreach([['id'=>8,'nama'=>'Karyawati'],['id'=>116,'nama'=>'Yuni Indarwati'],['id'=>2,'nama'=>'ST Nur Farokah'],['id'=>25,'nama'=>'Fhilis Sulestari'],['id'=>22,'nama'=>'Muhammad Regatana Hidayatulloh'],['id'=>119,'nama'=>'Zusita Arsdhia Indrayani'],['id'=>34,'nama'=>'Wahyu Surodo'],['id'=>30,'nama'=>'Deniko Fergian'],['id'=>109,'nama'=>'Ruliatul Fidiah']] as $tl)
                         <label class="flex items-center gap-2 px-2 py-1.5 hover:bg-[#F8FAFC] rounded-lg cursor-pointer">
                             <input type="checkbox" class="tl-filter-check accent-[#4F46E5]" value="{{ $tl['id'] }}" data-nama="{{ $tl['nama'] }}">
                             <span class="text-sm text-slate-700">{{ $tl['nama'] }}</span>
@@ -120,7 +134,7 @@
 
         <div class="flex flex-col">
             <label class="text-xs text-slate-400 uppercase tracking-wide font-semibold block mb-1">Kategori Gaji</label>
-            <select id="filterKategori" class="w-full border border-[#E5E7EB] rounded-lg px-3 py-1.5 text-sm bg-[#F8FAFC] focus:outline-none focus:ring-2 focus:ring-slate-300">
+            <select id="filterKategori" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition">
                 <option value="">Semua Kategori</option>
                 @foreach($kategoriList as $kategori)
                     <option value="{{ $kategori }}">{{ $kategori }}</option>
@@ -156,11 +170,15 @@
                     <th class="px-2 py-2 text-left">Bagian</th>
                     <th class="px-2 py-2 text-left">Departemen</th>
                     <th class="px-2 py-2 text-left">TL</th>
+                    <th class="px-2 py-2 text-left">Alamat</th>
+                    <th class="px-2 py-2 text-left">No. HP</th>
+                    <th class="px-2 py-2 text-left">Tempat Lahir</th>
+                    <th class="px-2 py-2 text-left">Tgl Lahir</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
             @forelse ($karyawan as $k)
-                <tr class="karyawan-row border-t border-slate-50 cursor-pointer transition-colors duration-100 @if($k->is_active == 0) bg-red-50 @endif" onclick="toggleRow(this)" data-status="{{ $k->is_active == 0 ? 'resign' : 'aktif' }}" data-bagian="{{ $k->bagian }}" data-kategori="{{ $k->kategori_gaji }}" data-tl-id="{{ $k->tl_id }}" data-search="{{ strtolower($k->pin . ' ' . $k->nama . ' ' . $k->nip . ' ' . $k->nik . ' ' . $k->bagian . ' ' . $k->job_title) }}">
+                <tr class="karyawan-row border-t border-slate-50 cursor-pointer transition-colors duration-100 @if($k->is_active == 0) bg-red-50 @endif" onclick="toggleRow(this)" data-status="{{ $k->is_active == 0 ? 'resign' : 'aktif' }}" data-bagian="{{ $k->bagian }}" data-kategori="{{ $k->kategori_gaji }}" data-tl-id="{{ $k->tl_id }}" data-search="{{ strtolower($k->pin . ' ' . $k->nama . ' ' . $k->nip . ' ' . $k->nik . ' ' . $k->bagian . ' ' . $k->job_title . ' ' . $k->alamat . ' ' . $k->no_hp . ' ' . $k->tempat_lahir) }}">
                     <td class="px-2 py-1.5 sticky left-0 bg-white z-10 border-r border-[#E5E7EB]" onclick="event.stopPropagation()">
                         <input type="checkbox" class="karyawan-check accent-[#4F46E5]" value="{{ $k->id }}" data-pin="{{ $k->pin }}" onchange="updateSelectedCount()">
                     </td>
@@ -176,12 +194,16 @@
                     <td class="px-2 py-1.5 text-slate-600">{{ $k->bagian ?: '-' }}</td>
                     <td class="px-2 py-1.5 text-slate-600">{{ $k->departemen ?: '-' }}</td>
                     <td class="px-2 py-1.5 text-slate-600">{{ $tlMap[$k->tl_id] ?? '-' }}</td>
+                    <td class="px-2 py-1.5 text-slate-600 max-w-[200px] truncate" title="{{ $k->alamat ?? '' }}">{{ $k->alamat ?: '-' }}</td>
+                    <td class="px-2 py-1.5 text-slate-600">{{ $k->no_hp ?: '-' }}</td>
+                    <td class="px-2 py-1.5 text-slate-600">{{ $k->tempat_lahir ?: '-' }}</td>
+                    <td class="px-2 py-1.5 text-slate-600">{{ $k->tanggal_lahir ? \Carbon\Carbon::parse($k->tanggal_lahir)->format('d/m/Y') : '-' }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td class="px-4 py-8 text-center text-sm text-slate-400" colspan="14">
+                    <td class="px-4 py-8 text-center text-sm text-slate-400" colspan="17">
                         Belum ada data karyawan.
-                    </td>3
+                    </td>
                 </tr>
             @endforelse
         </tbody>
@@ -213,7 +235,9 @@
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-5">
             <h3 class="font-semibold text-slate-800" id="editModalTitle">Edit Karyawan</h3>
-            <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+            <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
 
         <form id="editForm" method="POST">
@@ -243,6 +267,31 @@
                 <div>
                     <label class="text-xs text-slate-500 mb-1 block">NIK</label>
                     <input type="text" name="nik" id="edit_nik"
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                </div>
+
+                {{-- Tempat Lahir --}}
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">Tempat Lahir</label>
+                    <input type="text" name="tempat_lahir" id="edit_tempat_lahir"
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                </div>
+                {{-- Tanggal Lahir --}}
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">Tanggal Lahir</label>
+                    <input type="date" name="tanggal_lahir" id="edit_tanggal_lahir"
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                </div>
+                {{-- Alamat --}}
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">Alamat</label>
+                    <textarea name="alamat" id="edit_alamat" rows="2"
+                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"></textarea>
+                </div>
+                {{-- No HP --}}
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">No. HP</label>
+                    <input type="text" name="no_hp" id="edit_no_hp"
                         class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
                 </div>
 
@@ -314,36 +363,64 @@
 
                 <div class="col-span-3">
                     <label class="text-xs text-slate-500 mb-1 block">TL (Team Leader)</label>
-                    <select name="tl_id" id="edit_tl_id"
-                        class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
-                        <option value="">- Tidak Ada -</option>
-                        <optgroup label="CABUT">
-                            @foreach([['id'=>8,'nama'=>'Karyawati'],['id'=>3,'nama'=>'Sri Utami'],['id'=>2,'nama'=>'ST Nur Farokah'],['id'=>25,'nama'=>'Fhilis Sulestari'],['id'=>22,'nama'=>'Muhammad Regatana Hidayatulloh'],['id'=>119,'nama'=>'Zusita Arsdhia Indrayani'],['id'=>34,'nama'=>'Wahyu Surodo'],['id'=>30,'nama'=>'Deniko Fergian'],['id'=>109,'nama'=>'Ruliatul Fidiah']] as $tl)
-                            <option value="{{ $tl['id'] }}">{{ $tl['nama'] }}</option>
-                            @endforeach
-                        </optgroup>
-                        <optgroup label="CETAK">
-                            @foreach([['id'=>57,'nama'=>'Muhammad Tamamur Ridlwan'],['id'=>7,'nama'=>'Anita'],['id'=>74,'nama'=>'Nur Alim Zainuri'],['id'=>27,'nama'=>"Anas Ja'far"],['id'=>48,'nama'=>'M.Jamaludin'],['id'=>134,'nama'=>'M. Jamaluddin Saputra'],['id'=>99,'nama'=>'Nila Widya Sari'],['id'=>113,'nama'=>'Nurul Izzuddin'],['id'=>75,'nama'=>'Niko Yudho'],['id'=>71,'nama'=>'Tsalis Akmaludin'],['id'=>69,'nama'=>'Prayogo Dwi']] as $tl)
-                            <option value="{{ $tl['id'] }}">{{ $tl['nama'] }}</option>
-                            @endforeach
-                        </optgroup>
-                        <optgroup label="DAN LAIN LAIN">
-                            @foreach([['id'=>1,'nama'=>'Anik'],['id'=>98,'nama'=>'M Gaung Sidiq'],['id'=>40,'nama'=>'Cankiswan'],['id'=>118,'nama'=>'Kerinna'],['id'=>63,'nama'=>'Puput Indarwati'],['id'=>865,'nama'=>'TL CCP 1'],['id'=>871,'nama'=>'Sanitasi'],['id'=>872,'nama'=>'Checker'],['id'=>43,'nama'=>'GD Kart']] as $tl)
-                            <option value="{{ $tl['id'] }}">{{ $tl['nama'] }}</option>
-                            @endforeach
-                        </optgroup>
-                    </select>
+                    <div class="col-span-3 tl-combobox" style="position:relative;">
+                        <label class="text-xs text-slate-500 mb-1 block">TL (Team Leader)</label>
+                        <input type="text" id="edit_tl_search" placeholder="Ketik untuk cari TL..."
+                            autocomplete="off"
+                            class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+                            onfocus="showTLDropdown('edit')" onkeyup="filterTLDropdown('edit')" />
+                        <input type="hidden" name="tl_id" id="edit_tl_id" value="" />
+                        <div id="edit_tl_dropdown" class="hidden absolute z-40 w-full bg-white border border-[#E5E7EB] rounded-lg shadow-lg max-h-48 overflow-y-auto mt-1"
+                            style="display:none;">
+                            <div class="p-2 text-xs text-slate-400 border-b border-[#E5E7EB] cursor-pointer hover:bg-[#F8FAFC]"
+                                onclick="selectTL('edit', '', '')">— Tidak Ada —</div>
+                            <!-- CABUT -->
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-1 bg-[#F8FAFC]">CABUT</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="8" onclick="selectTL('edit', '8', 'Karyawati')">Karyawati</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="116" onclick="selectTL('edit', '116', 'Yuni Indarwati')">Yuni Indarwati</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="2" onclick="selectTL('edit', '2', 'ST Nur Farokah')">ST Nur Farokah</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="25" onclick="selectTL('edit', '25', 'Fhilis Sulestari')">Fhilis Sulestari</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="22" onclick="selectTL('edit', '22', 'Muhammad Regatana Hidayatulloh')">Muhammad Regatana Hidayatulloh</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="119" onclick="selectTL('edit', '119', 'Zusita Arsdhia Indrayani')">Zusita Arsdhia Indrayani</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="34" onclick="selectTL('edit', '34', 'Wahyu Surodo')">Wahyu Surodo</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="30" onclick="selectTL('edit', '30', 'Deniko Fergian')">Deniko Fergian</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="109" onclick="selectTL('edit', '109', 'Ruliatul Fidiah')">Ruliatul Fidiah</div>
+                            <!-- CETAK -->
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-1 bg-[#F8FAFC]">CETAK</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="57" onclick="selectTL('edit', '57', 'Muhammad Tamamur Ridlwan')">Muhammad Tamamur Ridlwan</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="7" onclick="selectTL('edit', '7', 'Anita')">Anita</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="74" onclick="selectTL('edit', '74', 'Nur Alim Zainuri')">Nur Alim Zainuri</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="27" onclick="selectTL('edit', '27', \"Anas Ja'far\")">Anas Ja'far</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="48" onclick="selectTL('edit', '48', 'M.Jamaludin')">M.Jamaludin</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="134" onclick="selectTL('edit', '134', 'M. Jamaluddin Saputra')">M. Jamaluddin Saputra</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="99" onclick="selectTL('edit', '99', 'Nila Widya Sari')">Nila Widya Sari</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="113" onclick="selectTL('edit', '113', 'Nurul Izzuddin')">Nurul Izzuddin</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="75" onclick="selectTL('edit', '75', 'Niko Yudho')">Niko Yudho</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="71" onclick="selectTL('edit', '71', 'Tsalis Akmaludin')">Tsalis Akmaludin</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="69" onclick="selectTL('edit', '69', 'Prayoga Dwi Cahyo')">Prayoga Dwi Cahyo</div>
+                            <!-- DAN LAIN LAIN -->
+                            <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-3 py-1 bg-[#F8FAFC]">DAN LAIN LAIN</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="1" onclick="selectTL('edit', '1', 'Anik')">Anik</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="98" onclick="selectTL('edit', '98', 'M Gaung Sidiq')">M Gaung Sidiq</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="40" onclick="selectTL('edit', '40', 'Cankiswan')">Cankiswan</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="118" onclick="selectTL('edit', '118', 'Kerinna')">Kerinna</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="865" onclick="selectTL('edit', '865', 'TL CCP 1')">TL CCP 1</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="871" onclick="selectTL('edit', '871', 'Sanitasi')">Sanitasi</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="872" onclick="selectTL('edit', '872', 'Checker')">Checker</div>
+                            <div class="tl-option px-3 py-1.5 text-sm cursor-pointer hover:bg-[#EEF4FF] text-slate-700" data-id="43" onclick="selectTL('edit', '43', 'GD Kart')">GD Kart</div>
+                        </div>
+                    </div>
                 </div>
 
             </div>
 
             <div class="flex gap-3 justify-end mt-6">
                 <button type="button" onclick="closeEditModal()"
-                    class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm hover:bg-[#F8FAFC]">
+                    class="pbtn pbtn-secondary">
                     Batal
                 </button>
                 <button type="submit"
-                    class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
+                    class="pbtn pbtn-primary">
                     Simpan Perubahan
                 </button>
             </div>
@@ -768,5 +845,40 @@
     function closeEditModal() {
         document.getElementById('editModal').classList.add('hidden');
     }
+
+    function openEditModal(id, nama) {
+    fetch('/karyawan/' + id + '/edit')
+        .then(r => r.json())
+        .then(data => {
+            const k = data.karyawan;
+            document.getElementById('editModalTitle').textContent = 'Edit — ' + k.nama;
+            document.getElementById('edit_pin').value = k.pin;
+            document.getElementById('edit_nama').value = k.nama;
+            document.getElementById('edit_nip').value = k.nip ?? '';
+            document.getElementById('edit_nik').value = k.nik ?? '';
+            // Field baru
+            document.getElementById('edit_tempat_lahir').value = k.tempat_lahir ?? '';
+            document.getElementById('edit_tanggal_lahir').value = k.tanggal_lahir ? k.tanggal_lahir.substring(0, 10) : '';
+            document.getElementById('edit_alamat').value = k.alamat ?? '';
+            document.getElementById('edit_no_hp').value = k.no_hp ?? '';
+            document.getElementById('edit_jk').value = k.jk ?? '';
+            document.getElementById('edit_job_title').value = k.job_title ?? '';
+            document.getElementById('edit_job_level').value = k.job_level ?? '';
+            document.getElementById('edit_bagian').value = k.bagian ?? '';
+            document.getElementById('edit_departemen').value = k.departemen ?? '';
+            document.getElementById('edit_kategori_gaji').value = k.kategori_gaji ?? '';
+            // TL — set searchable combobox
+            if (k.tl_id) {
+                const tlName = data.tlMap.find(t => t.id == k.tl_id)?.nama || '';
+                document.getElementById('edit_tl_search').value = tlName;
+                document.getElementById('edit_tl_id').value = k.tl_id;
+            } else {
+                document.getElementById('edit_tl_search').value = '';
+                document.getElementById('edit_tl_id').value = '';
+            }
+            document.getElementById('editForm').action = '/karyawan/' + id;
+            document.getElementById('editModal').classList.remove('hidden');
+        });
+}
 </script>
 @endsection

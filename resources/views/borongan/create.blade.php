@@ -25,24 +25,30 @@
                     <option value="hcr" {{ request('jenis') === 'hcr' ? 'selected' : '' }}>HCR</option>
                     <option value="cabut" {{ request('jenis') === 'cabut' ? 'selected' : '' }}>Cabut</option>
                     <option value="moulding" {{ request('jenis') === 'moulding' ? 'selected' : '' }}>Moulding/Cetak</option>
+                    <option value="nkk" {{ request('jenis') === 'nkk' ? 'selected' : '' }}>NKK</option>
                 </select>
             </div>
 
             <div class="mb-4">
+                <label class="text-xs font-medium text-slate-500 mb-1 block">Bulan</label>
+                <input type="month" name="bulan" id="bulan" required value="{{ old('bulan', $defaultMonth ?? '') }}"
+                    class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/30">
+            </div>
+            <div class="mb-4">
                 <label class="text-xs font-medium text-slate-500 mb-1 block">Periode</label>
                 <div class="grid grid-cols-2 gap-3 mb-3">
-                    <button type="button" onclick="setPeriode('1')"
-                        class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left">
+                    <button type="button" data-half="1" onclick="setPeriode('1')"
+                        class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left {{ ($defaultHalf ?? '') === '1' ? 'selected bg-[#4F46E5]/10 border-[#4F46E5]' : '' }}">
                         📅 Periode 1 (1–15)
                     </button>
-                    <button type="button" onclick="setPeriode('2')"
-                        class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left">
+                    <button type="button" data-half="2" onclick="setPeriode('2')"
+                        class="periode-btn text-sm px-3 py-2 rounded-lg border border-[#E5E7EB] text-slate-600 hover:bg-[#4F46E5]/5 hover:border-[#4F46E5]/30 transition text-left {{ ($defaultHalf ?? '') === '2' ? 'selected bg-[#4F46E5]/10 border-[#4F46E5]' : '' }}">
                         📅 Periode 2 (16–akhir)
                     </button>
                 </div>
-                <input type="hidden" name="tanggal_dari" id="tanggal_dari" required>
-                <input type="hidden" name="tanggal_sampai" id="tanggal_sampai" required>
-                <p id="periodeInfo" class="text-xs text-slate-400 mt-1">Pilih periode untuk upload harian.</p>
+                <input type="hidden" name="tanggal_dari" id="tanggal_dari" value="{{ old('tanggal_dari', $defaultTanggalDari ?? '') }}" required>
+                <input type="hidden" name="tanggal_sampai" id="tanggal_sampai" value="{{ old('tanggal_sampai', $defaultTanggalSampai ?? '') }}" required>
+                <p id="periodeInfo" class="text-xs text-slate-400 mt-1">Pilih bulan dan periode untuk upload harian.</p>
             </div>
 
             
@@ -54,22 +60,16 @@
                 <div id="fileInputSingle">
                     <input type="file" name="file" accept=".xlsx,.xls"
                         class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
-                    <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
+                    <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "14", "15", "16").</p>
                 </div>
                 
-                <!-- Dual file inputs for moulding -->
-                <div id="fileInputMoulding" class="hidden space-y-3">
+                <!-- Single file input for moulding -->
+                <div id="fileInputMoulding" class="hidden">
                     <div>
-                        <label class="text-xs text-slate-400 mb-1 block">File Kategori (Novi)</label>
-                        <input type="file" name="file_kategori" accept=".xlsx,.xls"
+                        <label class="text-xs text-slate-500 mb-1 block">File Excel</label>
+                        <input type="file" name="file_kategori" accept=".xlsx,.xls" required
                             class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
-                        <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400 mb-1 block">File Cross-check (Raihan)</label>
-                        <input type="file" name="file_crosscheck" accept=".xlsx,.xls"
-                            class="w-full border border-[#E5E7EB] rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#4F46E5]/10 file:text-[#4F46E5] file:text-xs">
-                        <p class="text-[10px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "16", "17", "18").</p>
+                        <p class="text-[11px] text-slate-400 mt-1">File boleh berisi banyak sheet, satu sheet = satu tanggal (nama sheet harus berupa angka tanggal, contoh: "14", "15", "16").</p>
                     </div>
                 </div>
             </div>
@@ -84,10 +84,18 @@
 
             <div class="flex gap-3 justify-end">
                 <a href="{{ route('borongan.index') }}"
-                    class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">Batal</a>
-                <button type="submit"
-                    class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
-                    📤 Upload & Parse
+                    class="pbtn pbtn-secondary">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                    </span>
+                    <span>Batal</span>
+                </a>
+                <button id="submitUploadBtn" type="submit"
+                    class="pbtn pbtn-primary">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                    </span>
+                    <span>Upload &amp; Parse</span>
                 </button>
             </div>
         </form>
@@ -100,13 +108,16 @@
             <h3 class="font-semibold text-slate-800 mb-1">⚠️ Tanggal Sudah Ada Data</h3>
             <p class="text-sm text-slate-600 mb-4">Beberapa tanggal di file ini sudah punya data sebelumnya:</p>
             <div id="duplikatList" class="space-y-2 mb-4 text-sm"></div>
-            <p class="text-xs text-slate-400 mb-4">Pilih "Lanjutkan sebagai Revisi" untuk MENGHAPUS data lama dan menggantinya dengan file baru ini, atau "Batalkan" untuk membatalkan upload.</p>
+            <p class="text-xs text-slate-400 mb-4">Tanggal berstatus APPROVED akan dilewati (tidak diubah). Tanggal lain akan direvisi dan diganti dengan data baru. Pilih "Lanjutkan" untuk proses, atau "Batalkan".</p>
             <div class="flex gap-3">
-                <button onclick="document.getElementById('duplikatModal').classList.add('hidden')" class="flex-1 border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">
+                <button onclick="document.getElementById('duplikatModal').classList.add('hidden')" class="flex-1 pbtn pbtn-secondary">
                     Batalkan
                 </button>
-                <button id="btnLanjutkanRevisi" class="flex-1 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600">
-                    Lanjutkan sebagai Revisi
+                <button id="btnLanjutkanRevisi" class="flex-1 pbtn pbtn-warning">
+                    <span class="pbtn-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    </span>
+                    <span>Lanjutkan sebagai Revisi</span>
                 </button>
             </div>
         </div>
@@ -126,35 +137,69 @@
 
 <script>
 function setPeriode(half) {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const bulanInput = document.getElementById('bulan');
+    const periodeInfo = document.getElementById('periodeInfo');
     const dariInput = document.getElementById('tanggal_dari');
     const sampaiInput = document.getElementById('tanggal_sampai');
+    const now = new Date();
+    const bulanValue = bulanInput.value || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    if (!bulanValue) {
+        periodeInfo.innerText = 'Pilih bulan terlebih dahulu.';
+        return;
+    }
+
+    const [year, month] = bulanValue.split('-');
     let dari, sampai;
 
     if (half === '1') {
         dari = `${year}-${month}-01`;
         sampai = `${year}-${month}-15`;
     } else {
-        const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+        const lastDay = new Date(year, Number(month), 0).getDate();
         dari = `${year}-${month}-16`;
         sampai = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
     }
 
     dariInput.value = dari;
     sampaiInput.value = sampai;
-    document.getElementById('periodeInfo').innerText = `Periode terpilih: ${dari} s/d ${sampai}`;
-
-    // Note: tanggal input removed; tanggal is derived from sheet names inside uploaded file.
+    periodeInfo.innerText = `Periode terpilih: ${dari} s/d ${sampai}`;
 }
 
-function initPeriode() {
-    const now = new Date();
-    setPeriode(now.getDate() <= 15 ? '1' : '2');
+function updatePeriodeInfo() {
+    const periodeInfo = document.getElementById('periodeInfo');
+    const bulanInput = document.getElementById('bulan');
+    const bulanValue = bulanInput.value;
+
+    if (!bulanValue) {
+        periodeInfo.innerText = 'Pilih bulan dan periode untuk upload harian.';
+        return;
+    }
+
+    const selectedHalf = document.querySelector('.periode-btn.selected');
+    if (selectedHalf) {
+        setPeriode(selectedHalf.dataset.half);
+    }
 }
 
-initPeriode();
+const periodeButtons = document.querySelectorAll('.periode-btn');
+periodeButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+        periodeButtons.forEach(b => b.classList.remove('selected', 'bg-[#4F46E5]/10', 'border-[#4F46E5]'));
+        this.classList.add('selected', 'bg-[#4F46E5]/10', 'border-[#4F46E5]');
+    });
+});
+
+const bulanInput = document.getElementById('bulan');
+bulanInput.addEventListener('change', updatePeriodeInfo);
+
+window.addEventListener('DOMContentLoaded', function() {
+    if (!bulanInput.value) {
+        const now = new Date();
+        bulanInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+    updatePeriodeInfo();
+});
 
 // Toggle file inputs based on jenis selection
 function toggleFileInputs() {
@@ -163,20 +208,17 @@ function toggleFileInputs() {
     const fileInputMoulding = document.getElementById('fileInputMoulding');
     const singleFileInput = fileInputSingle.querySelector('input[name="file"]');
     const mouldingKategoriInput = fileInputMoulding.querySelector('input[name="file_kategori"]');
-    const mouldingCrosscheckInput = fileInputMoulding.querySelector('input[name="file_crosscheck"]');
     
     if (jenis === 'moulding') {
         fileInputSingle.classList.add('hidden');
         fileInputMoulding.classList.remove('hidden');
         singleFileInput.removeAttribute('required');
         mouldingKategoriInput.setAttribute('required', 'required');
-        mouldingCrosscheckInput.setAttribute('required', 'required');
     } else {
         fileInputSingle.classList.remove('hidden');
         fileInputMoulding.classList.add('hidden');
         singleFileInput.setAttribute('required', 'required');
         mouldingKategoriInput.removeAttribute('required');
-        mouldingCrosscheckInput.removeAttribute('required');
     }
 }
 
@@ -198,7 +240,7 @@ function initializeForm() {
         e.preventDefault();
         console.log('preventDefault called, defaultPrevented:', e.defaultPrevented);
         const jenis = document.querySelector('select[name="jenis"]').value;
-        const jenisLabel = { 'hcr': 'HCR', 'cabut': 'CABUT', 'moulding': 'MOULDING' };
+        const jenisLabel = { 'hcr': 'HCR', 'cabut': 'CABUT', 'moulding': 'MOULDING', 'nkk': 'NKK' };
         const confirm_msg = `⚠️ PERHATIAN!\n\nYakin mau upload jenis: ${jenisLabel[jenis]}?\n\nData ini TERPISAH dari jenis lainnya dan tidak bisa dicampur.\n\nJika salah, gunakan Undo Upload di halaman review.`;
         if (!confirm(confirm_msg)) return;
         submitUploadForm(this, false);
@@ -215,8 +257,11 @@ if (document.readyState === 'loading') {
 function submitUploadForm(form, confirmRevisi) {
     console.log('submitUploadForm called with confirmRevisi:', confirmRevisi, 'form action:', form.action);
     const overlay = document.getElementById('uploadLoadingOverlay');
+    const submitBtn = document.getElementById('submitUploadBtn');
     overlay.classList.remove('hidden');
     overlay.classList.add('flex');
+    submitBtn.classList.add('is-loading');
+    submitBtn.disabled = true;
     document.getElementById('uploadLoadingText').textContent = confirmRevisi
         ? 'Menghapus data lama dan memproses revisi...'
         : 'Mengupload dan memproses file...';
@@ -262,8 +307,11 @@ function submitUploadForm(form, confirmRevisi) {
 
 function hideUploadLoading() {
     const overlay = document.getElementById('uploadLoadingOverlay');
+    const submitBtn = document.getElementById('submitUploadBtn');
     overlay.classList.add('hidden');
     overlay.classList.remove('flex');
+    submitBtn.classList.remove('is-loading');
+    submitBtn.disabled = false;
 }
 
 function showDuplikatModal(duplikatList, form) {
@@ -271,7 +319,7 @@ function showDuplikatModal(duplikatList, form) {
     container.innerHTML = '';
     duplikatList.forEach(d => {
         const statusBadge = d.import_lama.status === 'approved'
-            ? '<span class="text-red-600 font-medium">APPROVED - tidak bisa direvisi otomatis</span>'
+            ? '<span class="text-red-600 font-medium">APPROVED - akan diskip dan tidak diubah</span>'
             : `<span class="text-amber-600">${d.import_lama.status}</span>`;
         container.innerHTML += `
         <div class="border border-[#E5E7EB] rounded-lg p-3">
@@ -283,13 +331,10 @@ function showDuplikatModal(duplikatList, form) {
     
     const adaApproved = duplikatList.some(d => d.import_lama.status === 'approved');
     const btnLanjut = document.getElementById('btnLanjutkanRevisi');
-    btnLanjut.disabled = adaApproved;
-    btnLanjut.className = adaApproved 
-        ? 'flex-1 bg-slate-200 text-slate-400 px-4 py-2 rounded-lg text-sm cursor-not-allowed'
-        : 'flex-1 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600';
-    btnLanjut.title = adaApproved ? 'Ada tanggal yang sudah approved, Undo manual dulu' : '';
+    btnLanjut.disabled = false; // tetap bisa lanjut, tanggal approved otomatis di-skip di backend
+    btnLanjut.className = 'flex-1 bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600';
+    btnLanjut.title = '';
     btnLanjut.onclick = function() {
-        if (adaApproved) return;
         document.getElementById('duplikatModal').classList.add('hidden');
         submitUploadForm(form, true);
     };

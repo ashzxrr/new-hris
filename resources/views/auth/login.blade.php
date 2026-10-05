@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>HRIS — PT Walet Abdillah Jabji</title>
         <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-        <script src="https://cdn.tailwindcss.com"></script>
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
         <style>
             body {
                 font-family: 'DM Sans', sans-serif;
@@ -51,9 +51,16 @@
                     @endif
                 </div>
 
-                <button type="submit" class="w-full bg-[#4F46E5] text-white rounded-lg py-2.5 text-sm font-medium hover:bg-[#4338CA] transition mt-6">
-                    Masuk
-                </button>
+               <button type="submit" class="w-full pbtn pbtn-primary">
+    <span class="pbtn-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <path d="M10 17l5-5-5-5"/>
+            <path d="M15 12H3"/>
+        </svg>
+    </span>
+    <span>Masuk</span>
+</button>
             </form>
         </div>
     </body>

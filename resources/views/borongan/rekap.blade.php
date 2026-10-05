@@ -8,6 +8,7 @@
                 'cetak' => 'HCR',
                 'moulding' => 'Moulding/Cetak',
                 'cabut' => 'Cabut',
+                'nkk' => 'NKK',
             ];
         @endphp
         <h1 class="text-xl font-semibold text-slate-800">Rekap Borongan — {{ $jenisLabels[$import->jenis] ?? ucfirst($import->jenis) }}</h1>
@@ -19,6 +20,13 @@
         <div class="flex gap-3">
             <a href="{{ route('borongan.review', $import->id) }}"
                 class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">← Review</a>
+            <a href="{{ route('borongan.exportRekap', $import->id) }}"
+                class="pbtn pbtn-secondary">
+                <span class="pbtn-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                </span>
+                <span>Export Excel</span>
+            </a>
             <a href="{{ $payrollId ? route('payroll.show', $payrollId) : route('borongan.index') }}"
                 class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">List Import</a>
         </div>
@@ -32,7 +40,19 @@
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Total Gram</div>
-            <div class="text-xl font-bold text-slate-800">{{ number_format($rekaps->sum('total_gram')) }}</div>
+            <div class="text-xl font-bold text-slate-800">{{ \App\Helpers\BoronganHelper::formatGram($totalGram) }}</div>
+            @if(!empty($tambahanGram))
+                <div class="text-xs text-slate-500 mt-1">
+                    Termasuk {{ \App\Helpers\BoronganHelper::formatGram($tambahanGram) }} gram tambahan
+                    @if(!empty($tambahanGramNotes))
+                        <div class="text-xs text-slate-400 mt-0.5">
+                            @foreach(explode('; ', $tambahanGramNotes) as $note)
+                                <div>• {{ $note }}</div>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            @endif
         </div>
         <div class="bg-white rounded-xl border border-[#E5E7EB] p-4">
             <div class="text-xs text-slate-400 mb-1">Total Upah</div>
@@ -71,32 +91,32 @@
                 <tr class="rekap-row border-b border-[#E5E7EB]/50 hover:bg-[#F8FAFC]"
                     data-nip="{{ strtolower($r->nip) }}"
                     data-nama="{{ strtolower($r->nama) }}"
-                    id="rekap-row-{{ $r->id }}">
+                    id="rekap-row-{{ $r->rekap_id }}">
                     <td class="px-4 py-3 font-mono text-xs text-slate-500">{{ $r->nip }}</td>
                     <td class="px-4 py-3 font-medium text-slate-800">
                         <button type="button"
-                            onclick="openDetailModal('{{ $import->id }}', '{{ $r->nip }}', '{{ addslashes($r->nama) }}', {{ $r->id }})"
+                            onclick="openDetailModal('{{ $import->id }}', '{{ $r->nip }}', '{{ addslashes($r->nama) }}', {{ $r->rekap_id }})"
                             class="text-[#4F46E5] hover:underline text-left">
                             {{ $r->nama }}
                         </button>
                     </td>
-                    <td class="px-4 py-3 text-right text-slate-600">{{ number_format($r->total_gram) }}</td>
+                    <td class="px-4 py-3 text-right text-slate-600">{{ \App\Helpers\BoronganHelper::formatGram($r->total_gram) }}</td>
                     <td class="px-4 py-3 text-right text-slate-700">Rp {{ number_format($r->total_upah, 0, ',', '.') }}</td>
-                    <td class="px-4 py-3 text-right text-red-500" id="bpjs-{{ $r->id }}">
+                    <td class="px-4 py-3 text-right text-red-500" id="bpjs-{{ $r->rekap_id }}">
                         {{ $r->potongan_bpjs > 0 ? 'Rp ' . number_format($r->potongan_bpjs, 0, ',', '.') : '-' }}
                     </td>
-                    <td class="px-4 py-3 text-right text-red-500" id="pot-{{ $r->id }}">
+                    <td class="px-4 py-3 text-right text-red-500" id="pot-{{ $r->rekap_id }}">
                         {{ $r->potongan_lain > 0 ? 'Rp ' . number_format($r->potongan_lain, 0, ',', '.') : '-' }}
                     </td>
-                    <td class="px-4 py-3 text-right text-green-600" id="tmb-{{ $r->id }}">
+                    <td class="px-4 py-3 text-right text-green-600" id="tmb-{{ $r->rekap_id }}">
                         {{ $r->tambahan > 0 ? 'Rp ' . number_format($r->tambahan, 0, ',', '.') : '-' }}
                     </td>
-                    <td class="px-4 py-3 text-right font-bold text-[#4F46E5]" id="total-{{ $r->id }}">
+                    <td class="px-4 py-3 text-right font-bold text-[#4F46E5]" id="total-{{ $r->rekap_id }}">
                         Rp {{ number_format($r->total_akhir, 0, ',', '.') }}
                     </td>
                     <td class="px-4 py-3 text-center">
                         <button type="button"
-                            onclick="openDetailModal('{{ $import->id }}', '{{ $r->nip }}', '{{ addslashes($r->nama) }}', {{ $r->id }})"
+                            onclick="openDetailModal('{{ $import->id }}', '{{ $r->nip }}', '{{ addslashes($r->nama) }}', {{ $r->rekap_id }})"
                             class="text-xs px-2 py-1 rounded-lg border border-[#4F46E5]/30 text-[#4F46E5] hover:bg-[#4F46E5]/5">
                             Detail
                         </button>
@@ -175,10 +195,13 @@
                     </div>
                     <div class="flex gap-3">
                         <button type="button" onclick="closeDetailModal()"
-                            class="border border-[#E5E7EB] text-slate-600 px-4 py-2 rounded-lg text-sm">Tutup</button>
+                            class="pbtn pbtn-secondary">Tutup</button>
                         <button type="button" onclick="saveRekap()"
-                            class="bg-[#4F46E5] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#4338CA]">
-                            💾 Simpan
+                            class="pbtn pbtn-primary">
+                            <span class="pbtn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+                            </span>
+                            <span>Simpan</span>
                         </button>
                     </div>
                 </div>
@@ -267,6 +290,13 @@ function updateTotalPreview() {
 function saveRekap() {
     if (!currentRekapId) return;
 
+    const saveBtn = document.querySelector('button[onclick="saveRekap()"]');
+    const originalText = saveBtn?.textContent || 'Simpan';
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Menyimpan...';
+    }
+
     const payload = {
         potongan_bpjs: parseInt(document.getElementById('inputBpjs').value)    || 0,
         potongan_lain: parseInt(document.getElementById('inputPotLain').value)  || 0,
@@ -275,12 +305,13 @@ function saveRekap() {
     };
 
     fetch(`${boronganBaseUrl}/rekap/${currentRekapId}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: new URLSearchParams({ ...payload, _method: 'PUT' }).toString(),
     })
     .then(r => r.json())
     .then(data => {
@@ -301,7 +332,13 @@ function saveRekap() {
             alert('Gagal menyimpan.');
         }
     })
-    .catch(e => alert('Error: ' + e.message));
+    .catch(e => alert('Error: ' + e.message))
+    .finally(() => {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
+        }
+    });
 }
 
 function closeDetailModal() {
