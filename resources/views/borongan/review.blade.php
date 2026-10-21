@@ -424,13 +424,30 @@
 </div>
 
 <script>
-const reviewBaseUrl = "{{ url('borongan') }}";
+// Bentuk URL dari halaman aktif supaya tetap benar saat aplikasi dijalankan
+// melalui subfolder, misalnya /new-hris/public.
+const reviewBaseUrl = window.location.pathname.replace(/\/\d+\/review\/?$/, '');
 const mutasiResolveBaseUrl = "{{ url('borongan/mutasi') }}";
 let currentReviewImportId = {{ $import->id }};
 let currentReviewNip = null;
 let currentReviewName = null;
 let previousAdditionalGram = {{ $additionalGram ?? 0 }};
 let hasUpahChanged = false;
+
+async function readJsonResponse(response, fallbackMessage) {
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        const body = await response.text();
+        const hint = body.includes('<!DOCTYPE')
+            ? ' Silakan muat ulang halaman lalu coba kembali.'
+            : '';
+        throw new Error(`${fallbackMessage} (HTTP ${response.status}).${hint}`);
+    }
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || `${fallbackMessage} (HTTP ${response.status}).`);
+    return data;
+}
 
 function openReviewModal(importId, nip, nama) {
     currentReviewImportId = importId;
@@ -442,8 +459,10 @@ function openReviewModal(importId, nip, nama) {
     document.getElementById('reviewModalContent').classList.add('hidden');
     document.getElementById('reviewModal').classList.remove('hidden');
 
-    fetch(`${reviewBaseUrl}/${importId}/review-detail/${encodeURIComponent(nip)}`)
-    .then(r => r.json())
+    fetch(`${reviewBaseUrl}/${importId}/review-detail/${encodeURIComponent(nip)}`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then(r => readJsonResponse(r, 'Gagal memuat data'))
     .then(data => {
         const tbody = document.getElementById('reviewModalBody');
         tbody.innerHTML = '';
@@ -550,7 +569,7 @@ function updateUpahSistem(harianId, newUpahSistem, importId) {
             upah_sistem: parseInt(newUpahSistem)
         })
     })
-    .then(r => r.json())
+    .then(r => readJsonResponse(r, 'Gagal menyimpan nominal'))
     .then(data => {
         if (data.success) {
             hasUpahChanged = true;
@@ -600,7 +619,10 @@ function updateUpahSistem(harianId, newUpahSistem, importId) {
             recalculateReviewModalTotals();
         }
     })
-    .catch(e => console.error('Error:', e));
+    .catch(e => {
+        console.error('Error:', e);
+        alert('Nominal belum tersimpan: ' + e.message);
+    });
 }
 
 let sortAscending = null; // null = default order, true = ascending, false = descending

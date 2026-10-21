@@ -11,7 +11,7 @@ class VerifyAttendanceApiKey
     {
         $apiKey = $request->header('X-API-KEY');
 
-        if (! $apiKey || $apiKey !== env('ATTENDANCE_API_KEY')) {
+        if (! $apiKey || ! hash_equals((string) config('services.attendance_api_key'), (string) $apiKey)) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
