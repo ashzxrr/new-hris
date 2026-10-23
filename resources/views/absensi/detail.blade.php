@@ -102,22 +102,19 @@
                                 // Use pre-computed display data
                                 $result = $displayData[$pin . '_' . $tgl] ?? [];
                                 
-                                if ($result['skip'] ?? false) {
-                                    continue; // skip this row, OUT already used by previous night's shift
-                                }
-
+                                $outBelongsToPreviousShift = $result['out_belongs_to_previous_shift'] ?? false;
                                 $inTs = $result['in_ts'] ?? null;
                                 $outTs = $result['out_ts'] ?? null;
 
                                 $dayLogs = $logs[$pin . '_' . $tgl] ?? collect();
                                 $dayDetail = $dayDetailData[$pin . '_' . $tgl] ?? [];
-                                $sourceSummary = $dayDetail['source_summary'] ?? '-';
+                                $sourceSummary = $outBelongsToPreviousShift ? '-' : ($dayDetail['source_summary'] ?? '-');
 
                                 $inDisplay = $inTs ? date('H.i', $inTs) : '-';
                                 $outDisplay = $outTs ? date('H.i', $outTs) : '-';
 
                                 $overtimeDisplay = '----';
-                                if ($outTs) {
+                                if ($outTs && date('Y-m-d', $outTs) === $tgl) {
                                     $threshold = strtotime($tgl . ' 16:30:00');
                                     $minutes = $outTs > $threshold ? floor(($outTs - $threshold) / 60) : 0;
                                     $overtimeDisplay = $minutes > 0 ? $minutes . ' menit' : '----';
@@ -142,6 +139,9 @@
                                         $keterangan .= ' — ' . $absenceText;
                                     }
                                     $rowClass = $inTs || $outTs ? 'bg-[#EFF6FF]' : 'bg-[#FFF3DC]';
+                                } elseif ($isSunday && !$outBelongsToPreviousShift && ($inTs || $outTs)) {
+                                    $keterangan = '----';
+                                    $rowClass = '';
                                 } elseif ($isSunday) {
                                     $keterangan = 'Minggu';
                                     $rowClass = 'bg-[#F9FBFD]';

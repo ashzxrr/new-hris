@@ -5,29 +5,32 @@ namespace App\Http\Controllers\Concerns;
 trait AttendanceShiftTrait
 {
     /**
-     * Determine in/out timestamps for a given pin and date with security cross-day rules.
-     * Returns ['in_ts'=>..., 'out_ts'=>..., 'skip'=>bool]
+     * Determine shift timestamps for a pin and date, including overnight shifts.
+     * An early OUT can be marked as belonging to the previous day's shift.
      */
     private function getInOutForDay($pin, $tgl, $logs, $karyawan, $absenceNote = null)
     {
-        $dayKey = $pin . '_' . $tgl;
+        $dayKey = $pin.'_'.$tgl;
         $dayLogs = $logs[$dayKey] ?? collect();
 
-        $inTimes  = $dayLogs->where('status', 'IN')->map(fn($l) => strtotime((string) $l->datetime));
-        $outTimes = $dayLogs->where('status', 'OUT')->map(fn($l) => strtotime((string) $l->datetime));
+        $inTimes = $dayLogs->where('status', 'IN')->map(fn ($l) => strtotime((string) $l->datetime));
+        $outTimes = $dayLogs->where('status', 'OUT')->map(fn ($l) => strtotime((string) $l->datetime));
 
-        $inTs  = $inTimes->isNotEmpty()  ? $inTimes->min()  : null;
+        $inTs = $inTimes->isNotEmpty() ? $inTimes->min() : null;
         $outTs = $outTimes->isNotEmpty() ? $outTimes->max() : null;
+        if ($inTs && $outTs && $outTs <= $inTs) {
+            $outTs = null;
+        }
 
         if ($absenceNote && $dayLogs->isEmpty()) {
             return [
                 'in_ts' => null,
                 'out_ts' => null,
-                'skip' => false,
+                'out_belongs_to_previous_shift' => false,
             ];
         }
 
-        $skipRow = false;
+        $outBelongsToPreviousShift = false;
 
         $jobTitle = strtolower($karyawan->job_title ?? '');
         $nip = trim($karyawan->nip ?? '');
@@ -41,18 +44,19 @@ trait AttendanceShiftTrait
             $minJamShiftMalam = 18;
         }
 
-        if ($minJamShiftMalam !== null && $inTs && !$outTs) {
+        if ($minJamShiftMalam !== null && $inTs && ! $outTs) {
             $jamIn = (int) date('H', $inTs);
 
             if ($jamIn >= $minJamShiftMalam) {
-                $besok = date('Y-m-d', strtotime($tgl . ' +1 day'));
-                $besokKey = $pin . '_' . $besok;
+                $besok = date('Y-m-d', strtotime($tgl.' +1 day'));
+                $besokKey = $pin.'_'.$besok;
                 $besokLogs = $logs[$besokKey] ?? collect();
 
-                $besokOutTimes = $besokLogs->where('status', 'OUT')->map(fn($l) => strtotime((string) $l->datetime));
+                $besokOutTimes = $besokLogs->where('status', 'OUT')->map(fn ($l) => strtotime((string) $l->datetime));
 
-                $besokOut = $besokOutTimes->filter(function($ts) {
+                $besokOut = $besokOutTimes->filter(function ($ts) {
                     $jam = (int) date('H', $ts);
+
                     return $jam >= 0 && $jam <= 11;
                 });
 
@@ -62,39 +66,43 @@ trait AttendanceShiftTrait
             }
         }
 
-        if ($minJamShiftMalam !== null && !$inTs && $outTs) {
+        if ($minJamShiftMalam !== null && ! $inTs && $outTs) {
             $jamOut = (int) date('H', $outTs);
             if ($jamOut >= 0 && $jamOut <= 11) {
                 if ($absenceNote) {
                     return [
                         'in_ts' => null,
                         'out_ts' => null,
-                        'skip' => false,
+                        'out_belongs_to_previous_shift' => false,
                     ];
                 }
 
-                $kemarin = date('Y-m-d', strtotime($tgl . ' -1 day'));
-                $kemarinKey = $pin . '_' . $kemarin;
+                $kemarin = date('Y-m-d', strtotime($tgl.' -1 day'));
+                $kemarinKey = $pin.'_'.$kemarin;
                 $kemarinLogs = $logs[$kemarinKey] ?? collect();
 
-                $kemarinInTimes  = $kemarinLogs->where('status', 'IN')->map(fn($l) => strtotime((string) $l->datetime));
-                $kemarinOutTimes = $kemarinLogs->where('status', 'OUT')->map(fn($l) => strtotime((string) $l->datetime));
+                $kemarinInTimes = $kemarinLogs->where('status', 'IN')->map(fn ($l) => strtotime((string) $l->datetime));
+                $kemarinOutTimes = $kemarinLogs->where('status', 'OUT')->map(fn ($l) => strtotime((string) $l->datetime));
 
-                $kemarinShiftMalam = $kemarinInTimes->filter(function($ts) use ($minJamShiftMalam) {
+                $kemarinShiftMalam = $kemarinInTimes->filter(function ($ts) use ($minJamShiftMalam) {
                     $jam = (int) date('H', $ts);
+
                     return $jam >= $minJamShiftMalam;
                 });
 
-                if ($kemarinShiftMalam->isNotEmpty() && $kemarinOutTimes->isEmpty()) {
-                    $skipRow = true;
+                $kemarinShiftMalamIn = $kemarinShiftMalam->max();
+                $kemarinShiftOuts = $kemarinOutTimes->filter(fn ($ts) => $ts > $kemarinShiftMalamIn);
+
+                if ($kemarinShiftMalamIn && $kemarinShiftOuts->isEmpty()) {
+                    $outBelongsToPreviousShift = true;
                 }
             }
         }
 
         return [
-            'in_ts'  => $inTs,
-            'out_ts' => $outTs,
-            'skip'   => $skipRow,
+            'in_ts' => $inTs,
+            'out_ts' => $outBelongsToPreviousShift ? null : $outTs,
+            'out_belongs_to_previous_shift' => $outBelongsToPreviousShift,
         ];
     }
 }
