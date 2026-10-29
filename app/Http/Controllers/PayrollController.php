@@ -1975,6 +1975,10 @@ class PayrollController extends Controller
             'keterangan' => $request->keterangan,
         ]);
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true, 'message' => 'Data berhasil diperbarui.']);
+        }
+
         return back()->with('success', 'Data berhasil diperbarui.');
     }
 

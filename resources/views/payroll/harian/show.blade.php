@@ -447,7 +447,33 @@ function updateTotalLabel() {
     totalEl.textContent = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(newTotal);
 }
 
-function submitDetail() {
+async function parseJsonResponse(response) {
+    if (response.status === 401) {
+        throw new Error('Sesi login sudah berakhir. Silakan login kembali.');
+    }
+
+    if (response.status === 419) {
+        throw new Error('Sesi halaman sudah kedaluwarsa. Muat ulang halaman lalu coba kembali.');
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        if (response.redirected) {
+            throw new Error('Sesi login sudah berakhir. Silakan login kembali.');
+        }
+
+        throw new Error(`Server mengirim respons bukan JSON (HTTP ${response.status}).`);
+    }
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.message || `Permintaan gagal (HTTP ${response.status}).`);
+    }
+
+    return data;
+}
+
+async function submitDetail() {
     const tambahan   = parseInt(document.getElementById('detail_tambahan').value) || 0;
     const potongan   = parseInt(document.getElementById('detail_potongan').value) || 0;
     const keterangan = document.getElementById('detail_keterangan').value;
@@ -464,17 +490,21 @@ function submitDetail() {
 
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
-    // 1. Save koreksi absensi + recalculate
-    fetch(`{{ url('/payroll/detail') }}/${currentDetailId}/koreksi`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-        body: JSON.stringify({ rows: koreksiPayload })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (!data.success) throw new Error(data.message);
+    try {
+        const koreksiResponse = await fetch(`{{ url('/payroll/detail') }}/${currentDetailId}/koreksi`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ rows: koreksiPayload }),
+        });
+        const koreksiData = await parseJsonResponse(koreksiResponse);
+        if (!koreksiData.success) {
+            throw new Error(koreksiData.message || 'Gagal menyimpan koreksi absensi.');
+        }
 
-        // 2. Save tambahan/potongan
         const form = new FormData();
         form.append('_method', 'PUT');
         form.append('_token', csrfToken);
@@ -482,13 +512,21 @@ function submitDetail() {
         form.append('potongan', potongan);
         form.append('keterangan', keterangan);
 
-        return fetch(`{{ url('/payroll/detail') }}/${currentDetailId}`, { method: 'POST', body: form });
-    })
-    .then(() => {
+        const detailResponse = await fetch(`{{ url('/payroll/detail') }}/${currentDetailId}`, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: form,
+        });
+        const detailData = await parseJsonResponse(detailResponse);
+        if (!detailData.success) {
+            throw new Error(detailData.message || 'Gagal menyimpan tambahan dan potongan.');
+        }
+
         closeDetailModal();
         location.reload();
-    })
-    .catch(e => alert('Gagal menyimpan: ' + e.message));
+    } catch (error) {
+        alert('Gagal menyimpan: ' + error.message);
+    }
 }
 
 function closeDetailModal() {
