@@ -190,4 +190,47 @@ class PayrollKoreksiLemburTest extends TestCase
         $response->assertStatus(401)
             ->assertJsonStructure(['message']);
     }
+
+    public function test_unauthenticated_ajax_load_returns_json_instead_of_login_html(): void
+    {
+        $response = $this->get(route('payroll.detail.koreksi.get', 1), [
+            'Accept' => 'application/json',
+        ]);
+
+        $response->assertStatus(401)
+            ->assertJsonStructure(['message']);
+    }
+
+    public function test_authenticated_ajax_load_returns_detail_and_daily_rows_as_json(): void
+    {
+        $admin = AuthUser::create([
+            'name' => 'Payroll Admin',
+            'username' => 'payroll-'.Str::uuid(),
+            'password' => 'password',
+            'role' => 'admin',
+        ]);
+
+        $payroll = Payroll::create([
+            'periode' => '2026-10-2',
+            'tanggal_dari' => '2026-10-29',
+            'tanggal_sampai' => '2026-10-29',
+            'status' => 'draft',
+        ]);
+
+        $detail = PayrollDetail::create([
+            'payroll_id' => $payroll->id,
+            'pin' => '1001',
+            'nip' => 'NIP-1001',
+            'nama' => 'Test Employee',
+            'nominal_harian' => 100000,
+        ]);
+
+        $this->actingAs($admin, 'admin')
+            ->getJson(route('payroll.detail.koreksi.get', $detail->id))
+            ->assertOk()
+            ->assertJsonStructure([
+                'detail' => ['id', 'nama', 'nip', 'total_gaji'],
+                'rows' => [['tgl', 'lembur_menit', 'lembur_approved']],
+            ]);
+    }
 }

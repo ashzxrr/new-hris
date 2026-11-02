@@ -320,10 +320,17 @@ function openDetailModal(detailId, nama, nip, tambahan, potongan, keterangan) {
     document.getElementById('detailModal').classList.remove('hidden');
 
     fetch(`{{ url('/payroll/detail') }}/${detailId}/koreksi`, {
-        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+        },
     })
-    .then(r => r.json())
+    .then(parseJsonResponse)
     .then(data => {
+        if (!Array.isArray(data.rows) || !data.detail) {
+            throw new Error(data.message || 'Respons data koreksi tidak lengkap.');
+        }
+
         detailRows = data.rows;
         serverDetail = data.detail;
         renderDetailTable(data.rows);
