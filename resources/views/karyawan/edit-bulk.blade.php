@@ -73,6 +73,44 @@
                 </div>
 
                 <div>
+                    <label class="text-xs text-slate-500 mb-1 block">Tanggal Masuk</label>
+                    <input type="date" name="karyawan[{{ $k->id }}][tanggal_masuk]" value="{{ $k->tanggal_masuk?->format('Y-m-d') }}" max="{{ now()->toDateString() }}"
+                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                </div>
+
+                @if (! $k->is_active)
+                    <div>
+                        <label class="text-xs text-slate-500 mb-1 block">Tanggal Resign</label>
+                        <input type="date" name="karyawan[{{ $k->id }}][tanggal_resign]" value="{{ $k->tanggal_resign?->format('Y-m-d') }}" max="{{ now()->toDateString() }}"
+                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-xs text-slate-500 mb-1 block">Alasan Resign</label>
+                        <input type="text" name="karyawan[{{ $k->id }}][alasan_resign]" value="{{ $k->alasan_resign }}" maxlength="255"
+                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                    </div>
+                @endif
+
+                <div>
+                    <label class="text-xs text-slate-500 mb-1 block">Tanggal Masuk</label>
+                    <input type="date" name="karyawan[{{ $k->id }}][tanggal_masuk]" value="{{ $k->tanggal_masuk?->format('Y-m-d') }}" max="{{ now()->toDateString() }}"
+                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                </div>
+
+                @if (! $k->is_active)
+                    <div>
+                        <label class="text-xs text-slate-500 mb-1 block">Tanggal Resign</label>
+                        <input type="date" name="karyawan[{{ $k->id }}][tanggal_resign]" value="{{ $k->tanggal_resign?->format('Y-m-d') }}" max="{{ now()->toDateString() }}"
+                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-xs text-slate-500 mb-1 block">Alasan Resign</label>
+                        <input type="text" name="karyawan[{{ $k->id }}][alasan_resign]" value="{{ $k->alasan_resign }}" maxlength="255"
+                            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                    </div>
+                @endif
+
+                <div>
                     <label class="text-xs text-slate-500 mb-1 block">Jabatan</label>
                     <select name="karyawan[{{ $k->id }}][job_title]"
                         class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">

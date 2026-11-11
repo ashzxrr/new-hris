@@ -152,7 +152,7 @@
             .karyawan-row.selected { background-color: #dcfce7 !important; }
             .karyawan-row.selected td { background-color: #dcfce7 !important; }
         </style>
-        <table class="w-full text-xs whitespace-nowrap min-w-[1400px]">
+        <table class="w-full text-xs whitespace-nowrap min-w-[1850px]">
             <thead>
                 <tr class="sticky top-0 bg-[#F8FAFC] z-20 text-[11px] font-medium text-slate-400 uppercase tracking-wide">
                     <th class="px-2 py-2 sticky left-0 bg-[#F8FAFC] z-20 border-r border-[#E5E7EB] w-8">
@@ -174,6 +174,9 @@
                     <th class="px-2 py-2 text-left">No. HP</th>
                     <th class="px-2 py-2 text-left">Tempat Lahir</th>
                     <th class="px-2 py-2 text-left">Tgl Lahir</th>
+                    <th class="px-2 py-2 text-left">Tgl Masuk</th>
+                    <th class="px-2 py-2 text-left">Tgl Resign</th>
+                    <th class="px-2 py-2 text-left">Alasan Resign</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-200">
@@ -198,10 +201,13 @@
                     <td class="px-2 py-1.5 text-slate-600">{{ $k->no_hp ?: '-' }}</td>
                     <td class="px-2 py-1.5 text-slate-600">{{ $k->tempat_lahir ?: '-' }}</td>
                     <td class="px-2 py-1.5 text-slate-600">{{ $k->tanggal_lahir ? \Carbon\Carbon::parse($k->tanggal_lahir)->format('d/m/Y') : '-' }}</td>
+                    <td class="px-2 py-1.5 text-slate-600">{{ $k->tanggal_masuk?->format('d/m/Y') ?? '-' }}</td>
+                    <td class="px-2 py-1.5 text-slate-600">{{ $k->tanggal_resign?->format('d/m/Y') ?? '-' }}</td>
+                    <td class="px-2 py-1.5 text-slate-600 max-w-[220px] truncate" title="{{ $k->alasan_resign ?? '' }}">{{ $k->alasan_resign ?: '-' }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td class="px-4 py-8 text-center text-sm text-slate-400" colspan="17">
+                    <td class="px-4 py-8 text-center text-sm text-slate-400" colspan="20">
                         Belum ada data karyawan.
                     </td>
                 </tr>
@@ -230,6 +236,28 @@
     @method('PUT')
     <div id="resignInputs"></div>
 </form>
+
+<div id="resignModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+        <h2 class="text-base font-semibold text-slate-800">Catat Resign</h2>
+        <p id="resignModalCount" class="mt-1 text-sm text-slate-500"></p>
+        <div class="mt-5 space-y-4">
+            <div>
+                <label for="tanggalResignInput" class="mb-1 block text-xs font-medium text-slate-600">Tanggal Resign *</label>
+                <input id="tanggalResignInput" type="date" max="{{ now()->toDateString() }}" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+            </div>
+            <div>
+                <label for="alasanResignInput" class="mb-1 block text-xs font-medium text-slate-600">Alasan Resign *</label>
+                <textarea id="alasanResignInput" rows="3" maxlength="255" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"></textarea>
+            </div>
+            <p id="resignFormError" class="hidden text-xs text-red-600"></p>
+        </div>
+        <div class="mt-6 flex justify-end gap-2">
+            <button type="button" onclick="closeResignModal()" class="pbtn pbtn-secondary">Batal</button>
+            <button type="button" onclick="confirmResign()" class="pbtn pbtn-danger">Simpan Resign</button>
+        </div>
+    </div>
+</div>
 
 <div id="editModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
@@ -507,12 +535,12 @@
         const btnResign = document.getElementById('btnResign');
         const btnHapus = document.getElementById('btnHapusPermanent');
 
+        btnEdit?.classList.remove('hidden');
+
         if (tab === 'aktif') {
-            btnEdit?.classList.remove('hidden');
             btnResign?.classList.remove('hidden');
             btnHapus?.classList.add('hidden');
         } else {
-            btnEdit?.classList.add('hidden');
             btnResign?.classList.add('hidden');
             btnHapus?.classList.remove('hidden');
         }
@@ -792,10 +820,10 @@
         const checked = document.querySelectorAll('.karyawan-check:checked');
         if (checked.length === 0) return;
 
-        if (!confirm(checked.length + ' karyawan akan ditandai RESIGN. Lanjutkan?')) return;
-
         const container = document.getElementById('resignInputs');
         container.innerHTML = '';
+        document.getElementById('tanggalResignInput').value = '';
+        document.getElementById('alasanResignInput').value = '';
         checked.forEach(cb => {
             const input = document.createElement('input');
             input.type = 'hidden';
@@ -803,7 +831,38 @@
             input.value = cb.value;
             container.appendChild(input);
         });
-        document.getElementById('resignForm').submit();
+        document.getElementById('resignModalCount').textContent = `${checked.length} karyawan akan ditandai resign.`;
+        document.getElementById('resignFormError').classList.add('hidden');
+        document.getElementById('resignModal').classList.remove('hidden');
+    }
+
+    function closeResignModal() {
+        document.getElementById('resignModal').classList.add('hidden');
+    }
+
+    function confirmResign() {
+        const tanggalResign = document.getElementById('tanggalResignInput').value;
+        const alasanResign = document.getElementById('alasanResignInput').value.trim();
+        const error = document.getElementById('resignFormError');
+
+        if (!tanggalResign || !alasanResign) {
+            error.textContent = 'Tanggal dan alasan resign wajib diisi.';
+            error.classList.remove('hidden');
+            return;
+        }
+
+        const form = document.getElementById('resignForm');
+        form.querySelectorAll('[data-resign-value]').forEach(input => input.remove());
+        for (const [name, value] of [['tanggal_resign', tanggalResign], ['alasan_resign', alasanResign]]) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            input.dataset.resignValue = 'true';
+            form.appendChild(input);
+        }
+
+        form.submit();
     }
 
     function clearTLFilter() {

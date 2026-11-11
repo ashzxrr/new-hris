@@ -131,6 +131,7 @@ class PayrollController extends Controller
         $salaryConfigs = SalaryConfig::whereIn('nip', $karyawan->pluck('nip'))
             ->where('berlaku_dari', '<=', $sampai)
             ->orderByDesc('berlaku_dari')
+            ->orderByDesc('id')
             ->get()
             ->groupBy('nip')
             ->map(fn ($g) => $g->values());
@@ -1375,6 +1376,7 @@ class PayrollController extends Controller
         $salaryConfigs = SalaryConfig::whereIn('nip', $karyawan->pluck('nip'))
             ->where('berlaku_dari', '<=', $sampai)
             ->orderByDesc('berlaku_dari')
+            ->orderByDesc('id')
             ->get()
             ->groupBy('nip')
             ->map(fn ($g) => $g->values());
@@ -1858,6 +1860,7 @@ class PayrollController extends Controller
             $salaryConfigs = SalaryConfig::where('nip', $payrollDetail->nip)
                 ->where('berlaku_dari', '<=', $sampai)
                 ->orderByDesc('berlaku_dari')
+                ->orderByDesc('id')
                 ->get();
 
             $logs = AttendanceLog::where('pin', $pin)

@@ -35,6 +35,9 @@ class User extends Authenticatable
         'kategori_gaji',
         'tl_id',
         'is_active',
+        'tanggal_masuk',
+        'tanggal_resign',
+        'alasan_resign',
         'alamat',
         'no_hp',
         'tempat_lahir',
@@ -57,6 +60,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'tanggal_lahir' => 'date',
+            'tanggal_masuk' => 'date',
+            'tanggal_resign' => 'date',
         ];
     }
 }

@@ -53,38 +53,40 @@ class KaryawanController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'pin'           => 'required|unique:users,pin',
-            'nama'          => 'required|string|max:255',
-            'jk'            => 'required|in:L,P',
-            'job_title'     => 'nullable|string',
-            'job_level'     => 'nullable|string',
-            'bagian'        => 'nullable|string',
-            'departemen'    => 'nullable|string',
+            'pin' => 'required|unique:users,pin',
+            'nama' => 'required|string|max:255',
+            'jk' => 'required|in:L,P',
+            'job_title' => 'nullable|string',
+            'job_level' => 'nullable|string',
+            'bagian' => 'nullable|string',
+            'departemen' => 'nullable|string',
             'kategori_gaji' => 'nullable|string',
-            'tl_id'         => 'nullable|string',
-            'tempat_lahir'  => 'nullable|string',
+            'tl_id' => 'nullable|string',
+            'tempat_lahir' => 'nullable|string',
             'tanggal_lahir' => 'nullable|string',
-            'alamat'        => 'nullable|string',
-            'no_hp'         => 'nullable|string',
+            'tanggal_masuk' => 'required|date|before_or_equal:today',
+            'alamat' => 'nullable|string',
+            'no_hp' => 'nullable|string',
         ]);
 
         User::create([
-            'pin'           => $request->pin,
-            'nip'           => $request->nip ?? '',
-            'nama'          => $request->nama,
-            'nik'           => $request->nik ?? '',
-            'jk'            => $request->jk,
-            'job_title'     => $request->job_title ?: 'Operator',
-            'job_level'     => $request->job_level ?: 'Operator',
-            'bagian'        => $request->bagian,
-            'departemen'    => $request->departemen ?: 'Produksi',
+            'pin' => $request->pin,
+            'nip' => $request->nip ?? '',
+            'nama' => $request->nama,
+            'nik' => $request->nik ?? '',
+            'jk' => $request->jk,
+            'job_title' => $request->job_title ?: 'Operator',
+            'job_level' => $request->job_level ?: 'Operator',
+            'bagian' => $request->bagian,
+            'departemen' => $request->departemen ?: 'Produksi',
             'kategori_gaji' => $request->kategori_gaji ?? '',
-            'tl_id'         => $request->tl_id ?: null,
-            'tempat_lahir'  => $request->tempat_lahir ?? '',    
+            'tl_id' => $request->tl_id ?: null,
+            'tempat_lahir' => $request->tempat_lahir ?? '',
             'tanggal_lahir' => $request->tanggal_lahir ?? '',
-            'alamat'        => $request->alamat ?? '',
-            'no_hp'         => $request->no_hp ?? '',     
-            'is_active'     => 1,
+            'tanggal_masuk' => $request->tanggal_masuk,
+            'alamat' => $request->alamat ?? '',
+            'no_hp' => $request->no_hp ?? '',
+            'is_active' => 1,
         ]);
 
         return redirect()->route('karyawan.sync')
@@ -100,7 +102,7 @@ class KaryawanController extends Controller
 
         return response()->json([
             'karyawan' => $karyawan,
-            'tlMap' => $tlMap
+            'tlMap' => $tlMap,
         ]);
     }
 
@@ -109,39 +111,60 @@ class KaryawanController extends Controller
         $karyawan = User::findOrFail($id);
 
         $request->validate([
-            'nama'          => 'required|string|max:255',
-            'nip'           => 'nullable|string|max:100',
-            'nik'           => 'nullable|string|max:25',
-            'jk'            => 'required|in:L,P',
-            'job_title'     => 'nullable|string',
-            'job_level'     => 'nullable|string',
-            'bagian'        => 'nullable|string',
-            'departemen'    => 'nullable|string',
+            'nama' => 'required|string|max:255',
+            'nip' => 'nullable|string|max:100',
+            'nik' => 'nullable|string|max:25',
+            'jk' => 'required|in:L,P',
+            'job_title' => 'nullable|string',
+            'job_level' => 'nullable|string',
+            'bagian' => 'nullable|string',
+            'departemen' => 'nullable|string',
             'kategori_gaji' => 'nullable|string',
-            'tl_id'         => 'nullable|integer',
-            'tempat_lahir'  => 'nullable|string',
+            'tl_id' => 'nullable|integer',
+            'tempat_lahir' => 'nullable|string',
             'tanggal_lahir' => 'nullable|string',
-            'alamat'        => 'nullable|string',
-            'no_hp'         => 'nullable|string',
+            'tanggal_masuk' => 'nullable|date|before_or_equal:today',
+            'tanggal_resign' => 'nullable|date|before_or_equal:today',
+            'alasan_resign' => 'nullable|string|max:255',
+            'alamat' => 'nullable|string',
+            'no_hp' => 'nullable|string',
 
         ]);
 
+        $tanggalMasuk = $request->input('tanggal_masuk', $karyawan->tanggal_masuk?->toDateString());
+        $tanggalResign = $request->input('tanggal_resign', $karyawan->tanggal_resign?->toDateString());
+
+        if ($karyawan->is_active && $tanggalResign) {
+            return back()->withErrors([
+                'tanggal_resign' => 'Tanggal resign hanya dapat diisi untuk karyawan nonaktif.',
+            ])->withInput();
+        }
+
+        if ($tanggalMasuk && $tanggalResign && $tanggalResign < $tanggalMasuk) {
+            return back()->withErrors([
+                'tanggal_resign' => 'Tanggal resign tidak boleh sebelum tanggal masuk.',
+            ])->withInput();
+        }
+
         $karyawan->update([
-            'nama'          => $request->nama,
-            'nip'           => $request->nip ?? '',
-            'nik'           => $request->nik ?? '',
-            'jk'            => $request->jk,
-            'job_title'     => $request->job_title,
-            'job_level'     => $request->job_level,
-            'bagian'        => $request->bagian,
-            'departemen'    => $request->departemen,
+            'nama' => $request->nama,
+            'nip' => $request->nip ?? '',
+            'nik' => $request->nik ?? '',
+            'jk' => $request->jk,
+            'job_title' => $request->job_title,
+            'job_level' => $request->job_level,
+            'bagian' => $request->bagian,
+            'departemen' => $request->departemen,
             'kategori_gaji' => $request->kategori_gaji,
-            'tl_id'         => $request->tl_id ?: null,
-            'tempat_lahir'  => $request->tempat_lahir ?? '',
+            'tl_id' => $request->tl_id ?: null,
+            'tempat_lahir' => $request->tempat_lahir ?? '',
             'tanggal_lahir' => $request->tanggal_lahir ?? '',
-            'alamat'        => $request->alamat ?? '',
-            'no_hp'         => $request->no_hp ?? '',
-            
+            'tanggal_masuk' => $tanggalMasuk,
+            'tanggal_resign' => $tanggalResign,
+            'alasan_resign' => $request->input('alasan_resign', $karyawan->alasan_resign),
+            'alamat' => $request->alamat ?? '',
+            'no_hp' => $request->no_hp ?? '',
+
         ]);
 
         return redirect()->route('karyawan.index')
@@ -151,7 +174,9 @@ class KaryawanController extends Controller
     public function editBulk(Request $request)
     {
         $ids = $request->ids ?? [];
-        if (empty($ids)) return redirect()->route('karyawan.index');
+        if (empty($ids)) {
+            return redirect()->route('karyawan.index');
+        }
 
         $karyawan = User::whereIn('id', $ids)
             ->orderBy('tl_id')
@@ -170,7 +195,24 @@ class KaryawanController extends Controller
 
     public function updateBulk(Request $request)
     {
-        $data = $request->karyawan ?? [];
+        $validated = $request->validate([
+            'karyawan' => 'nullable|array',
+            'karyawan.*.id' => 'required|integer|exists:users,id',
+            'karyawan.*.nama' => 'required|string|max:255',
+            'karyawan.*.nip' => 'nullable|string|max:100',
+            'karyawan.*.nik' => 'nullable|string|max:25',
+            'karyawan.*.jk' => 'nullable|in:L,P',
+            'karyawan.*.job_title' => 'nullable|string|max:100',
+            'karyawan.*.job_level' => 'nullable|string|max:100',
+            'karyawan.*.bagian' => 'nullable|string|max:100',
+            'karyawan.*.departemen' => 'nullable|string|max:100',
+            'karyawan.*.kategori_gaji' => 'nullable|string|max:100',
+            'karyawan.*.tl_id' => 'nullable|integer|exists:users,id',
+            'karyawan.*.tanggal_masuk' => 'nullable|date|before_or_equal:today',
+            'karyawan.*.tanggal_resign' => 'nullable|date|before_or_equal:today',
+            'karyawan.*.alasan_resign' => 'nullable|string|max:255',
+        ]);
+        $data = $validated['karyawan'] ?? [];
 
         foreach ($data as $id => $fields) {
             $user = User::find($id);
@@ -178,41 +220,85 @@ class KaryawanController extends Controller
                 continue;
             }
 
+            $tanggalMasuk = $fields['tanggal_masuk'] ?? $user->tanggal_masuk?->toDateString();
+            $tanggalResign = $fields['tanggal_resign'] ?? $user->tanggal_resign?->toDateString();
+
+            if ($user->is_active && $tanggalResign) {
+                return back()->withErrors([
+                    'karyawan' => "Tanggal resign hanya dapat diisi untuk karyawan nonaktif ({$user->nama}).",
+                ])->withInput();
+            }
+
+            if ($tanggalMasuk && $tanggalResign && $tanggalResign < $tanggalMasuk) {
+                return back()->withErrors([
+                    'karyawan' => "Tanggal resign {$user->nama} tidak boleh sebelum tanggal masuk.",
+                ])->withInput();
+            }
+
             $user->update([
-                'nama'          => $fields['nama'] ?? $user->nama,
-                'nip'           => $fields['nip'] ?? '',
-                'nik'           => $fields['nik'] ?? '',
-                'jk'            => ($fields['jk'] ?? '') !== '' ? $fields['jk'] : $user->jk,
-                'job_title'     => $fields['job_title'] ?? $user->job_title,
-                'job_level'     => $fields['job_level'] ?? $user->job_level,
-                'bagian'        => $fields['bagian'] ?? $user->bagian,
-                'departemen'    => $fields['departemen'] ?? $user->departemen,
+                'nama' => $fields['nama'] ?? $user->nama,
+                'nip' => $fields['nip'] ?? '',
+                'nik' => $fields['nik'] ?? '',
+                'jk' => ($fields['jk'] ?? '') !== '' ? $fields['jk'] : $user->jk,
+                'job_title' => $fields['job_title'] ?? $user->job_title,
+                'job_level' => $fields['job_level'] ?? $user->job_level,
+                'bagian' => $fields['bagian'] ?? $user->bagian,
+                'departemen' => $fields['departemen'] ?? $user->departemen,
                 'kategori_gaji' => $fields['kategori_gaji'] ?? $user->kategori_gaji,
-                'tl_id'         => isset($fields['tl_id']) && $fields['tl_id'] !== '' ? $fields['tl_id'] : null,
+                'tl_id' => isset($fields['tl_id']) && $fields['tl_id'] !== '' ? $fields['tl_id'] : null,
+                'tanggal_masuk' => $tanggalMasuk,
+                'tanggal_resign' => $tanggalResign,
+                'alasan_resign' => $fields['alasan_resign'] ?? $user->alasan_resign,
             ]);
         }
 
         return redirect()->route('karyawan.index')
-            ->with('success', count($data) . ' karyawan berhasil diupdate.');
+            ->with('success', count($data).' karyawan berhasil diupdate.');
     }
 
     public function resignBulk(Request $request)
-{
-    $ids = $request->ids ?? [];
-    if (empty($ids)) return redirect()->route('karyawan.index');
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'required|integer|exists:users,id',
+            'tanggal_resign' => 'required|date|before_or_equal:today',
+            'alasan_resign' => 'required|string|max:255',
+        ]);
 
-    User::whereIn('id', $ids)->update([
-        'is_active' => 0,
-    ]);
+        $employees = User::whereIn('id', $validated['ids'])
+            ->where('is_active', true)
+            ->get();
+
+        if ($employees->isEmpty()) {
+            return back()->with('error', 'Tidak ada karyawan aktif yang dipilih untuk resign.');
+        }
+
+        foreach ($employees as $employee) {
+            if ($employee->tanggal_masuk && $validated['tanggal_resign'] < $employee->tanggal_masuk->toDateString()) {
+                return back()->withErrors([
+                    'tanggal_resign' => "Tanggal resign {$employee->nama} tidak boleh sebelum tanggal masuk.",
+                ])->withInput();
+            }
+        }
+
+        foreach ($employees as $employee) {
+            $employee->update([
+                'is_active' => false,
+                'tanggal_resign' => $validated['tanggal_resign'],
+                'alasan_resign' => $validated['alasan_resign'],
+            ]);
+        }
 
         return redirect()->route('karyawan.index')
-            ->with('success', count($ids) . ' karyawan berhasil ditandai RESIGN.');
+            ->with('success', count($employees).' karyawan berhasil ditandai RESIGN.');
     }
 
     public function destroyPermanent(Request $request)
     {
         $ids = $request->ids ?? [];
-        if (empty($ids)) return redirect()->route('karyawan.index');
+        if (empty($ids)) {
+            return redirect()->route('karyawan.index');
+        }
 
         $karyawan = User::whereIn('id', $ids)->get();
 
@@ -222,15 +308,14 @@ class KaryawanController extends Controller
         }
 
         return redirect()->route('karyawan.index')
-            ->with('success', count($ids) . ' karyawan berhasil dihapus permanen dari database dan mesin.');
+            ->with('success', count($ids).' karyawan berhasil dihapus permanen dari database dan mesin.');
     }
 
     public function destroy($id)
     {
-        $user = User::findOrFail($id);
-        $user->is_active = 0;
-        $user->save();
+        User::findOrFail($id);
 
-        return back()->with('success', 'Karyawan berhasil dinonaktifkan.');
+        return redirect()->route('karyawan.index')
+            ->with('error', 'Gunakan aksi Resign agar tanggal keluar dan alasan resign tercatat.');
     }
 }

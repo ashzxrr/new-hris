@@ -52,19 +52,24 @@
                     </a>
 
                     {{-- Karyawan Section --}}
-                    @if ($role && in_array($role, ['admin', 'hrd', 'payroll'], true))
+                    @if ($role && in_array($role, ['admin', 'hrd', 'payroll', 'ga'], true))
                         <div class="space-y-1 mb-6">
                             <div class="px-3 py-2 text-[10px] font-semibold text-[#8BAFC4] uppercase tracking-wide">Karyawan</div>
 
-                            @if (in_array($role, ['admin', 'hrd'], true))
+                            @if (in_array($role, ['admin', 'hrd', 'ga'], true))
                                 <a href="{{ route('karyawan.index') }}" 
                                     class="flex items-center gap-2 px-3 py-2 text-[12.5px] rounded-lg transition {{ request()->routeIs('karyawan.*') && !request()->routeIs('karyawan.bank.*') ? 'bg-[#2F4156] text-white font-medium' : 'text-[#567C8D] hover:bg-[#D6E5EF]' }}">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 flex-shrink-0"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                                     <span>Karyawan</span>
                                 </a>
+                                <a href="{{ route('turnover.index') }}"
+                                    class="flex items-center gap-2 px-3 py-2 text-[12.5px] rounded-lg transition {{ request()->routeIs('turnover.*') ? 'bg-[#2F4156] text-white font-medium' : 'text-[#567C8D] hover:bg-[#D6E5EF]' }}">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 shrink-0" aria-hidden="true"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-5 5"/><path d="M15 9h4v4"/></svg>
+                                    <span>Turnover</span>
+                                </a>
                             @endif
 
-                            @if (in_array($role, ['admin', 'hrd'], true))
+                            @if (in_array($role, ['admin', 'hrd', 'ga'], true))
                                 <a href="{{ route('tl-bawahan.index') }}"
                                     class="flex items-center gap-2 px-3 py-2 text-[12.5px] rounded-lg transition {{ request()->routeIs('tl-bawahan.*') ? 'bg-[#2F4156] text-white font-medium' : 'text-[#567C8D] hover:bg-[#D6E5EF]' }}">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 flex-shrink-0"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -80,7 +85,7 @@
                                 </a>
                             @endif
 
-                            @if (in_array($role, ['admin', 'hrd', 'payroll'], true))
+                            @if (in_array($role, ['admin', 'hrd', 'payroll', 'ga'], true))
                                 <a href="{{ route('id-card.index') }}"
                                     class="flex items-center gap-2 px-3 py-2 text-[12.5px] rounded-lg transition {{ request()->routeIs('id-card.*') ? 'bg-[#2F4156] text-white font-medium' : 'text-[#567C8D] hover:bg-[#D6E5EF]' }}">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 flex-shrink-0"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 14.25a2.25 2.25 0 0 1 2.25-2.25h1.5A2.25 2.25 0 0 1 15 14.25v.75"/><circle cx="12" cy="8.25" r="2.25"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
@@ -109,15 +114,21 @@
                 </div>
 
                 {{-- PAYROLL Section --}}
-                @if ($role && in_array($role, ['admin', 'payroll', 'hrd'], true))
+                @if ($role && in_array($role, ['admin', 'payroll', 'hrd', 'ga'], true))
                 <div class="space-y-1 mb-6">
                     <div class="px-3 py-2 text-[10px] font-semibold text-[#8BAFC4] uppercase tracking-wide">Payroll</div>
                     
                     {{-- Payroll Harian --}}
                     <a href="{{ route('payroll.index') }}" 
-                        class="flex items-center gap-2 px-3 py-2 text-[12.5px] rounded-lg transition {{ request()->routeIs('payroll.*') && !request()->routeIs('payroll.show') ? 'bg-[#2F4156] text-white font-medium' : 'text-[#567C8D] hover:bg-[#D6E5EF]' }}">
+                        class="flex items-center gap-2 px-3 py-2 text-[12.5px] rounded-lg transition {{ request()->routeIs('payroll.*') && !request()->routeIs('payroll.show') && !request()->routeIs('payroll.salary-config.*') ? 'bg-[#2F4156] text-white font-medium' : 'text-[#567C8D] hover:bg-[#D6E5EF]' }}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 flex-shrink-0"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                         <span>Payroll Harian</span>
+                    </a>
+
+                    <a href="{{ route('payroll.salary-config.index') }}"
+                        class="flex items-center gap-2 px-3 py-2 text-[12.5px] rounded-lg transition {{ request()->routeIs('payroll.salary-config.*') ? 'bg-[#2F4156] text-white font-medium' : 'text-[#567C8D] hover:bg-[#D6E5EF]' }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 flex-shrink-0"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="10"/></svg>
+                        <span>Atur Gaji Harian</span>
                     </a>
 
                     {{-- Borongan --}}

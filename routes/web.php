@@ -1,16 +1,20 @@
 <?php
 
 use App\Http\Controllers\AbsensiController;
+use App\Http\Controllers\AbsensiPublikController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\BoronganController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\IdCardController;
+use App\Http\Controllers\KaryawanBankController;
+use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\PkwtController;
+use App\Http\Controllers\SalaryConfigController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\TlBawahanController;
-use App\Http\Controllers\IdCardController;
-use App\Http\Controllers\PkwtController;
-use App\Http\Controllers\AbsensiPublikController;
+use App\Http\Controllers\TurnoverController;
+use App\Services\FingerprintService;
 use Illuminate\Support\Facades\Route;
 
 // Publik — cek absensi tanpa login
@@ -29,7 +33,7 @@ Route::middleware('auth:admin')->group(function () {
     Route::post('/dashboard/sync', [DashboardController::class, 'sync'])->name('dashboard.sync');
 
     Route::get('/fingerprint-test', function () {
-        $fp = app(\App\Services\FingerprintService::class);
+        $fp = app(FingerprintService::class);
 
         $connections = $fp->testConnections();
         $users = $fp->getUsers();
@@ -41,7 +45,9 @@ Route::middleware('auth:admin')->group(function () {
         ]);
     })->name('fingerprint.test');
 
-    Route::middleware(['auth.admin', 'role:admin,hrd'])->group(function () {
+    Route::middleware(['auth.admin', 'role:admin,hrd,ga'])->group(function () {
+        Route::get('/turnover', [TurnoverController::class, 'index'])->name('turnover.index');
+        Route::put('/turnover/riwayat', [TurnoverController::class, 'update'])->name('turnover.update');
         Route::get('/karyawan', [KaryawanController::class, 'index'])->name('karyawan.index');
         Route::get('/karyawan/sync', [KaryawanController::class, 'syncPreview'])->name('karyawan.sync');
         Route::post('/karyawan/store', [KaryawanController::class, 'store'])->name('karyawan.store');
@@ -55,10 +61,10 @@ Route::middleware('auth:admin')->group(function () {
     });
 
     Route::middleware(['auth.admin', 'role:admin,payroll'])->group(function () {
-        Route::get('/karyawan/bank', [\App\Http\Controllers\KaryawanBankController::class, 'index'])->name('karyawan.bank.index');
-        Route::post('/karyawan/bank', [\App\Http\Controllers\KaryawanBankController::class, 'store'])->name('karyawan.bank.store');
-        Route::post('/karyawan/bank/{nip}', [\App\Http\Controllers\KaryawanBankController::class, 'update'])->name('karyawan.bank.update');
-        Route::delete('/karyawan/bank/{nip}', [\App\Http\Controllers\KaryawanBankController::class, 'destroy'])->name('karyawan.bank.destroy');
+        Route::get('/karyawan/bank', [KaryawanBankController::class, 'index'])->name('karyawan.bank.index');
+        Route::post('/karyawan/bank', [KaryawanBankController::class, 'store'])->name('karyawan.bank.store');
+        Route::post('/karyawan/bank/{nip}', [KaryawanBankController::class, 'update'])->name('karyawan.bank.update');
+        Route::delete('/karyawan/bank/{nip}', [KaryawanBankController::class, 'destroy'])->name('karyawan.bank.destroy');
     });
 
     Route::middleware(['auth.admin', 'role:admin,hrd,ga'])->group(function () {
@@ -81,33 +87,38 @@ Route::middleware('auth:admin')->group(function () {
         Route::post('/setting/profile', [SettingController::class, 'updateProfile'])->name('setting.profile');
 
         Route::prefix('payroll')->name('payroll.')->group(function () {
-            Route::get('/',                          [PayrollController::class, 'index'])->name('index');
-            Route::get('/create',                    [PayrollController::class, 'create'])->name('create');
-            Route::post('/preview',                  [PayrollController::class, 'preview'])->name('preview');
-            Route::post('/',                         [PayrollController::class, 'store'])->name('store');
-            Route::get('/{id}',                      [PayrollController::class, 'show'])->name('show');
-            Route::post('/{id}/generate-pengajuan',  [PayrollController::class, 'generatePengajuan'])->name('generatePengajuan');
-            Route::get('/{id}/pengajuan',            [PayrollController::class, 'showPengajuan'])->name('pengajuan');
-            Route::get('/{id}/export-pengajuan',     [PayrollController::class, 'exportPengajuan'])->name('exportPengajuan');
-            Route::get('/{id}/export-grand-total',   [PayrollController::class, 'exportGrandTotal'])->name('exportGrandTotal');
-            Route::get('/{id}/harian',               [PayrollController::class, 'showHarian'])->name('harian.show');
-            Route::get('/{id}/export-harian',        [PayrollController::class, 'exportHarian'])->name('exportHarian');
-            Route::post('/{id}/tarik-absensi',       [PayrollController::class, 'tarikAbsensi'])->name('tarikAbsensi');
-            Route::post('/{id}/sync-all',            [PayrollController::class, 'syncAllDetails'])->name('syncAll');
-            Route::get('/{id}/export-slip',          [PayrollController::class, 'exportSlipGaji'])->name('export.slip');
-            Route::put('/detail/{id}',               [PayrollController::class, 'updateDetail'])->name('detail.update');
-            Route::get('/detail/{id}/koreksi',      [PayrollController::class, 'getKoreksiData'])->name('detail.koreksi.get');
-            Route::post('/detail/{id}/koreksi',     [PayrollController::class, 'saveKoreksi'])->name('detail.koreksi.save');
-            Route::put('/{id}/finalize',             [PayrollController::class, 'finalize'])->name('finalize');
+            Route::middleware(['auth.admin', 'role:admin,payroll,hrd,ga'])->group(function () {
+                Route::get('/gaji-harian', [SalaryConfigController::class, 'index'])->name('salary-config.index');
+                Route::post('/gaji-harian', [SalaryConfigController::class, 'store'])->name('salary-config.store');
+            });
+
+            Route::get('/', [PayrollController::class, 'index'])->name('index');
+            Route::get('/create', [PayrollController::class, 'create'])->name('create');
+            Route::post('/preview', [PayrollController::class, 'preview'])->name('preview');
+            Route::post('/', [PayrollController::class, 'store'])->name('store');
+            Route::get('/{id}', [PayrollController::class, 'show'])->name('show');
+            Route::post('/{id}/generate-pengajuan', [PayrollController::class, 'generatePengajuan'])->name('generatePengajuan');
+            Route::get('/{id}/pengajuan', [PayrollController::class, 'showPengajuan'])->name('pengajuan');
+            Route::get('/{id}/export-pengajuan', [PayrollController::class, 'exportPengajuan'])->name('exportPengajuan');
+            Route::get('/{id}/export-grand-total', [PayrollController::class, 'exportGrandTotal'])->name('exportGrandTotal');
+            Route::get('/{id}/harian', [PayrollController::class, 'showHarian'])->name('harian.show');
+            Route::get('/{id}/export-harian', [PayrollController::class, 'exportHarian'])->name('exportHarian');
+            Route::post('/{id}/tarik-absensi', [PayrollController::class, 'tarikAbsensi'])->name('tarikAbsensi');
+            Route::post('/{id}/sync-all', [PayrollController::class, 'syncAllDetails'])->name('syncAll');
+            Route::get('/{id}/export-slip', [PayrollController::class, 'exportSlipGaji'])->name('export.slip');
+            Route::put('/detail/{id}', [PayrollController::class, 'updateDetail'])->name('detail.update');
+            Route::get('/detail/{id}/koreksi', [PayrollController::class, 'getKoreksiData'])->name('detail.koreksi.get');
+            Route::post('/detail/{id}/koreksi', [PayrollController::class, 'saveKoreksi'])->name('detail.koreksi.save');
+            Route::put('/{id}/finalize', [PayrollController::class, 'finalize'])->name('finalize');
             Route::post('/{id}/generate-grand-total', [PayrollController::class, 'generateGrandTotal'])->name('generateGrandTotal');
-            Route::delete('/{id}',                   [PayrollController::class, 'destroy'])->name('destroy');
+            Route::delete('/{id}', [PayrollController::class, 'destroy'])->name('destroy');
         });
 
         Route::prefix('borongan')->name('borongan.')->group(function () {
-            Route::get('/',             [BoronganController::class, 'index'])->name('index');
-            Route::get('/create',       [BoronganController::class, 'create'])->name('create');
-            Route::post('/upload',      [BoronganController::class, 'upload'])->name('upload');
-            Route::get('/{id}/review',  [BoronganController::class, 'review'])->name('review');
+            Route::get('/', [BoronganController::class, 'index'])->name('index');
+            Route::get('/create', [BoronganController::class, 'create'])->name('create');
+            Route::post('/upload', [BoronganController::class, 'upload'])->name('upload');
+            Route::get('/{id}/review', [BoronganController::class, 'review'])->name('review');
             Route::get('/{id}/export-review', [BoronganController::class, 'exportReview'])->name('exportReview');
             Route::get('/{id}/review-detail/{nip}', [BoronganController::class, 'getReviewDetail'])->name('review.detail');
             Route::post('/{id}/update-upah-sistem', [BoronganController::class, 'updateUpahSistem'])->name('update.upah.sistem');
@@ -120,22 +131,22 @@ Route::middleware('auth:admin')->group(function () {
             Route::delete('/harian/{harianId}/hapus-daftar', [BoronganController::class, 'hapusDariDaftar'])->name('hapusDariDaftar');
             Route::put('/{id}/approve', [BoronganController::class, 'approve'])->name('approve');
             Route::delete('/{id}/undo', [BoronganController::class, 'undo'])->name('undo');
-            Route::get('/{id}/rekap',   [BoronganController::class, 'rekapIndex'])->name('rekapIndex');
+            Route::get('/{id}/rekap', [BoronganController::class, 'rekapIndex'])->name('rekapIndex');
             Route::get('/{id}/export-rekap', [BoronganController::class, 'exportRekap'])->name('exportRekap');
             Route::get('/{id}/detail/{nip}', [BoronganController::class, 'getDetail'])->name('getDetail');
             Route::put('/rekap/{rekapId}', [BoronganController::class, 'updateRekap'])->name('updateRekap');
-            Route::delete('/{id}',      [BoronganController::class, 'destroy'])->name('destroy');
+            Route::delete('/{id}', [BoronganController::class, 'destroy'])->name('destroy');
             Route::post('/mutasi/{logId}/resolve', [BoronganController::class, 'resolveMutasi'])->name('mutasi.resolve');
         });
 
         Route::middleware(['role:admin,hrd,ga'])->group(function () {
             Route::prefix('pkwt')->name('pkwt.')->group(function () {
-                Route::get('/',                    [PkwtController::class, 'index'])->name('index');
-                Route::get('/riwayat',             [PkwtController::class, 'riwayat'])->name('riwayat');
-                Route::get('/{user}/form',         [PkwtController::class, 'form'])->name('form');
-                Route::post('/{user}/export',      [PkwtController::class, 'export'])->name('export');
-                Route::post('/export-bulk',      [PkwtController::class, 'exportBulk'])->name('exportBulk');
-                Route::get('/download/{pkwt}',     [PkwtController::class, 'download'])->name('download');
+                Route::get('/', [PkwtController::class, 'index'])->name('index');
+                Route::get('/riwayat', [PkwtController::class, 'riwayat'])->name('riwayat');
+                Route::get('/{user}/form', [PkwtController::class, 'form'])->name('form');
+                Route::post('/{user}/export', [PkwtController::class, 'export'])->name('export');
+                Route::post('/export-bulk', [PkwtController::class, 'exportBulk'])->name('exportBulk');
+                Route::get('/download/{pkwt}', [PkwtController::class, 'download'])->name('download');
             });
         });
 

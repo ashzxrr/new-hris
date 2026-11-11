@@ -22,7 +22,7 @@
                 <div class="flex flex-wrap items-end gap-4 mb-5">
 
                     {{-- Date range --}}
-                    <div>
+                    <div> 
                         
                         <div class="flex gap-2 mb-2">
                             <button id="btn_today" type="button" onclick="setRange('today')" class="pbtn pbtn-secondary pbtn-sm">Hari Ini</button>

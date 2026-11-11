@@ -73,6 +73,10 @@
                     <input name="nip" type="text" placeholder="Masukkan NIP" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition" />
                 </div>
                 <div>
+                    <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">Tanggal Masuk *</label>
+                    <input name="tanggal_masuk" type="date" max="{{ now()->toDateString() }}" required class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] transition" />
+                </div>
+                <div>
                     <label class="block text-[11px] font-medium text-[#567C8D] mb-1 uppercase tracking-wide">NIK</label>
                     <input name="nik" type="text" placeholder="Masukkan NIK" class="w-full px-3 py-2 text-[13px] text-[#2F4156] bg-white border border-[#C8D9E6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#567C8D]/30 focus:border-[#567C8D] placeholder-[#8BAFC4] transition" />
                 </div>
